@@ -67,7 +67,7 @@ def unlearning(DEVICE, net, layer_idx, retain, forget, validation):
     fc.train()
 
     for _ in range(epochs):
-        for inputs, targets in tqdm(forget):
+        for inputs, targets in forget:
             inputs, targets = inputs.to(DEVICE), targets.to(DEVICE)
             optimizer.zero_grad()
             outputs_ft = bbone(inputs)
@@ -85,4 +85,50 @@ def unlearning(DEVICE, net, layer_idx, retain, forget, validation):
     my_net.eval()
 
     return my_net
+
+
+def fine_tune(DEVICE, ft_model, retain_loader, layer_idx):
+    """Fine-tune the model on the retain set"""
+
+    # split model to get intermediate features
+    bbone = ft_model[:-1]
+    fc = ft_model[-1]
+
+    # freeze all layers except the first layer
+    for param in bbone.parameters():
+        param.requires_grad = True
+    fc.requires_grad=True
+
+    for param in bbone[layer_idx].parameters():
+        param.requires_grad = False
+
+    criterion = nn.CrossEntropyLoss()
+    params=[]
+    for idx in range(len(bbone)):
+        if idx!=layer_idx:
+            params.extend(bbone[idx].parameters())
+    params.extend(fc.parameters())
+
+    optimizer = optim.SGD(params, lr=0.01, momentum=0.9, weight_decay=5e-4)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=5)
+    bbone.train()
+    fc.train()
+
+    for _ in range(4):
+        for inputs, targets in retain_loader:
+            inputs, targets = inputs.to(DEVICE), targets.to(DEVICE)
+            inputs, targets=inputs[:int(inputs.shape[0]*0.2)], targets[:int(inputs.shape[0]*0.2)]
+            optimizer.zero_grad()
+            outputs_ft = fc(bbone(inputs))
+            loss = criterion(outputs_ft, targets)
+            loss.backward()
+            optimizer.step()
+        scheduler.step()
+
+    # merge model to get intermediate features
+    my_net = merge_network(bbone, fc)
+    my_net.eval()
+
+    return ft_model
+
 

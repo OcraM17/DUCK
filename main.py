@@ -18,7 +18,7 @@ from torchvision.models import resnet18
 from tqdm import tqdm
 from copy import deepcopy
 from utils import get_dsets, accuracy, compute_losses, simple_mia, get_retrained_model
-from unlearn import unlearning, split_network, merge_network
+from unlearn import unlearning, split_network, merge_network, fine_tune
 
 def main():
     SEED = 42
@@ -90,9 +90,27 @@ def main():
     ft_samples_mia = np.concatenate((ft_test_losses, ft_forget_losses)).reshape((-1, 1))
     labels_mia = [0] * len(ft_test_losses) + [1] * len(ft_forget_losses)
     ft_mia_scores = simple_mia(ft_samples_mia, labels_mia)
+    print(f"Retain set accuracy: {100.0 * accuracy(DEVICE, ft_model, retain_loader):0.1f}%")
+    print(f"Forget set accuracy: {100.0 * accuracy(DEVICE, ft_model, forget_loader):0.1f}%")
     print(f"The MIA has an accuracy of {ft_mia_scores.mean():.3f} on forgotten vs unseen images")
 
 
+
+    print('-----FT on RETAIN----')
+    ft_model_updated=fine_tune(DEVICE, ft_model, retain_loader, 0)
+    ft_forget_losses = compute_losses(DEVICE, ft_model_updated, forget_loader)
+    ft_test_losses = compute_losses(DEVICE, ft_model_updated, test_loader)
+    ft_samples_mia = np.concatenate((ft_test_losses, ft_forget_losses)).reshape((-1, 1))
+    labels_mia = [0] * len(ft_test_losses) + [1] * len(ft_forget_losses)
+    ft_mia_scores = simple_mia(ft_samples_mia, labels_mia)
+    print(f"The MIA has an accuracy of {ft_mia_scores.mean():.3f} on forgotten vs unseen images")
+    print(f"Retain set accuracy: {100.0 * accuracy(DEVICE, ft_model_updated, retain_loader):0.1f}%")
+    print(f"Test set accuracy: {100.0 * accuracy(DEVICE, ft_model_updated, test_loader):0.1f}%")
+    print(f"Forget set accuracy: {100.0 * accuracy(DEVICE, ft_model_updated, forget_loader):0.1f}%")
+
+
+
+    print('----RETRAINED on RETAIN')
     # RETRAINED MODEL ON RETAIN SET
     rt_model = get_retrained_model(DEVICE, retain_loader, forget_loader)
     rt_test_losses = compute_losses(DEVICE, rt_model, test_loader)
@@ -100,6 +118,7 @@ def main():
     rt_samples_mia = np.concatenate((rt_test_losses, rt_forget_losses)).reshape((-1, 1))
     labels_mia = [0] * len(rt_test_losses) + [1] * len(rt_forget_losses)
     rt_mia_scores = simple_mia(rt_samples_mia, labels_mia)
+    print(f"Test set accuracy: {100.0 * accuracy(DEVICE, rt_model, test_loader):0.1f}%")
     print(f"RETRAINED MODEL: The MIA has an accuracy of {rt_mia_scores.mean():.3f} on forgotten vs unseen images")
 
 
