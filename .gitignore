@@ -1,0 +1,5 @@
+*.pth
+*.npy
+data/
+__pycache__/
+```
