@@ -3,74 +3,26 @@ import numpy as np
 import requests
 import torch
 
-from torchvision import transforms
-from torch.utils.data import DataLoader
-import torchvision
 from sklearn import linear_model, model_selection
 from torchvision.models import resnet18
 import torch.nn as nn
+from opts import OPT as opt
+
+def set_seed(seed):
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    np.random.seed(seed)
+    # deterministic cudnn
+    torch.backends.cudnn.deterministic = True
+    #torch.backends.cudnn.benchmark = False
 
 
-def get_dsets(RNG):
-
-    # download and pre-process CIFAR10
-    normalize = transforms.Compose(
-        [
-            transforms.ToTensor(),
-            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-        ]
-    )
-
-    train_set = torchvision.datasets.CIFAR10(
-        root="./data", train=True, download=True, transform=normalize
-    )
-    train_loader = DataLoader(train_set, batch_size=128, shuffle=True, num_workers=2)
-
-    # we split held out data into test and validation set
-    held_out = torchvision.datasets.CIFAR10(
-        root="./data", train=False, download=True, transform=normalize
-    )
-    test_set, val_set = torch.utils.data.random_split(held_out, [0.5, 0.5], generator=RNG)
-    test_loader = DataLoader(test_set, batch_size=128, shuffle=False, num_workers=2)
-    val_loader = DataLoader(val_set, batch_size=128, shuffle=False, num_workers=2)
-
-    # download the forget and retain index split
-    local_path = "forget_idx.npy"
-    if not os.path.exists(local_path):
-        response = requests.get(
-            "https://unlearning-challenge.s3.eu-west-1.amazonaws.com/cifar10/" + local_path
-        )
-        open(local_path, "wb").write(response.content)
-    forget_idx = np.load(local_path)
-
-    # construct indices of retain from those of the forget set
-    forget_mask = np.zeros(len(train_set.targets), dtype=bool)
-    forget_mask[forget_idx] = True
-    retain_idx = np.arange(forget_mask.size)[~forget_mask]
-
-    # split train set into a forget and a retain set
-    forget_set = torch.utils.data.Subset(train_set, forget_idx)
-    retain_set = torch.utils.data.Subset(train_set, retain_idx)
-
-    forget_loader = torch.utils.data.DataLoader(
-        forget_set, batch_size=128, shuffle=True, num_workers=2
-    )
-    retain_loader = torch.utils.data.DataLoader(
-        retain_set, batch_size=128, shuffle=True, num_workers=2, generator=RNG
-    )
-
-
-    return train_loader, test_loader, forget_loader, retain_loader
-
-
-
-
-def accuracy(DEVICE, net, loader):
+def accuracy(net, loader):
     """Return accuracy on a dataset given by the data loader."""
     correct = 0
     total = 0
     for inputs, targets in loader:
-        inputs, targets = inputs.to(DEVICE), targets.to(DEVICE)
+        inputs, targets = inputs.to(opt.device), targets.to(opt.device)
         outputs = net(inputs)
         _, predicted = outputs.max(1)
         total += targets.size(0)
@@ -78,14 +30,14 @@ def accuracy(DEVICE, net, loader):
     return correct / total
 
 
-def compute_losses(DEVICE, net, loader):
+def compute_losses(net, loader):
     """Auxiliary function to compute per-sample losses"""
 
     criterion = nn.CrossEntropyLoss(reduction="none")
     all_losses = []
 
     for inputs, targets in loader:
-        inputs, targets = inputs.to(DEVICE), targets.to(DEVICE)
+        inputs, targets = inputs.to(opt.device), targets.to(opt.device)
 
         logits = net(inputs)
         losses = criterion(logits, targets).numpy(force=True)
@@ -124,7 +76,7 @@ def simple_mia(sample_loss, members, n_splits=10, random_state=0):
 
 
 
-def get_retrained_model(DEVICE, retain_loader, forget_loader):
+def get_retrained_model(retain_loader, forget_loader):
     # download weights of a model trained exclusively on the retain set
     local_path = "retrain_weights_resnet18_cifar10.pth"
     if not os.path.exists(local_path):
@@ -133,16 +85,63 @@ def get_retrained_model(DEVICE, retain_loader, forget_loader):
         )
         open(local_path, "wb").write(response.content)
 
-    weights_pretrained = torch.load(local_path, map_location=DEVICE)
+    weights_pretrained = torch.load(local_path, map_location=opt.device)
 
     # load model with pre-trained weights
     rt_model = resnet18(weights=None, num_classes=10)
     rt_model.load_state_dict(weights_pretrained)
-    rt_model.to(DEVICE)
+    rt_model.to(opt.device)
     rt_model.eval()
 
     # print its accuracy on retain and forget set
-    print(f"Retain set accuracy: {100.0 * accuracy(DEVICE, rt_model, retain_loader):0.1f}%")
-    print(f"Forget set accuracy: {100.0 * accuracy(DEVICE, rt_model, forget_loader):0.1f}%")
+    print(f"[ Train ] ret: {accuracy(rt_model, retain_loader):.3f}  fgt: {accuracy(rt_model, forget_loader):.3f}")
 
     return rt_model
+
+
+def get_resnet18_trained_on_cifar10():
+    local_path = "weights_resnet18_cifar10.pth"
+    if not os.path.exists(local_path):
+        response = requests.get(
+            "https://unlearning-challenge.s3.eu-west-1.amazonaws.com/weights_resnet18_cifar10.pth"
+        )
+        open(local_path, "wb").write(response.content)
+
+    weights_pretrained = torch.load(local_path, map_location=opt.device)
+
+    # load model with pre-trained weights
+    model = resnet18(weights=None, num_classes=10)
+    model.load_state_dict(weights_pretrained)
+
+    return model
+
+
+
+def compute_metrics(model, train_loader, forget_loader, retain_loader, all_val_loader, val_fgt_loader, val_retain_loader):
+
+    # compute losses for the original forget set
+    main_forget_losses = compute_losses(model, forget_loader)
+
+    losses = compute_losses(model, all_val_loader)
+    samples_mia = np.concatenate((losses, main_forget_losses)).reshape((-1, 1))
+    labels_mia = [0] * len(losses) + [1] * len(main_forget_losses)
+    mia_scores = simple_mia(samples_mia, labels_mia)
+
+    # fgt
+    fgt_losses = compute_losses(model, val_fgt_loader)
+    fgt_samples_mia = np.concatenate((fgt_losses, main_forget_losses)).reshape((-1, 1))
+    labels_mia = [0] * len(fgt_losses) + [1] * len(main_forget_losses)
+    fgt_mia_scores = simple_mia(fgt_samples_mia, labels_mia)
+
+    # retain
+    retain_losses = compute_losses(model, val_retain_loader)
+    retain_samples_mia = np.concatenate((retain_losses, main_forget_losses)).reshape((-1, 1))
+    labels_mia = [0] * len(retain_losses) + [1] * len(main_forget_losses)
+    retain_mia_scores = simple_mia(retain_samples_mia, labels_mia)
+    
+    
+    #print(f"[ MIA - val ] all:{mia_scores.mean():.3f}  fgt:{fgt_mia_scores.mean():.3f}  ret:{retain_mia_scores.mean():.3f}")
+
+
+    print(f"[ ACC-train ] all:{accuracy(model, train_loader):.3f}  fgt: {accuracy(model, forget_loader):.3f} ret: {accuracy(model, retain_loader):.3f}  ")
+    print(f"[ ACC - val ] all:{accuracy(model, all_val_loader):.3f}  fgt:{accuracy(model, val_fgt_loader):.3f}  ret:{accuracy(model, val_retain_loader):.3f}")
