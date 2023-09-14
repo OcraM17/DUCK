@@ -58,7 +58,7 @@ def get_dsets_remove_class(class_to_remove):
 
 
 
-def get_dsets(RNG):
+def get_dsets():
 
     # download and pre-process CIFAR10
     normalize = transforms.Compose(
@@ -69,11 +69,14 @@ def get_dsets(RNG):
     )
     
     # we split held out data into test and validation set
+    
     train_set = torchvision.datasets.CIFAR10(root=opt.data_path, train=True, download=True, transform=normalize)
+    #train_set = torchvision.datasets.CIFAR100(root=opt.data_path, train=True, download=True, transform=normalize)
     train_loader = DataLoader(train_set, batch_size=opt.batch_size, shuffle=True, num_workers=2)
 
     # we split held out data into test and validation set
     held_out = torchvision.datasets.CIFAR10(root=opt.data_path, train=False, download=True, transform=normalize)
+    #held_out = torchvision.datasets.CIFAR100(root=opt.data_path, train=False, download=True, transform=normalize)
     test_set, val_set = torch.utils.data.random_split(held_out, [0.5, 0.5])
     test_loader = DataLoader(test_set, batch_size=opt.batch_size, shuffle=True, num_workers=2)
     val_loader = DataLoader(val_set, batch_size=opt.batch_size, shuffle=True, num_workers=2)
@@ -87,18 +90,21 @@ def get_dsets(RNG):
         open(local_path, "wb").write(response.content)
     forget_idx = np.load(local_path)
 
+    #forget_idx = np.random.choice(len(train_set.targets), size=5000, replace=False)
+
     # construct indices of retain from those of the forget set
     forget_mask = np.zeros(len(train_set.targets), dtype=bool)
     forget_mask[forget_idx] = True
     retain_idx = np.arange(forget_mask.size)[~forget_mask]
 
-    # split train set into a forget and a retain set
     forget_set = torch.utils.data.Subset(train_set, forget_idx)
     retain_set = torch.utils.data.Subset(train_set, retain_idx)
 
+
     forget_loader = torch.utils.data.DataLoader(forget_set, batch_size=opt.batch_size, shuffle=True, num_workers=2)
     retain_loader = torch.utils.data.DataLoader(retain_set, batch_size=opt.batch_size, shuffle=True, num_workers=2)
+    retain_loader2 = torch.utils.data.DataLoader(retain_set, batch_size=opt.batch_size_FT, shuffle=True, num_workers=2)
 
 
-    return train_loader, test_loader, forget_loader, retain_loader
+    return train_loader, test_loader, forget_loader, retain_loader, retain_loader2
 

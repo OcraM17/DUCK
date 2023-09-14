@@ -2,9 +2,8 @@ import os
 import numpy as np
 import requests
 import torch
-
+from torchvision.models.resnet import resnet18
 from sklearn import linear_model, model_selection
-from torchvision.models import resnet18
 import torch.nn as nn
 from opts import OPT as opt
 
@@ -98,7 +97,6 @@ def get_retrained_model(retain_loader, forget_loader):
 
     return rt_model
 
-
 def get_resnet18_trained_on_cifar10():
     local_path = "weights_resnet18_cifar10.pth"
     if not os.path.exists(local_path):
@@ -111,6 +109,7 @@ def get_resnet18_trained_on_cifar10():
 
     # load model with pre-trained weights
     model = resnet18(weights=None, num_classes=10)
+
     model.load_state_dict(weights_pretrained)
 
     return model
