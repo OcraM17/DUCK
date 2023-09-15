@@ -74,7 +74,7 @@ def main():
     labels_mia = [0] * len(ft_test_losses) + [1] * len(ft_forget_losses)
     ft_mia_scores = simple_mia(ft_samples_mia, labels_mia)
     print(f"The MIA has an accuracy of {ft_mia_scores.mean():.3f} on forgotten vs unseen images")
-    get_outputs(retain_loader,forget_loader,original_pretr_model,'/home/jb/Documents/MachineUnlearning/res_original_model.pkl',opt=opt)
+    #get_outputs(retain_loader,forget_loader,original_pretr_model,'/home/jb/Documents/MachineUnlearning/res_original_model.pkl',opt=opt)
 
 
     ##### UNLEARN #####
@@ -92,7 +92,7 @@ def main():
     labels_mia = [0] * len(ft_test_losses) + [1] * len(ft_forget_losses)
     ft_mia_scores = simple_mia(ft_samples_mia, labels_mia)
     print(f"The MIA has an accuracy of {ft_mia_scores.mean():.3f} on forgotten vs unseen images")
-    get_outputs(retain_loader,forget_loader,unlearned_model,'/home/jb/Documents/MachineUnlearning/res_unlr_model.pkl',opt=opt)
+    #get_outputs(retain_loader,forget_loader,unlearned_model,'/home/jb/Documents/MachineUnlearning/res_unlr_model.pkl',opt=opt)
     
     #compute_metrics(unlearned_model, train_loader, forget_loader, retain_loader, all_val_loader, val_fgt_loader, val_retain_loader)
 

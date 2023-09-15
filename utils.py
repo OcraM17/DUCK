@@ -99,7 +99,7 @@ def get_retrained_model(retain_loader, forget_loader):
     return rt_model
 
 def get_resnet18_trained_on_cifar10():
-    local_path = '/home/jb/Documents/MachineUnlearning/resnet18-184-best.pth'#"weights_resnet18_cifar10.pth"
+    local_path = '/home/marco/Documenti/MachineUnlearning/resnet18-184-best.pth'#"weights_resnet18_cifar10.pth"
     if not os.path.exists(local_path):
         response = requests.get(
             "https://unlearning-challenge.s3.eu-west-1.amazonaws.com/weights_resnet18_cifar10.pth"

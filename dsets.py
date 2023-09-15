@@ -92,8 +92,10 @@ def get_dsets():
     #     open(local_path, "wb").write(response.content)
     # forget_idx = np.load(local_path)
 
-    forget_idx = np.random.choice(len(train_set.targets), size=5000, replace=False)
-
+    #forget_idx = np.random.choice(len(train_set.targets), size=5000, replace=False)
+    file_index=open('./cifar100_forget_5000.txt','r')
+    indexes=file_index.readlines()
+    forget_idx = np.array(indexes).astype(int)
     # construct indices of retain from those of the forget set
     forget_mask = np.zeros(len(train_set.targets), dtype=bool)
     forget_mask[forget_idx] = True
