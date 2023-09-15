@@ -70,27 +70,29 @@ def get_dsets():
     
     # we split held out data into test and validation set
     
-    train_set = torchvision.datasets.CIFAR10(root=opt.data_path, train=True, download=True, transform=normalize)
-    #train_set = torchvision.datasets.CIFAR100(root=opt.data_path, train=True, download=True, transform=normalize)
+    #train_set = torchvision.datasets.CIFAR10(root=opt.data_path, train=True, download=True, transform=normalize)
+    
+    train_set = torchvision.datasets.CIFAR100(root=opt.data_path, train=True, download=True, transform=normalize)
     train_loader = DataLoader(train_set, batch_size=opt.batch_size, shuffle=True, num_workers=2)
 
     # we split held out data into test and validation set
-    held_out = torchvision.datasets.CIFAR10(root=opt.data_path, train=False, download=True, transform=normalize)
-    #held_out = torchvision.datasets.CIFAR100(root=opt.data_path, train=False, download=True, transform=normalize)
+    #held_out = torchvision.datasets.CIFAR10(root=opt.data_path, train=False, download=True, transform=normalize)
+    
+    held_out = torchvision.datasets.CIFAR100(root=opt.data_path, train=False, download=True, transform=normalize)
     test_set, val_set = torch.utils.data.random_split(held_out, [0.5, 0.5])
     test_loader = DataLoader(test_set, batch_size=opt.batch_size, shuffle=True, num_workers=2)
     val_loader = DataLoader(val_set, batch_size=opt.batch_size, shuffle=True, num_workers=2)
 
     # download the forget and retain index split
-    local_path = "forget_idx.npy"
-    if not os.path.exists(local_path):
-        response = requests.get(
-            "https://unlearning-challenge.s3.eu-west-1.amazonaws.com/cifar10/" + local_path
-        )
-        open(local_path, "wb").write(response.content)
-    forget_idx = np.load(local_path)
+    # local_path = "forget_idx.npy"
+    # if not os.path.exists(local_path):
+    #     response = requests.get(
+    #         "https://unlearning-challenge.s3.eu-west-1.amazonaws.com/cifar10/" + local_path
+    #     )
+    #     open(local_path, "wb").write(response.content)
+    # forget_idx = np.load(local_path)
 
-    #forget_idx = np.random.choice(len(train_set.targets), size=5000, replace=False)
+    forget_idx = np.random.choice(len(train_set.targets), size=5000, replace=False)
 
     # construct indices of retain from those of the forget set
     forget_mask = np.zeros(len(train_set.targets), dtype=bool)

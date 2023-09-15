@@ -19,7 +19,7 @@ class OPT:
     momentum_unlearn = 0.9
 
     # finetuning params
-    epochs_fine_tune = 0
+    epochs_fine_tune = 5
     batch_size_FT = 16
     lr_fine_tune = 0.01
     wd_fine_tune = 5e-4

@@ -11,6 +11,49 @@ from utils import accuracy, compute_metrics,get_resnet18_trained_on_cifar10, set
 from unlearn import unlearning, fine_tune, unlearning2, fine_tune2
 from opts import OPT as opt
 
+import pickle as pk
+
+def get_outputs(retain,forget,net,filename,opt=opt):
+    bbone = torch.nn.Sequential(*(list(net.children())[:-1] + [torch.nn.Flatten()]))
+    fc=net.fc
+
+    bbone.eval(), fc.eval()
+
+    out_all_fgt = None
+    lab_ret_list = []
+    lab_fgt_list = []
+
+    for (img_ret, lab_ret), (img_fgt, lab_fgt) in zip(retain, forget):
+        img_ret, lab_ret, img_fgt, lab_fgt = img_ret.to(opt.device), lab_ret.to(opt.device), img_fgt.to(opt.device), lab_fgt.to(opt.device)
+        
+        logits_fgt = bbone(img_fgt)
+        outputs_fgt = fc(logits_fgt)
+        
+        logits_ret = bbone(img_ret)
+        outputs_ret = fc(logits_ret)
+        
+        lab_fgt_list.append(lab_fgt)
+        lab_ret_list.append(lab_ret)
+
+        if out_all_fgt is None:
+            out_all_fgt = outputs_fgt
+            out_all_ret = outputs_ret
+            logits_all_fgt = logits_fgt
+            logits_all_ret = logits_ret
+
+
+        else:
+            out_all_fgt = torch.concatenate((out_all_fgt,outputs_fgt),dim=0)
+            out_all_ret = torch.concatenate((out_all_ret,outputs_ret),dim=0)
+
+            logits_all_fgt = torch.concatenate((logits_all_fgt,logits_fgt),dim=0)
+            logits_all_ret = torch.concatenate((logits_all_ret,logits_ret),dim=0)
+
+
+    print('check ACCURACY retain ',torch.sum((torch.argmax(out_all_ret,dim=1))==torch.cat(lab_ret_list))/out_all_ret.shape[0])
+    file = open(filename,'wb')
+
+    pk.dump([out_all_fgt.detach().cpu(),out_all_ret.detach().cpu(),logits_all_fgt.detach().cpu(),logits_all_ret.detach().cpu(),torch.cat(lab_fgt_list).detach().cpu(),torch.cat(lab_ret_list).detach().cpu()],file)
 
 def main():
     # set random seed
@@ -31,6 +74,7 @@ def main():
     labels_mia = [0] * len(ft_test_losses) + [1] * len(ft_forget_losses)
     ft_mia_scores = simple_mia(ft_samples_mia, labels_mia)
     print(f"The MIA has an accuracy of {ft_mia_scores.mean():.3f} on forgotten vs unseen images")
+    get_outputs(retain_loader,forget_loader,original_pretr_model,'/home/jb/Documents/MachineUnlearning/res_original_model.pkl',opt=opt)
 
 
     ##### UNLEARN #####
@@ -48,6 +92,7 @@ def main():
     labels_mia = [0] * len(ft_test_losses) + [1] * len(ft_forget_losses)
     ft_mia_scores = simple_mia(ft_samples_mia, labels_mia)
     print(f"The MIA has an accuracy of {ft_mia_scores.mean():.3f} on forgotten vs unseen images")
+    get_outputs(retain_loader,forget_loader,unlearned_model,'/home/jb/Documents/MachineUnlearning/res_unlr_model.pkl',opt=opt)
     
     #compute_metrics(unlearned_model, train_loader, forget_loader, retain_loader, all_val_loader, val_fgt_loader, val_retain_loader)
 

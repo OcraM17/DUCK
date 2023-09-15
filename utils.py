@@ -2,7 +2,8 @@ import os
 import numpy as np
 import requests
 import torch
-from torchvision.models.resnet import resnet18
+#from torchvision.models.resnet import resnet18
+from model import resnet18 
 from sklearn import linear_model, model_selection
 import torch.nn as nn
 from opts import OPT as opt
@@ -98,7 +99,7 @@ def get_retrained_model(retain_loader, forget_loader):
     return rt_model
 
 def get_resnet18_trained_on_cifar10():
-    local_path = "weights_resnet18_cifar10.pth"
+    local_path = '/home/jb/Documents/MachineUnlearning/resnet18-184-best.pth'#"weights_resnet18_cifar10.pth"
     if not os.path.exists(local_path):
         response = requests.get(
             "https://unlearning-challenge.s3.eu-west-1.amazonaws.com/weights_resnet18_cifar10.pth"
@@ -108,7 +109,7 @@ def get_resnet18_trained_on_cifar10():
     weights_pretrained = torch.load(local_path, map_location=opt.device)
 
     # load model with pre-trained weights
-    model = resnet18(weights=None, num_classes=10)
+    model = resnet18(weights=None, num_classes=100)
 
     model.load_state_dict(weights_pretrained)
 
