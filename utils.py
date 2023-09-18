@@ -3,10 +3,13 @@ import numpy as np
 import requests
 import torch
 #from torchvision.models.resnet import resnet18
-from model import resnet18 
+#from model import resnet18 
 from sklearn import linear_model, model_selection
 import torch.nn as nn
 from opts import OPT as opt
+import torchvision
+
+
 
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -78,7 +81,7 @@ def simple_mia(sample_loss, members, n_splits=10, random_state=0):
 
 def get_retrained_model(retain_loader, forget_loader):
     # download weights of a model trained exclusively on the retain set
-    local_path = "retrain_weights_resnet18_cifar10.pth"
+    local_path = "resnet18-198-best_retrained.pth" #"retrain_weights_resnet18_cifar10.pth"
     if not os.path.exists(local_path):
         response = requests.get(
             "https://unlearning-challenge.s3.eu-west-1.amazonaws.com/cifar10/" + local_path
@@ -88,7 +91,7 @@ def get_retrained_model(retain_loader, forget_loader):
     weights_pretrained = torch.load(local_path, map_location=opt.device)
 
     # load model with pre-trained weights
-    rt_model = resnet18(weights=None, num_classes=10)
+    rt_model = resnet18(weights=None, num_classes=opt.num_classes)
     rt_model.load_state_dict(weights_pretrained)
     rt_model.to(opt.device)
     rt_model.eval()
@@ -99,7 +102,8 @@ def get_retrained_model(retain_loader, forget_loader):
     return rt_model
 
 def get_resnet18_trained_on_cifar10():
-    local_path = '/home/marco/Documenti/MachineUnlearning/resnet18-184-best.pth'#"weights_resnet18_cifar10.pth"
+    #local_path = '/home/pelosinf/Documents/MachineUnlearning/resnet18-184-best.pth'#"weights_resnet18_cifar10.pth"
+    local_path = "weights_resnet18_cifar10.pth"
     if not os.path.exists(local_path):
         response = requests.get(
             "https://unlearning-challenge.s3.eu-west-1.amazonaws.com/weights_resnet18_cifar10.pth"
@@ -109,7 +113,7 @@ def get_resnet18_trained_on_cifar10():
     weights_pretrained = torch.load(local_path, map_location=opt.device)
 
     # load model with pre-trained weights
-    model = resnet18(weights=None, num_classes=100)
+    model = torchvision.models.resnet18(weights=None, num_classes=opt.num_classes)
 
     model.load_state_dict(weights_pretrained)
 

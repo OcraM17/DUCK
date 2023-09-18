@@ -8,7 +8,7 @@ from torchvision.models.resnet import resnet18
 from copy import deepcopy
 from dsets import get_dsets_remove_class, get_dsets
 from utils import accuracy, compute_metrics,get_resnet18_trained_on_cifar10, set_seed, compute_losses, simple_mia, get_retrained_model
-from unlearn import unlearning, fine_tune, unlearning2, fine_tune2
+from unlearn import unlearning, fine_tune, unlearning2, unlearning3, fine_tune2
 from opts import OPT as opt
 
 import pickle as pk
@@ -70,6 +70,10 @@ def main():
     print(f"TEST-LOADER:{accuracy(original_pretr_model, test_loader):.3f} \nFORGET-LOADER: {accuracy(original_pretr_model, forget_loader):.3f}\nRETAIN-LOADER: {accuracy(original_pretr_model, retain_loader):.3f}  ")
     ft_forget_losses = compute_losses(original_pretr_model, forget_loader)
     ft_test_losses = compute_losses(original_pretr_model, test_loader)
+
+    ft_forget_losses= ft_forget_losses[:len(ft_test_losses)]
+    ft_test_losses = ft_test_losses[:len(ft_forget_losses)]
+
     ft_samples_mia = np.concatenate((ft_test_losses, ft_forget_losses)).reshape((-1, 1))
     labels_mia = [0] * len(ft_test_losses) + [1] * len(ft_forget_losses)
     ft_mia_scores = simple_mia(ft_samples_mia, labels_mia)
@@ -84,10 +88,14 @@ def main():
 
     
     print('\n----- UNLEARNED ----')
-    unlearned_model = unlearning2(pretr_model, retain_loader, forget_loader)
+    unlearned_model = unlearning3(pretr_model, retain_loader, forget_loader)
     print(f"TEST-LOADER:{accuracy(unlearned_model, test_loader):.3f} \nFORGET-LOADER: {accuracy(unlearned_model, forget_loader):.3f}\nRETAIN-LOADER: {accuracy(unlearned_model, retain_loader):.3f}  ")
     ft_forget_losses = compute_losses(unlearned_model, forget_loader)
     ft_test_losses = compute_losses(unlearned_model, test_loader)
+
+    ft_forget_losses= ft_forget_losses[:len(ft_test_losses)]
+    ft_test_losses = ft_test_losses[:len(ft_forget_losses)]
+
     ft_samples_mia = np.concatenate((ft_test_losses, ft_forget_losses)).reshape((-1, 1))
     labels_mia = [0] * len(ft_test_losses) + [1] * len(ft_forget_losses)
     ft_mia_scores = simple_mia(ft_samples_mia, labels_mia)
@@ -110,26 +118,32 @@ def main():
 
 
 
-    print('\n----RETRAINED on RETAIN ----')
+    # print('\n----RETRAINED on RETAIN ----')
     # # RETRAINED MODEL ON RETAIN SET
     # # WE SHOULD RETRAIN FROM SCRATCH 
 
-    rt_model = get_retrained_model(retain_loader, forget_loader) #<--- WATCHOUT THERE IS A PROBLEM HERE THEY LOAD THE MODEL WITH THE WRONG WEIGHTS
-    print(f"TEST-LOADER:{accuracy(rt_model, test_loader):.3f} \nFORGET-LOADER: {accuracy(rt_model, forget_loader):.3f}\nRETAIN-LOADER: {accuracy(rt_model, retain_loader):.3f}  ")
-    ft_forget_losses = compute_losses(rt_model, forget_loader)
-    ft_test_losses = compute_losses(rt_model, test_loader)
+    # rt_model = get_retrained_model(retain_loader, forget_loader)
+    # print(f"TEST-LOADER:{accuracy(rt_model, test_loader):.3f} \nFORGET-LOADER: {accuracy(rt_model, forget_loader):.3f}\nRETAIN-LOADER: {accuracy(rt_model, retain_loader):.3f}  ")
+    # retrained_forget_losses = compute_losses(rt_model, forget_loader)
+    # retrained_test_losses = compute_losses(rt_model, test_loader)
 
-    ft_forget_losses= ft_forget_losses[:len(ft_test_losses)]
-    ft_test_losses = ft_test_losses[:len(ft_forget_losses)]
+    # retrained_forget_losses= retrained_forget_losses[:len(retrained_test_losses)]
+    # retrained_test_losses = retrained_test_losses[:len(retrained_forget_losses)]
 
-    ft_samples_mia = np.concatenate((ft_test_losses, ft_forget_losses)).reshape((-1, 1))
-    labels_mia = [0] * len(ft_test_losses) + [1] * len(ft_forget_losses)
-    ft_mia_scores = simple_mia(ft_samples_mia, labels_mia)
-    print(f"The MIA has an accuracy of {ft_mia_scores.mean():.3f} on forgotten vs unseen images")
+    # retrained_samples_mia = np.concatenate((retrained_test_losses, retrained_forget_losses)).reshape((-1, 1))
+    # labels_mia = [0] * len(retrained_test_losses) + [1] * len(retrained_forget_losses)
+    # retrained_mia_scores = simple_mia(retrained_samples_mia, labels_mia)
+    # print(f"MIA retrained {retrained_mia_scores.mean():.3f}")
 
 
-    print("F1:", accuracy(unlearned_model, retain_loader)/ accuracy(rt_model, retain_loader))
-    print("F2:", accuracy(unlearned_model, test_loader)/ accuracy(rt_model, test_loader))
+    # retrained_samples_mia = np.concatenate((retrained_test_losses, ft_forget_losses)).reshape((-1, 1))
+    # labels_mia = [0] * len(retrained_test_losses) + [1] * len(ft_forget_losses)
+    # unlearned_mia_scores = simple_mia(retrained_samples_mia, labels_mia)
+    # print(f"MIA unlearned vs retrained {unlearned_mia_scores.mean():.3f}")
+
+
+    # print("F1:", accuracy(unlearned_model, retain_loader)/ accuracy(rt_model, retain_loader))
+    # print("F2:", accuracy(unlearned_model, test_loader)/ accuracy(rt_model, test_loader))
 
 
 if __name__ == "__main__":

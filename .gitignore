@@ -2,4 +2,6 @@
 *.npy
 data/
 __pycache__/
-```
+faces/
+cropped_faces/
+_torchshow/
