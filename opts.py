@@ -4,10 +4,13 @@ class OPT:
 
     seed = 42
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    
+
+    # Model
+    model = 'AllCNN'
+
     # Data
     data_path = '~/data'
-    num_classes = 9
+    num_classes = 10
     num_workers = 4
     batch_size = 128
     
