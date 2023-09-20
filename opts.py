@@ -7,14 +7,14 @@ class OPT:
     
     # Data
     data_path = '~/data'
-    num_classes = 10
+    num_classes = 9
     num_workers = 4
-    batch_size = 256
+    batch_size = 128
     
     # unlearning params
     class_to_be_removed = 4
     epochs_unlearn = 2000 #best 5
-    lr_unlearn = 0.00001 #best 0.001
+    lr_unlearn = 0.0000005 #best 0.001
     wd_unlearn = 0.
     momentum_unlearn = 0.
 

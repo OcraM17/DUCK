@@ -232,7 +232,7 @@ def pairwise_cos_dist(x, y):
 
 def unlearning3(net, retain, forget):
     """calcola embeddings"""
-    lambda_1, lambda_2 = 0.9, 0.09  # 1, 0.1
+    lambda_1, lambda_2 = .1, 1  # 1, 0.1
 
     bbone = torch.nn.Sequential(*(list(net.children())[:-1] + [nn.Flatten()]))
     fc=net.fc
@@ -295,25 +295,27 @@ def unlearning3(net, retain, forget):
             logits_ret = bbone(img_ret)
             outputs_ret = fc(logits_ret)
             loss_ret = torch.nn.functional.cross_entropy(outputs_ret, lab_ret) * lambda_2
-
+            print(torch.nn.functional.cross_entropy(outputs_ret, lab_ret))
 
             loss =  loss_fgt + loss_ret
             print(f"LOSS FGT: {loss_fgt.item():.4f}  -  LOSS RET: {loss_ret.item():.4f}")
             loss.backward()
             optimizer.step()
             
-            # evaluate accuracy on forget set every batch
-            with torch.no_grad():
-                curr_acc = accuracy(net, forget)
-                if curr_acc < 0.884 + 0.01:
-                    print(f"ACCURACY FORGET SET: {curr_acc:.3f}")
-                    flag_exit = True
+        # evaluate accuracy on forget set every batch
+        with torch.no_grad():
+            net.eval()
+            curr_acc = accuracy(net, forget)
+            net.train()
+            if curr_acc < 0.798 + 0.01:
+                print(f"ACCURACY FORGET SET: {curr_acc:.3f}")
+                flag_exit = True
 
-            if flag_exit:
-                break
-        
         if flag_exit:
             break
+        
+        # if flag_exit:
+        #     break
         print(f"ACCURACY FORGET SET: {curr_acc:.3f}")
 
         init = False

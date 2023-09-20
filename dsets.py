@@ -2,10 +2,13 @@ import numpy as np
 import os
 import requests
 import torch
-from torch.utils.data import DataLoader, Subset, random_split
+from torch.utils.data import DataLoader, Subset, random_split,Dataset
 import torchvision
 from torchvision import transforms
 from opts import OPT as opt
+from PIL import Image
+import pandas as pd
+
 
 def split_retain_forget(dataset, class_to_remove):
 
@@ -112,3 +115,149 @@ def get_dsets():
 
     return train_loader, test_loader, forget_loader, retain_loader, retain_loader2
 
+
+
+
+##############################################################################################################
+##############################################################################################################
+##############################################################################################################
+
+class CustomDataset(Dataset):
+    def __init__(self, df_all,path, transform=None,train=True,split=False,retain=False):
+        
+        self.df_all = df_all
+        self.transform = transform
+        self.path = path
+        N = self.df_all.shape[0]
+        if train and not(split):
+            self.df = df_all.iloc[:int(0.75*N),:]
+        elif train and retain and split:
+            self.df_buff = df_all.iloc[:int(0.75*N),:]
+            self.subject = self.split_subjects(retain)
+            print(f'num of subjects retain: {len(self.subject)}')
+            mask = self.df_buff.Id.apply(lambda x: any(item for item in self.subject if item in x))
+            self.df = self.df_buff[mask]
+
+        elif train and not(retain) and split:
+            self.df_buff = df_all.iloc[:int(0.75*N),:]
+            self.subject = self.split_subjects(retain)
+            print(f'num of subjects forget: {len(self.subject)}')
+
+            mask = self.df_buff.Id.apply(lambda x: any(item for item in self.subject if item in x))
+            self.df = self.df_buff[mask]
+            #print(self.df.head(20))
+        else:
+            self.df = df_all.iloc[int(0.75*N):,:]
+    
+    def __len__(self):
+        return len(self.df)
+    # def transform_labels:
+    
+    def split_subjects(self,retain):
+        #select subjects for forget set with avg age <=20
+        subjects = []
+        subjects_fgt = []
+        mean_age = []
+        cnt=0
+        for i in range(self.df_buff.shape[0]):
+            name = self.df_buff.iloc[i,0].split('/')[0]
+            age = self.df_buff.iloc[i,3]
+
+            if not(name in subjects):
+                if not(retain) and cnt<4 and age<=20:#fgt
+                    subjects_fgt.append(name)                
+                    cnt+=1
+                subjects.append(name)
+
+        if retain:
+            subjects_retain = [i for i in subjects if i not in subjects_fgt]
+            return subjects
+        else:
+            return subjects_fgt
+        
+    def __getitem__(self, idx):
+        img_path = self.df.iloc[idx, 0]
+        image = Image.open(self.path+img_path).convert('RGB')
+        label = self.df.iloc[idx, -1]
+
+        if self.transform:
+            image = self.transform(image)
+
+        return image, label
+
+
+class OPT_VGG:
+    # Data
+    PATH = '/home/jb/data/VGG-Face2/data/train/'
+    data_path = '/home/jb/data/VGG-Face2/train.age_detected_filtered.csv'
+    num_workers = 4
+
+
+def get_dsets_VGGFace():
+    opt_vgg = OPT_VGG
+    df = pd.read_csv(opt_vgg.data_path,sep=',',header=(0))
+    numbers = { 
+        0: [1688,0,10],
+        1: [14622,10,20],
+        2: [1688,20,30],
+        3: [1130, 30,40],
+        4: [643,40,48],
+        5: [932,48,56],
+        6: [2333,56,64],
+        7: [1553,64,72],
+        8: [689,72,80]
+    }
+
+    #add the correct label
+    class_weights = []
+
+    for i in range(9):
+        df_mod = df[((df['Age']>=numbers[i][1]) & (df['Age']<numbers[i][2]))].copy()
+        df_mod['labels'] = i
+        class_weights.append(df.shape[0]/df_mod.shape[0]*9)    
+        if i ==0:
+            df_out = df_mod
+        else:
+            df_out = pd.concat([df_out,df_mod],axis=0)
+
+
+    #shuffle data
+    df_out = df_out.sample(frac = 1)
+        # download and pre-process CIFAR10
+
+    # Load and transform the data
+    transform = transforms.Compose([
+    transforms.Resize((128,128)),
+    transforms.RandomCrop(128),
+    transforms.RandomHorizontalFlip(),
+    transforms.RandomRotation(20),
+    transforms.RandomChoice([
+    transforms.ColorJitter(brightness=.5,hue=.3),
+    transforms.GaussianBlur(kernel_size=5,sigma=(1,2.5)),
+    transforms.RandomGrayscale(p=.8)]),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.547, 0.460, 0.404], std=[0.323, 0.298, 0.263]),
+    ])
+
+    transform_test = transforms.Compose([
+    transforms.Resize((128,128)),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.547, 0.460, 0.404], std=[0.323, 0.298, 0.263]),
+    ])
+    
+    # we split held out data into test and validation set
+    trainset = CustomDataset(df_out,path = opt_vgg.PATH, train= True, transform=transform)
+    train_loader = torch.utils.data.DataLoader(trainset, batch_size=256, shuffle=True,num_workers=opt.num_workers)
+
+    testset = CustomDataset(df_out,path = opt_vgg.PATH, train=False, transform=transform_test)
+    test_loader = torch.utils.data.DataLoader(testset, batch_size=256, shuffle=False,num_workers=opt.num_workers)
+    
+    retain_set = CustomDataset(df_out,path = opt_vgg.PATH, train= True,split=True,retain=True, transform=transform_test)
+    forget_set = CustomDataset(df_out,path = opt_vgg.PATH, train= True,split=True,retain=False, transform=transform_test)
+
+    forget_loader = DataLoader(forget_set, batch_size=opt.batch_size, drop_last=True, shuffle=False, num_workers=4)
+    retain_loader = DataLoader(retain_set, batch_size=opt.batch_size, drop_last=True, shuffle=True, num_workers=4)
+    retain_loader2 = DataLoader(retain_set, batch_size=opt.batch_size_FT, drop_last=True, shuffle=True, num_workers=4)
+
+
+    return train_loader, test_loader, forget_loader, retain_loader, retain_loader2
