@@ -11,8 +11,8 @@ class BaseMethod:
         self.retain = retain
         self.forget = forget
         self.criterion = nn.CrossEntropyLoss()
-        self.optimizer = optim.SGD(self.net.parameters(), lr=opt.lr_fine_tune, momentum=opt.momentum_fine_tune, weight_decay=opt.wd_fine_tune)
-        self.epochs = opt.epochs_fine_tune
+        self.optimizer = optim.SGD(self.net.parameters(), lr=opt.lr_unlearn, momentum=opt.momentum_fine_tune, weight_decay=opt.wd_fine_tune)
+        self.epochs = opt.epochs_unlearn
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=self.epochs)
 
     def loss_f(self, net, inputs, targets):
@@ -76,10 +76,10 @@ class Hiding(BaseMethod):
 
 class Amnesiac(BaseMethod):
     def __init__(self, net, retain, forget, train):
-        super().__init__(net, None, None)
+        super().__init__(net, retain, forget)
         self.loader = train
-        self.net = torchvision.models.resnet18(pretrained=False)
-        self.net.fc = nn.Sequential(nn.Linear(512, opt.num_classes), nn.LogSoftmax(dim=1))
+        self.net = torchvision.models.resnet18(pretrained=False).to(opt.device)
+        self.net.fc = nn.Sequential(nn.Linear(512, opt.num_classes), nn.LogSoftmax(dim=1)).to(opt.device)
         self.criterion=torch.nn.functional.nll_loss
         self.optimizer = optim.Adam(self.net.parameters())
 
@@ -89,7 +89,7 @@ class Amnesiac(BaseMethod):
     def update_weights(self):
         for i in range(1, self.epochs):
             for j in range(1600):
-                path = f"steps/e{i}b{j:04}.pkl"
+                path = f"/home/marco/Documenti/MachineUnlearning/steps/e{i}b{j:04}.pkl"
                 try:
                     f = open(path, "rb")
                     steps = pickle.load(f)
@@ -105,11 +105,26 @@ class Amnesiac(BaseMethod):
                 except:
                     pass
 
+    def finetune(self, epochs):
+        self.net.train()
+        for epoch in tqdm.tqdm(range(epochs)):
+            for batch_idx, (data, target) in enumerate(self.retain):
+                data, target = data.to(opt.device), target.to(opt.device)
+                self.optimizer.zero_grad()
+                output = self.net(data)
+                loss = self.loss_f(output, target)
+                loss.backward()
+                self.optimizer.step()
+            print(f"\rFine-tuning {epoch+1}/{epochs}", end="")
+        self.net.eval()
+        return self.net
+
     def run(self, class_to_remove):
         self.net.train()
-        for epoch in self.epochs:
+        for epoch in tqdm.tqdm(range(self.epochs)):
             batches = []
             for batch_idx, (data, target) in enumerate(self.loader):
+                data, target = data.to(opt.device), target.to(opt.device)
                 self.optimizer.zero_grad()
                 output = self.net(data)
                 if class_to_remove in target:
@@ -129,10 +144,15 @@ class Amnesiac(BaseMethod):
                     step = {}
                     for key in before:
                         step[key] = after[key] - before[key]
-                        f = open(f"steps/e{epoch}b{batches[-1]:04}.pkl", "wb")
+                        f = open(f"/home/marco/Documenti/MachineUnlearning/steps/e{epoch}b{batches[-1]:04}.pkl", "wb")
                         pickle.dump(step, f)
                         f.close()
         self.update_weights()
+        path = F"/home/marco/Documenti/MachineUnlearning/resnet/selective_trained_e{epoch}.pt"
+        torch.save({
+            'model_state_dict': self.net.state_dict(),
+            'optimizer_state_dict': self.net.state_dict(),
+            }, path)
         self.net.eval()
         return self.net
 
