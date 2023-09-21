@@ -8,6 +8,7 @@ from sklearn import linear_model, model_selection
 import torch.nn as nn
 from opts import OPT as opt
 import torchvision
+from allcnn import AllCNN
 
 
 
@@ -119,6 +120,7 @@ def get_resnet18_trained_on_cifar10():
 
     return model
 
+
 def get_resnet50_trained_on_VGGFace():
     local_path = "/home/jb/Documents/MachineUnlearning/weights/net_weights_resnet50_VGG.pth"
     weights_pretrained = torch.load(local_path, map_location=opt.device)
@@ -130,6 +132,15 @@ def get_resnet50_trained_on_VGGFace():
 
     model.load_state_dict(weights_pretrained)
     return model
+
+
+def get_allcnn_trained_on_cifar10():
+    weight_path = "./checkpoints/main_epoch0078_seed42_acc0.921_BEST.pt"
+    model = AllCNN(num_classes=opt.num_classes)
+    model.load_state_dict(torch.load(weight_path, map_location=opt.device))
+
+    return model
+
 
 def compute_metrics(model, train_loader, forget_loader, retain_loader, all_val_loader, val_fgt_loader, val_retain_loader):
 

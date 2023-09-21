@@ -7,11 +7,11 @@ import torch
 from torchvision.models.resnet import resnet18
 from copy import deepcopy
 from dsets import get_dsets_remove_class, get_dsets
-from utils import accuracy, compute_metrics,get_resnet18_trained_on_cifar10, set_seed, compute_losses, simple_mia, get_retrained_model
-from unlearn import unlearning, fine_tune, unlearning2, unlearning3, fine_tune2
+from utils import accuracy, compute_metrics,get_resnet18_trained_on_cifar10, set_seed, compute_losses, simple_mia, get_retrained_model, get_allcnn_trained_on_cifar10
+from unlearn import unlearning
 from opts import OPT as opt
-
 import pickle as pk
+
 
 def get_outputs(retain,forget,net,filename,opt=opt):
     bbone = torch.nn.Sequential(*(list(net.children())[:-1] + [torch.nn.Flatten()]))
@@ -55,6 +55,7 @@ def get_outputs(retain,forget,net,filename,opt=opt):
 
     pk.dump([out_all_fgt.detach().cpu(),out_all_ret.detach().cpu(),logits_all_fgt.detach().cpu(),logits_all_ret.detach().cpu(),torch.cat(lab_fgt_list).detach().cpu(),torch.cat(lab_ret_list).detach().cpu()],file)
 
+
 def main():
     # set random seed
     set_seed(opt.seed)
@@ -63,7 +64,7 @@ def main():
     train_loader, test_loader, forget_loader, retain_loader, retain_loader2 = get_dsets()#get_dsets_remove_class(opt.class_to_be_removed)
 
     ##### GET MODEL #####
-    original_pretr_model = get_resnet18_trained_on_cifar10() #get_resnet18_trained_on_cifar10()
+    original_pretr_model = get_allcnn_trained_on_cifar10() #get_resnet18_trained_on_cifar10() #get_resnet18_trained_on_cifar10()
     original_pretr_model.to(opt.device)
     original_pretr_model.eval()
     print('\n----ORIGINAL MODEL----')
@@ -88,7 +89,7 @@ def main():
 
     
     print('\n----- UNLEARNED ----')
-    unlearned_model = unlearning3(pretr_model, retain_loader, forget_loader)
+    unlearned_model = unlearning(pretr_model, retain_loader, forget_loader)
     print(f"TEST-LOADER:{accuracy(unlearned_model, test_loader):.3f} \nFORGET-LOADER: {accuracy(unlearned_model, forget_loader):.3f}\nRETAIN-LOADER: {accuracy(unlearned_model, retain_loader):.3f}  ")
     ft_forget_losses = compute_losses(unlearned_model, forget_loader)
     ft_test_losses = compute_losses(unlearned_model, test_loader)
