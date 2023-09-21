@@ -90,6 +90,12 @@ def unlearning(net, retain, forget):
             loss.backward()
             optimizer.step()
             
+            # COMMENTO
+            # messo qui mi lo fa per ogni batch non so se 
+            # convenga farlo alla fine della batch. Per il caso 
+            # VGG comunque dava problemi il calcolo senza mettere
+            # la rete in eval. Vedere pezzo i codice commentato sotto
+            # che era stato rimosso in questo commit  
             # evaluate accuracy on forget set every batch
             with torch.no_grad():
                 curr_acc = accuracy(net, forget)
@@ -97,6 +103,17 @@ def unlearning(net, retain, forget):
                 if curr_acc < 0.91 + 0.01:
                     print(f"ACCURACY FORGET SET: {curr_acc:.3f}")
                     flag_exit = True
+
+        ###########################
+        ###########################
+        # evaluate accuracy on forget set every batch
+        # with torch.no_grad():
+        #     net.eval()
+        #     curr_acc = accuracy(net, forget)
+        #     net.train()
+        #     if curr_acc < 0.798 + 0.01:
+        #         print(f"ACCURACY FORGET SET: {curr_acc:.3f}")
+        #         flag_exit = True
 
         if flag_exit:
             break
