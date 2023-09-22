@@ -8,6 +8,7 @@ from torchvision import transforms
 from opts import OPT as opt
 from PIL import Image
 import pandas as pd
+import glob
 
 
 def split_retain_forget(dataset, class_to_remove):
@@ -261,3 +262,138 @@ def get_dsets_VGGFace():
 
 
     return train_loader, test_loader, forget_loader, retain_loader, retain_loader2
+
+########################## paper exp VGG #######################################
+class CustomDataset_10subj(Dataset):
+    def __init__(self, df_all,path,best_10_subject,transform=None,train=True,split=False,retain=False,class_to_remove=[5,]):
+        
+        self.df_all = df_all
+        self.transform = transform
+        self.path = path
+        N = self.df_all.shape[0]
+        if train:
+            self.df = df_all.iloc[:int(0.80*N),:]
+        else:
+            self.df = df_all.iloc[int(0.80*N):,:]
+
+        list_remove = [best_10_subject[i] for i in class_to_remove]
+        ### filter for retain and forget if necessary
+        if split:
+            if retain:
+                mask = self.df.Id.apply(lambda x: any(item for item in list_remove if not(item in x)))
+                self.df = self.df[mask]
+                 
+            else:
+                mask = self.df.Id.apply(lambda x: any(item for item in list_remove if item in x))
+                self.df = self.df[mask]
+        else:
+            pass
+        self.best_10_subject = best_10_subject
+        self.map_subj_to_class()
+
+    def __len__(self):
+        return len(self.df)
+    # def transform_labels:
+    def map_subj_to_class(self):
+        self.dictionary_class = {}
+        cnt=0
+        for subj in self.best_10_subject:
+            self.dictionary_class[subj] = cnt
+            cnt+=1
+
+    def __getitem__(self, idx):
+        img_path = self.df.iloc[idx, 0]
+        image = Image.open(self.path+img_path).convert('RGB')
+        label = self.dictionary_class[self.df.iloc[idx, 0].split('/')[0]]
+
+        if self.transform:
+            image = self.transform(image)
+
+        return image, label
+
+
+class OPT_VGG_10_subjects:
+    # Data
+    PATH = '/home/jb/data/VGG-Face2/data/train/'
+    data_path = '/home/jb/data/VGG-Face2/data/train_list.txt'
+    num_workers = 4
+
+
+def get_dsets_VGGFace_10_subjects():
+    opt_vgg = OPT_VGG_10_subjects
+    np.random.seed(42)
+
+    folder_list = glob.glob(opt_vgg.PATH+'*')
+
+    dict_subj = {}
+    for fold in folder_list:
+        files = glob.glob(fold+'/*.jpg')
+        
+        if len(files)>500:
+            dict_subj[fold.split('/')[-1]] = len(files)
+    print(f'Num subject suitable: {len(list(dict_subj.keys()))}')
+
+
+    df = pd.read_csv(opt_vgg.data_path,sep=',',header=None, names=['Id',])#pd.read_csv(opt.data_path,sep=',',header=(0))
+
+
+    sorted_dict_subj = sorted(dict_subj.items(), key=lambda x:x[1], reverse=True)
+    sorted_dict_subj = dict(sorted_dict_subj)
+
+    best_10_subject=[]
+    skip = list(sorted_dict_subj.keys())[9]
+    for key in sorted_dict_subj.keys():
+        if key!=skip:
+            best_10_subject.append(key)
+            if len(best_10_subject)==10:
+                break
+
+
+    #filter for subjects
+    mask = df.Id.apply(lambda x: any(item for item in best_10_subject if item in x))
+    df = df[mask]
+
+    #shuffle dataframe
+    df = df.sample(frac=1)
+
+    # Load and transform the data
+    transform = transforms.Compose([
+    transforms.Resize((128,128)),
+    transforms.RandomCrop(128),
+    transforms.RandomHorizontalFlip(),
+    transforms.RandomRotation(20),
+    transforms.RandomChoice([
+    transforms.ColorJitter(brightness=.5,hue=.3),
+    transforms.GaussianBlur(kernel_size=5,sigma=(1,2.5)),
+    transforms.RandomGrayscale(p=.8)]),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.547, 0.460, 0.404], std=[0.323, 0.298, 0.263]),
+    ])
+
+    transform_test = transforms.Compose([
+    transforms.Resize((128,128)),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.547, 0.460, 0.404], std=[0.323, 0.298, 0.263]),
+    ])
+    
+    # we split held out data into test and validation set
+    trainset = CustomDataset_10subj(df,path = opt_vgg.PATH,best_10_subject=best_10_subject, train= True, transform=transform)
+    train_loader = torch.utils.data.DataLoader(trainset, batch_size=256, shuffle=True,num_workers=opt.num_workers)
+
+    testset = CustomDataset_10subj(df,path = opt_vgg.PATH,best_10_subject=best_10_subject, train=False, transform=transform_test)
+    test_loader = torch.utils.data.DataLoader(testset, batch_size=256, shuffle=False,num_workers=opt.num_workers)
+    
+    retain_set = CustomDataset_10subj(df,path = opt_vgg.PATH,best_10_subject=best_10_subject, train= True,split=True,retain=True, transform=transform_test,class_to_remove=[opt.class_to_be_removed,])
+    forget_set = CustomDataset_10subj(df,path = opt_vgg.PATH,best_10_subject=best_10_subject, train= True,split=True,retain=False, transform=transform_test,class_to_remove=[opt.class_to_be_removed,])
+
+    forget_loader = DataLoader(forget_set, batch_size=opt.batch_size, drop_last=True, shuffle=False, num_workers=4)
+    retain_loader = DataLoader(retain_set, batch_size=opt.batch_size, drop_last=True, shuffle=True, num_workers=4)
+    
+
+    testset_retain = CustomDataset_10subj(df,path = opt_vgg.PATH,best_10_subject=best_10_subject, train=False,split=True,retain=True,transform=transform_test,class_to_remove=[opt.class_to_be_removed,])
+    test_loader_retain = torch.utils.data.DataLoader(testset_retain, batch_size=opt.batch_size, shuffle=False,num_workers=opt.num_workers)
+
+    testset_forget = CustomDataset_10subj(df,path = opt_vgg.PATH,best_10_subject=best_10_subject, train=False,split=True,retain=False,transform=transform_test,class_to_remove=[opt.class_to_be_removed,])
+    test_loader_forget = torch.utils.data.DataLoader(testset_forget, batch_size=opt.batch_size, shuffle=False,num_workers=opt.num_workers)
+
+    return train_loader, test_loader, forget_loader, retain_loader, test_loader_retain,test_loader_forget

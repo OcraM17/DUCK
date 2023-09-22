@@ -6,7 +6,7 @@ class OPT:
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # Model
-    model = 'AllCNN'
+    model = 'resnet50'#'AllCNN'
 
     # Data
     data_path = '~/data'
@@ -15,9 +15,9 @@ class OPT:
     batch_size = 128
     
     # unlearning params
-    class_to_be_removed = 4
+    class_to_be_removed = 5
     epochs_unlearn = 2000 #best 5
-    lr_unlearn = 0.0000005 #best 0.001
+    lr_unlearn = 0.0001#0.0000005 #best 0.001
     wd_unlearn = 0.
     momentum_unlearn = 0.
 

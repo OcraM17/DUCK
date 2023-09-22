@@ -133,6 +133,18 @@ def get_resnet50_trained_on_VGGFace():
     model.load_state_dict(weights_pretrained)
     return model
 
+def get_resnet50_trained_on_VGGFace_10_subjects():
+    #merge with the function above
+    local_path = "/home/jb/Documents/MachineUnlearning/weights/net_weights_resnet50_VGG_10sub.pth"
+    weights_pretrained = torch.load(local_path, map_location=opt.device)
+
+    # load model with pre-trained weights
+    model =torchvision.models.resnet50(weights=None)
+    # Change the final layer
+    model.fc = nn.Sequential(nn.Dropout(p=0.0),nn.Linear(model.fc.in_features, 10))
+
+    model.load_state_dict(weights_pretrained)
+    return model
 
 def get_allcnn_trained_on_cifar10():
     weight_path = "./checkpoints/main_epoch0078_seed42_acc0.921_BEST.pt"
@@ -170,3 +182,46 @@ def compute_metrics(model, train_loader, forget_loader, retain_loader, all_val_l
 
     print(f"[ ACC-train ] all:{accuracy(model, train_loader):.3f}  fgt: {accuracy(model, forget_loader):.3f} ret: {accuracy(model, retain_loader):.3f}  ")
     print(f"[ ACC - val ] all:{accuracy(model, all_val_loader):.3f}  fgt:{accuracy(model, val_fgt_loader):.3f}  ret:{accuracy(model, val_retain_loader):.3f}")
+
+
+def get_outputs(retain,forget,net,filename,opt=opt):
+    bbone = torch.nn.Sequential(*(list(net.children())[:-1] + [torch.nn.Flatten()]))
+    fc=net.fc
+
+    bbone.eval(), fc.eval()
+
+    out_all_fgt = None
+    lab_ret_list = []
+    lab_fgt_list = []
+
+    for (img_ret, lab_ret), (img_fgt, lab_fgt) in zip(retain, forget):
+        img_ret, lab_ret, img_fgt, lab_fgt = img_ret.to(opt.device), lab_ret.to(opt.device), img_fgt.to(opt.device), lab_fgt.to(opt.device)
+        
+        logits_fgt = bbone(img_fgt)
+        outputs_fgt = fc(logits_fgt)
+        
+        logits_ret = bbone(img_ret)
+        outputs_ret = fc(logits_ret)
+        
+        lab_fgt_list.append(lab_fgt)
+        lab_ret_list.append(lab_ret)
+
+        if out_all_fgt is None:
+            out_all_fgt = outputs_fgt
+            out_all_ret = outputs_ret
+            logits_all_fgt = logits_fgt
+            logits_all_ret = logits_ret
+
+
+        else:
+            out_all_fgt = torch.concatenate((out_all_fgt,outputs_fgt),dim=0)
+            out_all_ret = torch.concatenate((out_all_ret,outputs_ret),dim=0)
+
+            logits_all_fgt = torch.concatenate((logits_all_fgt,logits_fgt),dim=0)
+            logits_all_ret = torch.concatenate((logits_all_ret,logits_ret),dim=0)
+
+
+    print('check ACCURACY retain ',torch.sum((torch.argmax(out_all_ret,dim=1))==torch.cat(lab_ret_list))/out_all_ret.shape[0])
+    file = open(filename,'wb')
+
+    pk.dump([out_all_fgt.detach().cpu(),out_all_ret.detach().cpu(),logits_all_fgt.detach().cpu(),logits_all_ret.detach().cpu(),torch.cat(lab_fgt_list).detach().cpu(),torch.cat(lab_ret_list).detach().cpu()],file)
