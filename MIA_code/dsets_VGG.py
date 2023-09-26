@@ -64,57 +64,6 @@ class CustomDataset_10subj(Dataset):
         return image, label
 
 
-def compute_accuracy(net, loader, opt):
-    correct = 0
-    total = 0
-    net.eval()  # Set the model to evaluation mode
-    all_labels = []
-    all_predictions = []
-
-    with torch.no_grad():
-        for data in loader:
-            inputs, labels = data
-            inputs, labels = inputs.to(opt.device), labels.to(opt.device)
-            outputs = net(inputs)
-            _, predicted = torch.max(outputs.data, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
-
-            # Store all labels and predictions for confusion matrix
-            all_labels.extend(labels.cpu().numpy())
-            all_predictions.extend(predicted.cpu().numpy())
-
-    # Compute confusion matrix
-    cm = confusion_matrix(all_labels, all_predictions)
-
-    return 100 * correct / total,cm
-
-def obtain_MIA_data(model,loader,opt,train=True):
-    model.eval()  # Set the model to evaluation mode
-    
-    classes = []
-    predictions = []
-
-    with torch.no_grad():
-        for data in loader:
-            inputs, labels = data
-            inputs, labels = inputs.to(opt.device), labels.to(opt.device)
-            outputs = model(inputs)
-            
-            # Store all labels and predictions for confusion matrix
-            classes.extend(labels.detach().cpu().numpy())
-            predictions.extend(outputs.detach().cpu().numpy())
-
-    classes = np.array(classes)
-    predictions = np.array(predictions)
-    if train:
-        case = np.ones_like(classes)
-    else:
-        case = np.zeros_like(classes)
-    return classes,predictions,case
-
-
-
 # Load and transform the data
 transform = transforms.Compose([
     transforms.Resize((128,128)),

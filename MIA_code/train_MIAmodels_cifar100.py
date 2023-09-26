@@ -17,8 +17,8 @@ import glob
 import argparse
 import pickle as pk
 
-from MIA_code.utils_cifar100 import transform_train,transform_test,compute_accuracy,OPT,obtain_MIA_data,train_model,Custom_cifar100_Dataset
-
+from MIA_code.dsets_cifar100 import transform_train,transform_test,OPT,Custom_cifar100_Dataset
+from MIA_code.utils import train_model, obtain_MIA_data,compute_accuracy
 
 
 if __name__ == "__main__":  
@@ -62,7 +62,7 @@ if __name__ == "__main__":
     # Train the model
     opt.model_weights_name = opt.model_weights_name +f'_run_{args.run}'
 
-    train_model(model,optimizer,criterion,scheduler,training_loader,test_loader,opt,args)
+    train_model(model,optimizer,criterion,scheduler,training_loader,test_loader,opt,args,plot_name=None)
     
     ##### re do the dataset and dataloader because of tranformations 
     cifar100_training = Custom_cifar100_Dataset(root=opt.data, train=True,transform=transform_test,runs=args.run)

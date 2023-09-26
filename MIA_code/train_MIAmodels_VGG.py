@@ -16,8 +16,8 @@ import glob
 import argparse
 import pickle as pk
 
-from MIA_code.utilsVGG import transform,transform_test,compute_accuracy,CustomDataset_10subj,OPT,obtain_MIA_data
-from train_VGG import train_model
+from MIA_code.dsets_VGG import transform,transform_test,CustomDataset_10subj,OPT
+from MIA_code.utils import train_model, obtain_MIA_data,compute_accuracy
 
 if __name__ == "__main__":  
     # Create the parser
