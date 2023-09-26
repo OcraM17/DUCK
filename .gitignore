@@ -1,3 +1,7 @@
+*.png
+*.pkl
+*.csv
+*.zip
 *.pth
 *.npy
 data/
