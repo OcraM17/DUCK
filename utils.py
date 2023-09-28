@@ -13,6 +13,8 @@ import pickle as pk
 import tqdm
 import torch.nn.functional as F
 from sklearn.metrics import precision_recall_fscore_support
+import os
+
 
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
@@ -87,29 +89,26 @@ def simple_mia(sample_loss, members, n_splits=10, random_state=0):
 
 # Initialize GoogleDrive instance with the credentials
 def download_weights_drive(model_weights,link_weights):
-    gauth = GoogleAuth()
-    gauth.LocalWebserverAuth()  # This creates a local webserver and automatically handles authentication.
     # Specify the path to your JSON key file
-    json_key_file_path = '/home/jb/Documents/MachineUnlearning/client_secrets.json'
+    json_key_file_path = '/home/luigi/Work/MachineUnlearning/client_secrets.json'
 
-    # Authenticate using the JSON key file
-    gauth.LoadCredentialsFile(json_key_file_path)
+    # Check if the JSON key file exists
+    if not os.path.isfile(json_key_file_path):
+        print(f"Error: JSON key file not found at '{json_key_file_path}'")
+        exit(1)
+    # Set the GOOGLE_DRIVE_SETTINGS environment variable to the JSON key file path
+    os.environ['GOOGLE_DRIVE_SETTINGS'] = json_key_file_path
+    # Initialize GoogleAuth instance
+    gauth = GoogleAuth()
 
-    if gauth.credentials is None:
-        # Authenticate if the credentials don't exist
-        gauth.LocalWebserverAuth()
-    elif gauth.access_token_expired:
-        # Refresh the credentials if they have expired
-        gauth.Refresh()
-    else:
-        # Use the credentials
-        gauth.Authorize()
+    # Perform user authentication using LocalWebserverAuth
+    gauth.LocalWebserverAuth()
 
-    # Create a GoogleDrive instance
 
+    # Create GoogleDrive instance
     drive = GoogleDrive(gauth)
 
-    # ID of the file in your Google Drive
+    # Set the ID of the file in your Google Drive
     file_id = link_weights  # Replace with the actual file ID
 
     # Set the path to save the downloaded file
@@ -120,9 +119,6 @@ def download_weights_drive(model_weights,link_weights):
     file.GetContentFile(download_path)
 
     print(f"File '{file['title']}' downloaded to '{download_path}'")
-
-
-
 def get_retrained_model(retain_loader, forget_loader):
     # download weights of a model trained exclusively on the retain set
     if opt.class_to_be_removed is None:

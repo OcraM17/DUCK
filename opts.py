@@ -1,25 +1,28 @@
 import torch 
-
+import os
 class OPT:
 
     dataset = 'cifar100'
     seed = 42
-    device = "cuda:1" if torch.cuda.is_available() else "cpu"
-    root_folder = '/home/jb/Documents/MachineUnlearning/'
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    #root_folder = '/home/luigi/Work/MachineUnlearning/'
+    # gets current folder path
+    root_folder = os.path.dirname(os.path.abspath(__file__)) + "/"
+
+
 
     # Model
     model = 'resnet18'#'AllCNN'
     if model== 'resnet18':
         if dataset== 'cifar100':
             model_weights = root_folder+'weights/Final_CIFAR100_Resnet18.pth'
-            link_weights = 'https://drive.google.com/file/d/1pksj54mSsaDdkwSh1V9KA_SP7ZkafkVI/view?usp=drive_link'
-
+            link_weights = '1pksj54mSsaDdkwSh1V9KA_SP7ZkafkVI'
         elif dataset== 'cifar10':
             model_weights = root_folder+'weights/Final_CIFAR10_Resnet18.pth'
 
         elif dataset== 'TinyImagenet':
             model_weights = root_folder+'weights/best_model_tiny.pth'
-            link_weights = 'https://drive.google.com/file/d/11wMtPzADDxBsRKBctK0BSJa3jhg48jK4/view?usp=drive_link'
+            link_weights = '11wMtPzADDxBsRKBctK0BSJa3jhg48jK4'
             
         elif dataset== 'VGG':
             #to fix
@@ -29,7 +32,7 @@ class OPT:
     
     # Data
     data_path = '~/data'
-    num_classes = 10
+    num_classes = 100
     num_workers = 4
     batch_size = 128
     
