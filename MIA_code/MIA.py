@@ -69,8 +69,8 @@ def compute_accuracy(model, dataloader,device,targ_val = None):
     if targ_val is None:
         labels= np.asarray(labels)
         chance = labels.sum()/labels.shape[0]
-        P,R,F1,_ = precision_recall_fscore_support(np.asarray(labels).astype(np.int64), np.asarray(prediction_F1).astype(np.int64), average='macro')[:3]
-        return correct / total,labels,P,R,F1
+        P,R,F1 = precision_recall_fscore_support(np.asarray(labels).astype(np.int64), np.asarray(prediction_F1).astype(np.int64), average='macro')[:3]
+        return correct / total, chance ,P,R,F1
     else:
         return correct / total
 
@@ -204,4 +204,4 @@ def get_MIA_MLP(train_loader, test_loader, model, opt):
     for i in range(opt.iter_MLP):
         train_data, train_labels, test_data, test_labels = get_membership_attack_data_MLP(train_loader, test_loader, model, opt)
         model_MLP = DeepMLP(input_classes=opt.num_classes, num_classes=2, num_layers=opt.num_layers_MLP, num_hidden=opt.num_hidden_MLP)
-        accuracy,P,R,F1 = training_MLP(model_MLP, train_data, test_data, train_labels, test_labels, opt)
+        accuracy, chance, P,R,F1 = training_MLP(model_MLP, train_data, test_data, train_labels, test_labels, opt)

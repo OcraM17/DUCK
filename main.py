@@ -49,14 +49,14 @@ def main():
     if opt.class_to_be_removed is None:
         print(f"TEST-LOADER:{accuracy(original_pretr_model, test_loader):.3f} \nFORGET-LOADER: {accuracy(original_pretr_model, train_fgt_loader):.3f}\nRETAIN-LOADER: {accuracy(original_pretr_model, train_retain_loader):.3f}  ")
         #MIA
-        #get_MIA_MLP(train_loader, test_loader, model, opt)
+        get_MIA_MLP(train_loader, test_loader, original_pretr_model, opt)
     else:
         print('TRAIN:')
         print(f'FORGET-LOADER: {accuracy(original_pretr_model,train_fgt_loader ):.3f}\nRETAIN-LOADER: {accuracy(original_pretr_model, train_retain_loader):.3f}')
         print('TEST:')
         print(f'FORGET-LOADER: {accuracy(original_pretr_model, test_fgt_loader):.3f}\nRETAIN-LOADER: {accuracy(original_pretr_model,test_retain_loader ):.3f}')
         #MIA
-        #get_MIA_MLP(train_loader, test_loader, model, opt)
+        get_MIA_MLP(train_fgt_loader, test_fgt_loader, original_pretr_model, opt)
    
         # ft_train_losses = compute_losses(original_pretr_model, train_retain_loader)
         # ft_forget_losses = compute_losses(original_pretr_model, train_fgt_loader)
@@ -86,7 +86,7 @@ def main():
     if opt.class_to_be_removed is None:
         print(f"TEST-LOADER:{accuracy(unlearned_model, test_loader):.3f} \nFORGET-LOADER: {accuracy(unlearned_model, train_fgt_loader):.3f}\nRETAIN-LOADER: {accuracy(unlearned_model, train_retain_loader):.3f}  ")
         #MIA
-        #get_MIA_MLP(train_loader, test_loader, model, opt)
+        get_MIA_MLP(train_fgt_loader, test_fgt_loader, unlearned_model, opt)
 
     else:
         print('TRAIN:')
@@ -94,7 +94,7 @@ def main():
         print('TEST:')
         print(f'FORGET-LOADER: {accuracy(unlearned_model, test_fgt_loader):.3f}\nRETAIN-LOADER: {accuracy(unlearned_model,test_retain_loader ):.3f}')
         #MIA
-        #get_MIA_MLP(train_loader, test_loader, model, opt)
+        get_MIA_MLP(train_fgt_loader, test_fgt_loader, unlearned_model, opt)
 
 
 
@@ -127,14 +127,14 @@ def main():
 
 
 
-    print('\n----RETRAINED on RETAIN ----')
+    #print('\n----RETRAINED on RETAIN ----')
     # RETRAINED MODEL ON RETAIN SET
     # WE SHOULD RETRAIN FROM SCRATCH 
 
-    rt_model = get_retrained_model(test_retain_loader, test_fgt_loader)
+    #rt_model = get_retrained_model(test_retain_loader, test_fgt_loader)
     #print(f"TEST-LOADER:{accuracy(rt_model, test_loader):.3f} \nFORGET-LOADER: {accuracy(rt_model, forget_loader):.3f}\nRETAIN-LOADER: {accuracy(rt_model, retain_loader):.3f}  ")
-    for _ in range(5):
-        print(get_MIA_MLP(train_fgt_loader, test_fgt_loader, rt_model))
+    #for _ in range(5):
+    #    print(get_MIA_MLP(train_fgt_loader, test_fgt_loader, rt_model))
     # retrained_forget_losses = compute_losses(rt_model, forget_loader)
     # retrained_test_losses = compute_losses(rt_model, test_loader)
 

@@ -40,13 +40,13 @@ class OPT:
     #set class to be remove to None if you want to unlearn a set of samples that belong to different classes
     class_to_be_removed = 5#None#5 
     epochs_unlearn = 2000 #best 5
-    lr_unlearn = 0.00005#cifar100
+    lr_unlearn = 0.0005#cifar100
     #0.0001#0.0000005 #best 0.001
     wd_unlearn = 0.
     momentum_unlearn = 0.
     lambda_1 = 1 #1#cifar100 .1#vgg subj
     lambda_2 = 0.5 #0.5#cifar100 1#vgg subj
-    target_accuracy = 0.02 #0.76 cifar100
+    target_accuracy = 0.5 #0.76 cifar100
 
     # finetuning params
     epochs_fine_tune = 5
@@ -63,4 +63,4 @@ class OPT:
     weight_decay_MLP = 0
     batch_size_MLP=128
     num_hidden_MLP=100
-    verbose_MLP = False
+    verboseMLP = False
