@@ -15,9 +15,11 @@ def pairwise_cos_dist(x, y):
     return 1 - torch.mm(x, y.transpose(0, 1))
 
 
-def unlearning(net, retain, forget):
+def unlearning(net, retain, forget,target_accuracy=0.76, opt=opt):
     """calcola embeddings"""
-    lambda_1, lambda_2 = .1, 1  # 1, 0.1
+    #lambda1 fgt
+    #lambda2 retain
+
 
     bbone = torch.nn.Sequential(*(list(net.children())[:-1] + [nn.Flatten()]))
     if opt.model == 'AllCNN':
@@ -43,9 +45,10 @@ def unlearning(net, retain, forget):
     # compute centroids from embeddings
     centroids=[]
     for i in range(opt.num_classes):
-        centroids.append(ret_embs[labs==i].mean(0))
+        if i!=opt.class_to_be_removed:
+            centroids.append(ret_embs[labs==i].mean(0))
     centroids=torch.stack(centroids)
-    
+
 
     bbone.train(), fc.train()
     #optimizer = optim.SGD(net.parameters(), lr=opt.lr_unlearn, momentum=opt.momentum_unlearn, weight_decay=opt.wd_unlearn)
@@ -77,41 +80,32 @@ def unlearning(net, retain, forget):
                 closest_centroids = all_closest_centroids[n_batch]
 
             dists = dists[torch.arange(dists.shape[0]), closest_centroids[:dists.shape[0]]]
-            loss_fgt = torch.mean(dists) * lambda_1
+            loss_fgt = torch.mean(dists) * opt.lambda_1
             # outputs_fgt = fc(logits_fgt)
 
             logits_ret = bbone(img_ret)
             outputs_ret = fc(logits_ret)
-            loss_ret = torch.nn.functional.cross_entropy(outputs_ret, lab_ret) * lambda_2
+            loss_ret = torch.nn.functional.cross_entropy(outputs_ret, lab_ret) * opt.lambda_2
             #print(torch.nn.functional.cross_entropy(outputs_ret, lab_ret))
 
             loss =  loss_fgt + loss_ret
             print(f"LOSS FGT: {loss_fgt.item():.4f}  -  LOSS RET: {loss_ret.item():.4f}")
             loss.backward()
             optimizer.step()
-            # COMMENTO
-            # messo qui mi lo fa per ogni batch non so se 
-            # convenga farlo alla fine della batch. Per il caso 
-            # VGG comunque dava problemi il calcolo senza mettere
-            # la rete in eval. Vedere pezzo i codice commentato sotto
-            # che era stato rimosso in questo commit  
-            # evaluate accuracy on forget set every batch
-        ###########################
-        ###########################
-            # evaluate accuracy on forget set every batch
-            with torch.no_grad():
-                curr_acc = accuracy(net, forget)
-                #if curr_acc < 0.884 + 0.01:
-                if curr_acc < 0.91 + 0.01:
-                    print(f"ACCURACY FORGET SET: {curr_acc:.3f}")
-                    flag_exit = True
+
+        # evaluate accuracy on forget set every batch
+        with torch.no_grad():
+            net.eval()
+            curr_acc = accuracy(net, forget)
+            tr_acc = accuracy(net,retain)
+            net.train()
+            print(f"ACCURACY FORGET SET: {curr_acc:.3f}")
+            print(f"ACCURACY retain SET: {tr_acc:.3f}")
+            if curr_acc < target_accuracy + 0.01:
+                flag_exit = True
 
         if flag_exit:
             break
-        
-        # if flag_exit:
-        #     break
-        print(f"ACCURACY FORGET SET: {curr_acc:.3f}")
 
         init = False
         #scheduler.step()

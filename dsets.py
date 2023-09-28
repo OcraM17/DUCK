@@ -37,70 +37,89 @@ def get_dsets_remove_class(class_to_remove):
     )
 
     # we split held out - train
-    train_set = torchvision.datasets.CIFAR10(root=opt.data_path, train=True, download=True, transform=normalize)
-    val_set = torchvision.datasets.CIFAR10(root=opt.data_path, train=False, download=True, transform=normalize)
+    if opt.dataset == 'cifar10':
+        train_set = torchvision.datasets.CIFAR10(root=opt.data_path, train=True, download=True, transform=normalize)
+        test_set = torchvision.datasets.CIFAR10(root=opt.data_path, train=False, download=True, transform=normalize)
+    elif opt.dataset == 'cifar100':
+        train_set = torchvision.datasets.CIFAR100(root=opt.data_path, train=True, download=True, transform=normalize)
+        test_set = torchvision.datasets.CIFAR100(root=opt.data_path, train=False, download=True, transform=normalize)
+
     #val_set, test_set = torch.utils.data.random_split(held_out, [0.7, 0.3])
 
-    val_forget_set, val_retain_set = split_retain_forget(val_set, class_to_remove)
+    test_forget_set, test_retain_set = split_retain_forget(test_set, class_to_remove)
     forget_set, retain_set = split_retain_forget(train_set, class_to_remove)
 
     # validation set and its subsets 
-    all_val_loader = DataLoader(val_set, batch_size=opt.batch_size, shuffle=False, num_workers=2)
-    val_fgt_loader = DataLoader(val_forget_set, batch_size=opt.batch_size, shuffle=False, num_workers=2)
-    val_retain_loader = DataLoader(val_retain_set, batch_size=opt.batch_size, shuffle=False, num_workers=2)
+    all_test_loader = DataLoader(test_set, batch_size=opt.batch_size, shuffle=False, num_workers=2)
+    test_fgt_loader = DataLoader(test_forget_set, batch_size=opt.batch_size, shuffle=False, num_workers=2)
+    test_retain_loader = DataLoader(test_retain_set, batch_size=opt.batch_size, shuffle=False, num_workers=2)
     
     # all train and its subsets
     all_train_loader = DataLoader(train_set, batch_size=opt.batch_size, shuffle=False, num_workers=2)
-    forget_loader = DataLoader(forget_set, batch_size=opt.batch_size, shuffle=False, num_workers=2)
-    retain_loader = DataLoader(retain_set, batch_size=opt.batch_size, shuffle=False, num_workers=2)
+    train_fgt_loader = DataLoader(forget_set, batch_size=opt.batch_size, shuffle=False, num_workers=2)
+    train_retain_loader = DataLoader(retain_set, batch_size=opt.batch_size, shuffle=False, num_workers=2)
 
-    # never seen test set (non sblindatelo!!)
-    #test_loader = DataLoader(test_set, batch_size=128, shuffle=False, num_workers=2)
 
-    return all_train_loader, forget_loader, retain_loader, val_fgt_loader, val_retain_loader, all_val_loader
+    return all_train_loader,all_test_loader, train_fgt_loader, train_retain_loader, test_fgt_loader, test_retain_loader
 
 
 
 
 def get_dsets():
+    mean = {
+            'cifar10': (0.4914, 0.4822, 0.4465),
+            'cifar100': (0.5071, 0.4867, 0.4408),
+            }
 
-    # download and pre-process CIFAR10
-    normalize = transforms.Compose(
+    std = {
+            'cifar10': (0.2023, 0.1994, 0.2010),
+            'cifar100': (0.2675, 0.2565, 0.2761),
+            }
+
+    transform_dset = transforms.Compose(
         [
             transforms.ToTensor(),
-            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+            transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
         ]
     )
     
-    # we split held out data into test and validation set
+    if opt.dataset == 'cifar10':
+        train_set = torchvision.datasets.CIFAR10(root=opt.data_path, train=True, download=True, transform=transform_dset)
+        held_out = torchvision.datasets.CIFAR10(root=opt.data_path, train=False, download=True, transform=transform_dset)
+        #### modificare correttamente con cifar 10 
+        file_index=open('./cifar100_forget_1000.txt','r')
+    elif opt.dataset=='cifar100':
+        train_set = torchvision.datasets.CIFAR100(root=opt.data_path, train=True, download=True, transform=transform_dset)
+        held_out = torchvision.datasets.CIFAR100(root=opt.data_path, train=False, download=True, transform=transform_dset)
+        file_index=open('./cifar100_forget_1000.txt','r')
+    else:
+        raise NotImplementedError
     
-    #train_set = torchvision.datasets.CIFAR10(root=opt.data_path, train=True, download=True, transform=normalize)
-    
-    train_set = torchvision.datasets.CIFAR10(root=opt.data_path, train=True, download=True, transform=normalize)
     train_loader = DataLoader(train_set, batch_size=opt.batch_size, shuffle=False, num_workers=2)
 
-    # we split held out data into test and validation set
-    #held_out = torchvision.datasets.CIFAR10(root=opt.data_path, train=False, download=True, transform=normalize)
     
-    held_out = torchvision.datasets.CIFAR10(root=opt.data_path, train=False, download=True, transform=normalize)
+    ### get held out dataset for generating test and validation 
+    
     test_set, val_set = random_split(held_out, [0.5, 0.5])
     test_loader = DataLoader(test_set, batch_size=opt.batch_size, drop_last=True, shuffle=False, num_workers=2)
     val_loader = DataLoader(val_set, batch_size=opt.batch_size, drop_last=True, shuffle=False, num_workers=2)
 
-    # download the forget and retain index split
-    local_path = "forget_idx.npy"
-    if not os.path.exists(local_path):
-        response = requests.get(
-            "https://unlearning-challenge.s3.eu-west-1.amazonaws.com/cifar10/" + local_path
-        )
-        open(local_path, "wb").write(response.content)
-    forget_idx = np.load(local_path)
+    # download the forget and retain index split made by organizers of the challenge
+    # local_path = "forget_idx.npy"
+    # if not os.path.exists(local_path):
+    #     response = requests.get(
+    #         "https://unlearning-challenge.s3.eu-west-1.amazonaws.com/cifar10/" + local_path
+    #     )
+    #     open(local_path, "wb").write(response.content)
+    # forget_idx = np.load(local_path)
 
-    # #forget_idx = np.random.choice(len(train_set.targets), size=5000, replace=False)
-    # file_index=open('./cifar100_forget_1000.txt','r')
-    # indexes=file_index.readlines()
-    # forget_idx = np.array(indexes).astype(int)
-    # # construct indices of retain from those of the forget set
+    #forget_idx = np.random.choice(len(train_set.targets), size=5000, replace=False)
+    
+    
+    indexes=file_index.readlines()
+    forget_idx = np.array(indexes).astype(int)
+
+    # construct indices of retain from those of the forget set
     forget_mask = np.zeros(len(train_set.targets), dtype=bool)
     forget_mask[forget_idx] = True
     retain_idx = np.arange(forget_mask.size)[~forget_mask]
@@ -109,13 +128,10 @@ def get_dsets():
     retain_set = Subset(train_set, retain_idx)
 
 
-    forget_loader = DataLoader(forget_set, batch_size=opt.batch_size, drop_last=True, shuffle=False, num_workers=4)
-    retain_loader = DataLoader(retain_set, batch_size=opt.batch_size, drop_last=True, shuffle=True, num_workers=4)
-    retain_loader2 = DataLoader(retain_set, batch_size=opt.batch_size_FT, drop_last=True, shuffle=True, num_workers=4)
+    train_forget_loader = DataLoader(forget_set, batch_size=opt.batch_size, drop_last=True, shuffle=False, num_workers=4)
+    train_retain_loader = DataLoader(retain_set, batch_size=opt.batch_size, drop_last=True, shuffle=True, num_workers=4)
 
-
-    return train_loader, test_loader, forget_loader, retain_loader, retain_loader2
-
+    return train_loader, test_loader, train_forget_loader, train_retain_loader
 
 
 

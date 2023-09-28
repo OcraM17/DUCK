@@ -2,15 +2,20 @@ import os
 import numpy as np
 import requests
 import torch
-#from torchvision.models.resnet import resnet18
-#from model import resnet18 
+from torchvision.models.resnet import resnet18
+#from resnet import resnet18 
 from sklearn import linear_model, model_selection
 import torch.nn as nn
 from opts import OPT as opt
 import torchvision
 from allcnn import AllCNN
+import pickle as pk
+import tqdm
+import torch.nn.functional as F
+from sklearn.metrics import precision_recall_fscore_support
 
-
+from pydrive.auth import GoogleAuth
+from pydrive.drive import GoogleDrive
 
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -80,14 +85,55 @@ def simple_mia(sample_loss, members, n_splits=10, random_state=0):
 
 
 
+# Initialize GoogleDrive instance with the credentials
+def download_weights_drive(model_weights,link_weights):
+    gauth = GoogleAuth()
+    gauth.LocalWebserverAuth()  # This creates a local webserver and automatically handles authentication.
+    # Specify the path to your JSON key file
+    json_key_file_path = '/home/jb/Documents/MachineUnlearning/client_secrets.json'
+
+    # Authenticate using the JSON key file
+    gauth.LoadCredentialsFile(json_key_file_path)
+
+    if gauth.credentials is None:
+        # Authenticate if the credentials don't exist
+        gauth.LocalWebserverAuth()
+    elif gauth.access_token_expired:
+        # Refresh the credentials if they have expired
+        gauth.Refresh()
+    else:
+        # Use the credentials
+        gauth.Authorize()
+
+    # Create a GoogleDrive instance
+
+    drive = GoogleDrive(gauth)
+
+    # ID of the file in your Google Drive
+    file_id = link_weights  # Replace with the actual file ID
+
+    # Set the path to save the downloaded file
+    download_path = model_weights  # Replace with your desired local file path
+
+    # Download the file
+    file = drive.CreateFile({'id': file_id})
+    file.GetContentFile(download_path)
+
+    print(f"File '{file['title']}' downloaded to '{download_path}'")
+
+
+
 def get_retrained_model(retain_loader, forget_loader):
     # download weights of a model trained exclusively on the retain set
-    local_path = "resnet18-198-best_retrained.pth" #"retrain_weights_resnet18_cifar10.pth"
-    if not os.path.exists(local_path):
-        response = requests.get(
-            "https://unlearning-challenge.s3.eu-west-1.amazonaws.com/cifar10/" + local_path
-        )
-        open(local_path, "wb").write(response.content)
+    if opt.class_to_be_removed is None:
+        local_path = "resnet18-198-best_retrained.pth" #"retrain_weights_resnet18_cifar10.pth"
+        if not os.path.exists(local_path):
+            response = requests.get(
+                "https://unlearning-challenge.s3.eu-west-1.amazonaws.com/cifar10/" + local_path
+            )
+            open(local_path, "wb").write(response.content)
+    else:
+        local_path = '/home/jb/Documents/MachineUnlearning/oracle_cifar10_class_rem.pth'
 
     weights_pretrained = torch.load(local_path, map_location=opt.device)
 
@@ -102,9 +148,29 @@ def get_retrained_model(retain_loader, forget_loader):
 
     return rt_model
 
+
+def get_resnet18_trained():
+
+    local_path = opt.model_weights
+    if not os.path.exists(local_path):
+        download_weights_drive(local_path,opt.link_weights)
+
+    weights_pretrained = torch.load(local_path)
+    model = torchvision.models.resnet18(pretrained=True)
+    if opt.dataset != 'cifar10':
+        model.conv1 = nn.Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        model.maxpool = nn.Identity()
+    model.fc = nn.Sequential(nn.Dropout(0), nn.Linear(512, opt.num_classes)) 
+
+    model.load_state_dict(weights_pretrained)
+
+    return model
+
+##############################################################################################################
+
 def get_resnet18_trained_on_cifar10():
-    #local_path = '/home/pelosinf/Documents/MachineUnlearning/resnet18-184-best.pth'#"weights_resnet18_cifar10.pth"
-    local_path = "weights_resnet18_cifar10.pth"
+    
+    local_path = opt.model_weights
     if not os.path.exists(local_path):
         response = requests.get(
             "https://unlearning-challenge.s3.eu-west-1.amazonaws.com/weights_resnet18_cifar10.pth"
@@ -112,14 +178,28 @@ def get_resnet18_trained_on_cifar10():
         open(local_path, "wb").write(response.content)
 
     weights_pretrained = torch.load(local_path, map_location=opt.device)
-
-    # load model with pre-trained weights
     model = torchvision.models.resnet18(weights=None, num_classes=opt.num_classes)
 
     model.load_state_dict(weights_pretrained)
 
     return model
 
+def get_resnet18_trained_on_tinyimagenet():
+
+    local_path = opt.model_weights
+    if not os.path.exists(local_path):
+        download_weights_drive(local_path,opt.link_weights)
+
+    weights_pretrained = torch.load(local_path)
+
+    model = torchvision.models.resnet18(pretrained=True)
+    model.conv1 = nn.Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    model.maxpool = nn.Identity()
+    model.fc = nn.Sequential(nn.Dropout(0), nn.Linear(512, 100)) 
+
+    model.load_state_dict(weights_pretrained)
+
+    return model
 
 def get_resnet50_trained_on_VGGFace():
     local_path = "/home/jb/Documents/MachineUnlearning/weights/net_weights_resnet50_VGG.pth"
@@ -225,3 +305,131 @@ def get_outputs(retain,forget,net,filename,opt=opt):
     file = open(filename,'wb')
 
     pk.dump([out_all_fgt.detach().cpu(),out_all_ret.detach().cpu(),logits_all_fgt.detach().cpu(),logits_all_ret.detach().cpu(),torch.cat(lab_fgt_list).detach().cpu(),torch.cat(lab_ret_list).detach().cpu()],file)
+
+
+
+########################
+#OLD STUFF
+########################
+# from utils import get_membership_attack_prob, get_MIA_MLP
+# def get_outputs(retain,forget,net,filename,opt=opt):
+#     bbone = torch.nn.Sequential(*(list(net.children())[:-1] + [torch.nn.Flatten()]))
+#     fc=net.fc
+
+#     bbone.eval(), fc.eval()
+
+#     out_all_fgt = None
+#     lab_ret_list = []
+#     lab_fgt_list = []
+
+#     for (img_ret, lab_ret), (img_fgt, lab_fgt) in zip(retain, forget):
+#         img_ret, lab_ret, img_fgt, lab_fgt = img_ret.to(opt.device), lab_ret.to(opt.device), img_fgt.to(opt.device), lab_fgt.to(opt.device)
+        
+#         logits_fgt = bbone(img_fgt)
+#         outputs_fgt = fc(logits_fgt)
+        
+#         logits_ret = bbone(img_ret)
+#         outputs_ret = fc(logits_ret)
+        
+#         lab_fgt_list.append(lab_fgt)
+#         lab_ret_list.append(lab_ret)
+
+#         if out_all_fgt is None:
+#             out_all_fgt = outputs_fgt
+#             out_all_ret = outputs_ret
+#             logits_all_fgt = logits_fgt
+#             logits_all_ret = logits_ret
+
+
+#         else:
+#             out_all_fgt = torch.concatenate((out_all_fgt,outputs_fgt),dim=0)
+#             out_all_ret = torch.concatenate((out_all_ret,outputs_ret),dim=0)
+
+#             logits_all_fgt = torch.concatenate((logits_all_fgt,logits_fgt),dim=0)
+#             logits_all_ret = torch.concatenate((logits_all_ret,logits_ret),dim=0)
+
+
+#     print('check ACCURACY retain ',torch.sum((torch.argmax(out_all_ret,dim=1))==torch.cat(lab_ret_list))/out_all_ret.shape[0])
+#     file = open(filename,'wb')
+
+#     pk.dump([out_all_fgt.detach().cpu(),out_all_ret.detach().cpu(),logits_all_fgt.detach().cpu(),logits_all_ret.detach().cpu(),torch.cat(lab_fgt_list).detach().cpu(),torch.cat(lab_ret_list).detach().cpu()],file)
+
+# class DeepMLP(nn.Module):
+#     def __init__(self, num_classes=2, num_layers=3, num_hidden=100):
+#         super(DeepMLP, self).__init__()
+#         self.num_layers = num_layers
+#         self.num_hidden = num_hidden
+
+#         self.fc1 = nn.Linear(100, num_hidden)
+#         self.bn1 = nn.BatchNorm1d(num_hidden)
+#         self.fully_connected = nn.ModuleList([nn.Linear(num_hidden, num_hidden) for _ in range(num_layers)])
+#         self.fc = nn.Linear(num_hidden, num_classes)
+
+#         self.bnorms = nn.ModuleList([nn.BatchNorm1d(num_hidden) for _ in range(num_layers)])
+
+
+#     def forward(self, x):
+#         x = nn.functional.relu(self.bn1(self.fc1(x)))
+#         for i in range(self.num_layers):
+#             x = self.fully_connected[i](x)
+#             x = self.bnorms[i](x)
+#             x = nn.functional.relu(x)
+#         x = self.fc(x)
+
+#         return x
+    
+# def plot_MIA(dict_acc,name ='MIA_test'):
+   
+#     mean = np.asarray([dict_acc['test_mean'],dict_acc['test_retain'],dict_acc['test_fgt']])
+#     std = np.asarray([dict_acc['test_std'],dict_acc['test_retain_std'],dict_acc['test_fgt_std']])
+    
+#     plt.errorbar(np.arange(3),mean,std)
+#     plt.ylabel('Accuracy')
+#     #set x labels to test retain and forget
+#     plt.xticks(np.arange(3),['test','retain','forget'])
+#     plt.xlabel('case')
+#     plt.title(f'{name}')
+#     plt.savefig(f'{name}.png')
+#     plt.close()
+
+# def get_MIA(dataloader,model,MLP,weights,opt,dict_acc,verbose=False,case='fgt'):
+#     model.eval()
+#     MLP.eval()
+#     MLP = MLP.to(opt.device)
+#     correct = torch.zeros((100,))
+#     total = torch.zeros((100,))
+    
+#     with torch.no_grad():
+#         for jj,data in enumerate(dataloader):
+#             images_all, labels_all = data
+
+#             for i in range(100):
+#                 MLP.load_state_dict(weights[f'class_{i}'])
+#                 images_all, labels_all = images_all.to(opt.device), labels_all.to(opt.device)
+#                 images, labels = images_all[labels_all==i], labels_all[labels_all==i]
+#                 if images.shape[0] == 0:
+#                     continue
+#                 else:
+#                     outputs = model(images)
+
+#                     predictions = MLP(torch.nn.functional.softmax(outputs,dim=1))
+#                     _, predicted = torch.max(predictions, 1)
+#                     total[i] += labels.size(0)
+#                     correct[i] += (predicted.detach().cpu() == 0).sum().item()
+
+
+#     for i in range(100):
+#         if verbose: print(f'Class {i} get MIA precision {round(correct / total,3)}')
+#         dict_acc[f'{case}_class_{i}'] = correct[i] / total[i]
+
+
+#     accuracies = []
+#     for key, value in dict_acc.items():
+#         accuracies.append(value)
+
+#     accuracies = np.array(accuracies)
+#     print(f'Mean MIA precision for case {case}: {round(np.mean(accuracies),3)}')
+#     dict_acc[f'{case}_mean'] = np.mean(accuracies)
+#     dict_acc[f'{case}_std'] = np.std(accuracies)
+    
+

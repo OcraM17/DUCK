@@ -4,56 +4,19 @@ import requests
 import numpy as np
 import sys
 import torch
-from torchvision.models.resnet import resnet18
+
 from copy import deepcopy
 from dsets import get_dsets_remove_class, get_dsets
-from utils import accuracy, compute_metrics,get_resnet18_trained_on_cifar10, set_seed, compute_losses, simple_mia, get_retrained_model, get_allcnn_trained_on_cifar10
+#to clean up
+from utils import accuracy, compute_metrics,get_resnet18_trained_on_cifar10, set_seed, compute_losses, simple_mia, get_retrained_model, get_allcnn_trained_on_cifar10,get_resnet50_trained_on_VGGFace_10_subjects,get_resnet18_trained
+
 from unlearn import unlearning
+from MIA_code.MIA import get_MIA_MLP
 from opts import OPT as opt
 import pickle as pk
-
-
-def get_outputs(retain,forget,net,filename,opt=opt):
-    bbone = torch.nn.Sequential(*(list(net.children())[:-1] + [torch.nn.Flatten()]))
-    fc=net.fc
-
-    bbone.eval(), fc.eval()
-
-    out_all_fgt = None
-    lab_ret_list = []
-    lab_fgt_list = []
-
-    for (img_ret, lab_ret), (img_fgt, lab_fgt) in zip(retain, forget):
-        img_ret, lab_ret, img_fgt, lab_fgt = img_ret.to(opt.device), lab_ret.to(opt.device), img_fgt.to(opt.device), lab_fgt.to(opt.device)
-        
-        logits_fgt = bbone(img_fgt)
-        outputs_fgt = fc(logits_fgt)
-        
-        logits_ret = bbone(img_ret)
-        outputs_ret = fc(logits_ret)
-        
-        lab_fgt_list.append(lab_fgt)
-        lab_ret_list.append(lab_ret)
-
-        if out_all_fgt is None:
-            out_all_fgt = outputs_fgt
-            out_all_ret = outputs_ret
-            logits_all_fgt = logits_fgt
-            logits_all_ret = logits_ret
-
-
-        else:
-            out_all_fgt = torch.concatenate((out_all_fgt,outputs_fgt),dim=0)
-            out_all_ret = torch.concatenate((out_all_ret,outputs_ret),dim=0)
-
-            logits_all_fgt = torch.concatenate((logits_all_fgt,logits_fgt),dim=0)
-            logits_all_ret = torch.concatenate((logits_all_ret,logits_ret),dim=0)
-
-
-    print('check ACCURACY retain ',torch.sum((torch.argmax(out_all_ret,dim=1))==torch.cat(lab_ret_list))/out_all_ret.shape[0])
-    file = open(filename,'wb')
-
-    pk.dump([out_all_fgt.detach().cpu(),out_all_ret.detach().cpu(),logits_all_fgt.detach().cpu(),logits_all_ret.detach().cpu(),torch.cat(lab_fgt_list).detach().cpu(),torch.cat(lab_ret_list).detach().cpu()],file)
+import torch.nn as nn
+import pickle as pk
+import matplotlib.pyplot as plt
 
 
 def main():
@@ -61,24 +24,53 @@ def main():
     set_seed(opt.seed)
 
     ##### GET DATA #####
-    train_loader, test_loader, forget_loader, retain_loader, retain_loader2 = get_dsets()#get_dsets_remove_class(opt.class_to_be_removed)
+    if opt.class_to_be_removed is None:
+        train_loader, test_loader, train_fgt_loader, train_retain_loader = get_dsets()
+    else:
+        all_train_loader,all_test_loader, train_fgt_loader, train_retain_loader, test_fgt_loader, test_retain_loader = get_dsets_remove_class(opt.class_to_be_removed)
 
-    ##### GET MODEL #####
-    original_pretr_model = get_allcnn_trained_on_cifar10() #get_resnet18_trained_on_cifar10() #get_resnet18_trained_on_cifar10()
+    ##### GET MODEL ##### 
+    # function to be fixed
+
+    if opt.model== 'resnet18':
+        original_pretr_model = get_resnet18_trained()
+
+    elif opt.model== 'resnet50' and opt.dataset == 'VGG':
+        original_pretr_model = get_resnet50_trained_on_VGGFace_10_subjects()
+    else:
+        
+        raise NotImplementedError
+
+    
     original_pretr_model.to(opt.device)
     original_pretr_model.eval()
+     
     print('\n----ORIGINAL MODEL----')
-    print(f"TEST-LOADER:{accuracy(original_pretr_model, test_loader):.3f} \nFORGET-LOADER: {accuracy(original_pretr_model, forget_loader):.3f}\nRETAIN-LOADER: {accuracy(original_pretr_model, retain_loader):.3f}  ")
-    ft_forget_losses = compute_losses(original_pretr_model, forget_loader)
-    ft_test_losses = compute_losses(original_pretr_model, test_loader)
+    if opt.class_to_be_removed is None:
+        print(f"TEST-LOADER:{accuracy(original_pretr_model, test_loader):.3f} \nFORGET-LOADER: {accuracy(original_pretr_model, train_fgt_loader):.3f}\nRETAIN-LOADER: {accuracy(original_pretr_model, train_retain_loader):.3f}  ")
+        #MIA
+        #get_MIA_MLP(train_loader, test_loader, model, opt)
+    else:
+        print('TRAIN:')
+        print(f'FORGET-LOADER: {accuracy(original_pretr_model,train_fgt_loader ):.3f}\nRETAIN-LOADER: {accuracy(original_pretr_model, train_retain_loader):.3f}')
+        print('TEST:')
+        print(f'FORGET-LOADER: {accuracy(original_pretr_model, test_fgt_loader):.3f}\nRETAIN-LOADER: {accuracy(original_pretr_model,test_retain_loader ):.3f}')
+        #MIA
+        #get_MIA_MLP(train_loader, test_loader, model, opt)
+   
+        # ft_train_losses = compute_losses(original_pretr_model, train_retain_loader)
+        # ft_forget_losses = compute_losses(original_pretr_model, train_fgt_loader)
+        # ft_test_losses = compute_losses(original_pretr_model, test_retain_loader)
+ 
+        # ft_forget_losses= ft_forget_losses[:len(ft_test_losses)]
 
-    ft_forget_losses= ft_forget_losses[:len(ft_test_losses)]
-    ft_test_losses = ft_test_losses[:len(ft_forget_losses)]
+        # ft_test_losses = ft_test_losses[:len(ft_forget_losses)]
 
-    ft_samples_mia = np.concatenate((ft_test_losses, ft_forget_losses)).reshape((-1, 1))
-    labels_mia = [0] * len(ft_test_losses) + [1] * len(ft_forget_losses)
-    ft_mia_scores = simple_mia(ft_samples_mia, labels_mia)
-    print(f"The MIA has an accuracy of {ft_mia_scores.mean():.3f} on forgotten vs unseen images")
+        # ft_samples_mia = np.concatenate((ft_test_losses, ft_forget_losses)).reshape((-1, 1))
+        # labels_mia = [0] * len(ft_test_losses) + [1] * len(ft_forget_losses)
+        # ft_mia_scores = simple_mia(ft_samples_mia, labels_mia)
+        # print(f"The MIA has an accuracy of {ft_mia_scores.mean():.3f} on forgotten vs unseen images")
+        # input('')
     #get_outputs(retain_loader,forget_loader,original_pretr_model,'/home/jb/Documents/MachineUnlearning/res_original_model.pkl',opt=opt)
 
 
@@ -89,23 +81,39 @@ def main():
 
     
     print('\n----- UNLEARNED ----')
-    unlearned_model = unlearning(pretr_model, retain_loader, forget_loader)
-    print(f"TEST-LOADER:{accuracy(unlearned_model, test_loader):.3f} \nFORGET-LOADER: {accuracy(unlearned_model, forget_loader):.3f}\nRETAIN-LOADER: {accuracy(unlearned_model, retain_loader):.3f}  ")
-    ft_forget_losses = compute_losses(unlearned_model, forget_loader)
-    ft_test_losses = compute_losses(unlearned_model, test_loader)
+    unlearned_model = unlearning(pretr_model, train_retain_loader, train_fgt_loader,target_accuracy=opt.target_accuracy)
 
-    ft_forget_losses= ft_forget_losses[:len(ft_test_losses)]
-    ft_test_losses = ft_test_losses[:len(ft_forget_losses)]
+    if opt.class_to_be_removed is None:
+        print(f"TEST-LOADER:{accuracy(unlearned_model, test_loader):.3f} \nFORGET-LOADER: {accuracy(unlearned_model, train_fgt_loader):.3f}\nRETAIN-LOADER: {accuracy(unlearned_model, train_retain_loader):.3f}  ")
+        #MIA
+        #get_MIA_MLP(train_loader, test_loader, model, opt)
 
-    ft_samples_mia = np.concatenate((ft_test_losses, ft_forget_losses)).reshape((-1, 1))
-    labels_mia = [0] * len(ft_test_losses) + [1] * len(ft_forget_losses)
-    ft_mia_scores = simple_mia(ft_samples_mia, labels_mia)
-    print(f"The MIA has an accuracy of {ft_mia_scores.mean():.3f} on forgotten vs unseen images")
+    else:
+        print('TRAIN:')
+        print(f'FORGET-LOADER: {accuracy(unlearned_model,train_fgt_loader ):.3f}\nRETAIN-LOADER: {accuracy(unlearned_model, train_retain_loader):.3f}')
+        print('TEST:')
+        print(f'FORGET-LOADER: {accuracy(unlearned_model, test_fgt_loader):.3f}\nRETAIN-LOADER: {accuracy(unlearned_model,test_retain_loader ):.3f}')
+        #MIA
+        #get_MIA_MLP(train_loader, test_loader, model, opt)
+
+
+
+
+    # ft_forget_losses = compute_losses(unlearned_model, forget_loader)
+    # ft_test_losses = compute_losses(unlearned_model, test_loader)
+
+    # ft_forget_losses= ft_forget_losses[:len(ft_test_losses)]
+    # ft_test_losses = ft_test_losses[:len(ft_forget_losses)]
+
+    # ft_samples_mia = np.concatenate((ft_test_losses, ft_forget_losses)).reshape((-1, 1))
+    # labels_mia = [0] * len(ft_test_losses) + [1] * len(ft_forget_losses)
+    # ft_mia_scores = simple_mia(ft_samples_mia, labels_mia)
+    # print(f"The MIA has an accuracy of {ft_mia_scores.mean():.3f} on forgotten vs unseen images")
     #get_outputs(retain_loader,forget_loader,unlearned_model,'/home/jb/Documents/MachineUnlearning/res_unlr_model.pkl',opt=opt)
     
     #compute_metrics(unlearned_model, train_loader, forget_loader, retain_loader, all_val_loader, val_fgt_loader, val_retain_loader)
 
-    #print('\n-----FT on RETAIN----')
+    # print('\n-----FT on RETAIN----')
 
     #unlearned_model_finetuned = fine_tune2(unlearned_model, retain_loader2)
     #print(f"TEST-LOADER:{accuracy(unlearned_model_finetuned, test_loader):.3f} \nFORGET-LOADER: {accuracy(unlearned_model_finetuned, forget_loader):.3f}\nRETAIN-LOADER: {accuracy(unlearned_model_finetuned, retain_loader):.3f}  ")
@@ -119,12 +127,14 @@ def main():
 
 
 
-    # print('\n----RETRAINED on RETAIN ----')
-    # # RETRAINED MODEL ON RETAIN SET
-    # # WE SHOULD RETRAIN FROM SCRATCH 
+    print('\n----RETRAINED on RETAIN ----')
+    # RETRAINED MODEL ON RETAIN SET
+    # WE SHOULD RETRAIN FROM SCRATCH 
 
-    # rt_model = get_retrained_model(retain_loader, forget_loader)
-    # print(f"TEST-LOADER:{accuracy(rt_model, test_loader):.3f} \nFORGET-LOADER: {accuracy(rt_model, forget_loader):.3f}\nRETAIN-LOADER: {accuracy(rt_model, retain_loader):.3f}  ")
+    rt_model = get_retrained_model(test_retain_loader, test_fgt_loader)
+    #print(f"TEST-LOADER:{accuracy(rt_model, test_loader):.3f} \nFORGET-LOADER: {accuracy(rt_model, forget_loader):.3f}\nRETAIN-LOADER: {accuracy(rt_model, retain_loader):.3f}  ")
+    for _ in range(5):
+        print(get_MIA_MLP(train_fgt_loader, test_fgt_loader, rt_model))
     # retrained_forget_losses = compute_losses(rt_model, forget_loader)
     # retrained_test_losses = compute_losses(rt_model, test_loader)
 
