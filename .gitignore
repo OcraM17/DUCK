@@ -10,3 +10,4 @@ faces/
 cropped_faces/
 _torchshow/
 client_secrets.json
+.vscode
