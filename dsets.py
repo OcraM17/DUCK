@@ -30,11 +30,13 @@ def get_dsets_remove_class(class_to_remove):
     mean = {
             'cifar10': (0.4914, 0.4822, 0.4465),
             'cifar100': (0.5071, 0.4867, 0.4408),
+            'tinyImagenet': (0.485, 0.456, 0.406)
             }
 
     std = {
             'cifar10': (0.2023, 0.1994, 0.2010),
             'cifar100': (0.2675, 0.2565, 0.2761),
+            'tinyImagenet': (0.229, 0.224, 0.225)
             }
 
     # download and pre-process CIFAR10
@@ -52,7 +54,9 @@ def get_dsets_remove_class(class_to_remove):
     elif opt.dataset == 'cifar100':
         train_set = torchvision.datasets.CIFAR100(root=opt.data_path, train=True, download=True, transform=transform_dset)
         test_set = torchvision.datasets.CIFAR100(root=opt.data_path, train=False, download=True, transform=transform_dset)
-
+    elif opt.dataset == 'tinyImagenet':
+        train_set = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/train/',transform=transform_dset)
+        test_set = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/val/images/',transform=transform_dset)
     #val_set, test_set = torch.utils.data.random_split(held_out, [0.7, 0.3])
 
     test_forget_set, test_retain_set = split_retain_forget(test_set, class_to_remove)
@@ -78,11 +82,13 @@ def get_dsets():
     mean = {
             'cifar10': (0.4914, 0.4822, 0.4465),
             'cifar100': (0.5071, 0.4867, 0.4408),
+            'tinyImagenet': (0.485, 0.456, 0.406)
             }
 
     std = {
             'cifar10': (0.2023, 0.1994, 0.2010),
             'cifar100': (0.2675, 0.2565, 0.2761),
+            'tinyImagenet': (0.229, 0.224, 0.225)
             }
 
     transform_dset = transforms.Compose(
@@ -96,9 +102,7 @@ def get_dsets():
         train_set = torchvision.datasets.CIFAR10(root=opt.data_path, train=True, download=True, transform=transform_dset)
         held_out = torchvision.datasets.CIFAR10(root=opt.data_path, train=False, download=True, transform=transform_dset)
         forget_idx = np.loadtxt('./forget_idx_5000_cifar10.txt').astype(np.int64)
-        # file_index=open('./forget_idx_5000_cifar10.txt','r')
-        # indexes=file_index.readlines()
-        # forget_idx = np.array(indexes).astype(int)
+
 
     elif opt.dataset=='cifar100':
         train_set = torchvision.datasets.CIFAR100(root=opt.data_path, train=True, download=True, transform=transform_dset)
@@ -106,10 +110,11 @@ def get_dsets():
         #use numpy modules to read txt file for cifar100
         forget_idx = np.loadtxt('./forget_idx_5000_cifar100.txt').astype(np.int64)
 
-        # file_index=open('./forget_idx_5000_cifar100.txt','r')
-        # indexes=file_index.readlines()
-        # forget_idx = np.array(indexes).astype(int)
-
+    elif opt.dataset == 'tinyImagenet':
+        train_set = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/train/',transform=transform_dset)
+        held_out = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/val/images/',transform=transform_dset)
+        forget_idx = np.loadtxt('./forget_idx_5000_tinyImagenet.txt').astype(np.int64)
+        
     else:
         raise NotImplementedError
     
