@@ -99,9 +99,9 @@ def unlearning(net, retain, forget,target_accuracy=0.76, opt=opt):
             curr_acc = accuracy(net, forget)
             tr_acc = accuracy(net,retain)
             net.train()
-            print(f"ACCURACY FORGET SET: {curr_acc:.3f}")
+            print(f"ACCURACY FORGET SET: {curr_acc:.3f}, target is {target_accuracy:.3f}")
             print(f"ACCURACY retain SET: {tr_acc:.3f}")
-            if curr_acc < target_accuracy + 0.01:
+            if curr_acc < target_accuracy:
                 flag_exit = True
 
         if flag_exit:

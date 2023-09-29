@@ -27,22 +27,31 @@ def split_retain_forget(dataset, class_to_remove):
 
 
 def get_dsets_remove_class(class_to_remove):
+    mean = {
+            'cifar10': (0.4914, 0.4822, 0.4465),
+            'cifar100': (0.5071, 0.4867, 0.4408),
+            }
+
+    std = {
+            'cifar10': (0.2023, 0.1994, 0.2010),
+            'cifar100': (0.2675, 0.2565, 0.2761),
+            }
 
     # download and pre-process CIFAR10
-    normalize = transforms.Compose(
+    transform_dset = transforms.Compose(
         [
             transforms.ToTensor(),
-            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
+            transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
         ]
     )
 
     # we split held out - train
     if opt.dataset == 'cifar10':
-        train_set = torchvision.datasets.CIFAR10(root=opt.data_path, train=True, download=True, transform=normalize)
-        test_set = torchvision.datasets.CIFAR10(root=opt.data_path, train=False, download=True, transform=normalize)
+        train_set = torchvision.datasets.CIFAR10(root=opt.data_path, train=True, download=True, transform=transform_dset)
+        test_set = torchvision.datasets.CIFAR10(root=opt.data_path, train=False, download=True, transform=transform_dset)
     elif opt.dataset == 'cifar100':
-        train_set = torchvision.datasets.CIFAR100(root=opt.data_path, train=True, download=True, transform=normalize)
-        test_set = torchvision.datasets.CIFAR100(root=opt.data_path, train=False, download=True, transform=normalize)
+        train_set = torchvision.datasets.CIFAR100(root=opt.data_path, train=True, download=True, transform=transform_dset)
+        test_set = torchvision.datasets.CIFAR100(root=opt.data_path, train=False, download=True, transform=transform_dset)
 
     #val_set, test_set = torch.utils.data.random_split(held_out, [0.7, 0.3])
 
@@ -86,12 +95,21 @@ def get_dsets():
     if opt.dataset == 'cifar10':
         train_set = torchvision.datasets.CIFAR10(root=opt.data_path, train=True, download=True, transform=transform_dset)
         held_out = torchvision.datasets.CIFAR10(root=opt.data_path, train=False, download=True, transform=transform_dset)
-        #### modificare correttamente con cifar 10 
-        file_index=open('./cifar100_forget_1000.txt','r')
+        forget_idx = np.loadtxt('./forget_idx_5000_cifar10.txt').astype(np.int64)
+        # file_index=open('./forget_idx_5000_cifar10.txt','r')
+        # indexes=file_index.readlines()
+        # forget_idx = np.array(indexes).astype(int)
+
     elif opt.dataset=='cifar100':
         train_set = torchvision.datasets.CIFAR100(root=opt.data_path, train=True, download=True, transform=transform_dset)
         held_out = torchvision.datasets.CIFAR100(root=opt.data_path, train=False, download=True, transform=transform_dset)
-        file_index=open('./cifar100_forget_1000.txt','r')
+        #use numpy modules to read txt file for cifar100
+        forget_idx = np.loadtxt('./forget_idx_5000_cifar100.txt').astype(np.int64)
+
+        # file_index=open('./forget_idx_5000_cifar100.txt','r')
+        # indexes=file_index.readlines()
+        # forget_idx = np.array(indexes).astype(int)
+
     else:
         raise NotImplementedError
     
@@ -104,20 +122,7 @@ def get_dsets():
     test_loader = DataLoader(test_set, batch_size=opt.batch_size, drop_last=True, shuffle=False, num_workers=2)
     val_loader = DataLoader(val_set, batch_size=opt.batch_size, drop_last=True, shuffle=False, num_workers=2)
 
-    # download the forget and retain index split made by organizers of the challenge
-    # local_path = "forget_idx.npy"
-    # if not os.path.exists(local_path):
-    #     response = requests.get(
-    #         "https://unlearning-challenge.s3.eu-west-1.amazonaws.com/cifar10/" + local_path
-    #     )
-    #     open(local_path, "wb").write(response.content)
-    # forget_idx = np.load(local_path)
-
-    #forget_idx = np.random.choice(len(train_set.targets), size=5000, replace=False)
     
-    
-    indexes=file_index.readlines()
-    forget_idx = np.array(indexes).astype(int)
 
     # construct indices of retain from those of the forget set
     forget_mask = np.zeros(len(train_set.targets), dtype=bool)

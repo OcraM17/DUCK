@@ -120,30 +120,46 @@ def download_weights_drive(model_weights,link_weights,root_folder):
 
     print(f"File '{file['title']}' downloaded to '{download_path}'")
 
-def get_retrained_model(retain_loader, forget_loader):
-    # download weights of a model trained exclusively on the retain set
-    if opt.class_to_be_removed is None:
-        local_path = "resnet18-198-best_retrained.pth" #"retrain_weights_resnet18_cifar10.pth"
-        if not os.path.exists(local_path):
-            response = requests.get(
-                "https://unlearning-challenge.s3.eu-west-1.amazonaws.com/cifar10/" + local_path
-            )
-            open(local_path, "wb").write(response.content)
+# def get_retrained_model(opt):
+#     # download weights of a model trained exclusively on the retain set
+#     if opt.class_to_be_removed is None:
+#         local_path = opt.model_weights_RT
+#         if not os.path.exists(local_path):
+#             response = requests.get(
+#                 "https://unlearning-challenge.s3.eu-west-1.amazonaws.com/cifar10/" + local_path
+#             )
+#             open(local_path, "wb").write(response.content)
+            
+#     else:
+#         local_path = '/home/jb/Documents/MachineUnlearning/oracle_cifar10_class_rem.pth'
+
+#     weights_pretrained = torch.load(local_path)
+
+#     # load model with pre-trained weights
+#     rt_model = resnet18(weights=None, num_classes=opt.num_classes)
+#     rt_model.load_state_dict(weights_pretrained)
+
+#     return rt_model
+
+def get_retrained_model():
+
+    local_path = opt.model_weights_RT
+    #DOWNLOAD ZIP
+    # if not os.path.exists(local_path):
+    #     download_weights_drive(local_path,opt.link_weights_RT,opt.root_folder)
+
+    weights_pretrained = torch.load(local_path)
+    model = torchvision.models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
+    if opt.dataset != 'cifar10':
+        model.conv1 = nn.Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        model.maxpool = nn.Identity()
+        model.fc = nn.Sequential(nn.Dropout(0), nn.Linear(512, opt.num_classes)) 
     else:
-        local_path = '/home/jb/Documents/MachineUnlearning/oracle_cifar10_class_rem.pth'
+        model.fc = nn.Sequential(nn.Dropout(0), nn.Linear(512, opt.num_classes))
 
-    weights_pretrained = torch.load(local_path, map_location=opt.device)
+    model.load_state_dict(weights_pretrained)
 
-    # load model with pre-trained weights
-    rt_model = resnet18(weights=None, num_classes=opt.num_classes)
-    rt_model.load_state_dict(weights_pretrained)
-    rt_model.to(opt.device)
-    rt_model.eval()
-
-    # print its accuracy on retain and forget set
-    print(f"[ Train ] ret: {accuracy(rt_model, retain_loader):.3f}  fgt: {accuracy(rt_model, forget_loader):.3f}")
-
-    return rt_model
+    return model
 
 
 def get_resnet18_trained():

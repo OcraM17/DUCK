@@ -5,6 +5,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from sklearn.metrics import precision_recall_fscore_support
+from sklearn.metrics import adjusted_mutual_info_score
 
 import pandas as pd
 
@@ -46,6 +47,34 @@ class CustomDataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.X_train)
 
+def compute_f1_score(predicted_labels, true_labels):
+    """
+    Compute the F1 score given the predicted labels and true labels.
+
+    Args:
+        predicted_labels (list or array-like): The predicted labels.
+        true_labels (list or array-like): The true labels.
+
+    Returns:
+        float: The F1 score.
+    """
+    true_positives = 0
+    false_positives = 0
+    false_negatives = 0
+
+    for predicted, true in zip(predicted_labels, true_labels):
+        if predicted == 1 and true == 1:
+            true_positives += 1
+        elif predicted == 1 and true == 0:
+            false_positives += 1
+        elif predicted == 0 and true == 1:
+            false_negatives += 1
+
+    precision = true_positives / (true_positives + false_positives)
+    recall = true_positives / (true_positives + false_negatives)
+
+    f1_score = 2 * (precision * recall) / (precision + recall)
+    return precision,recall,f1_score
 
 #function to compute accuracy given a model and a dataloader
 def compute_accuracy(model, dataloader,device,targ_val = None):
@@ -71,11 +100,50 @@ def compute_accuracy(model, dataloader,device,targ_val = None):
         labels= np.asarray(labels)
         chance = labels.sum()/labels.shape[0]
         #print('check',np.asarray(prediction_F1).astype(np.int64).sum(),np.asarray(labels).astype(np.int64).sum())
-        P,R,F1 = precision_recall_fscore_support(np.asarray(labels).astype(np.int64), np.asarray(prediction_F1).astype(np.int64), average='macro')[:3]
+        #print('MI:',adjusted_mutual_info_score(np.asarray(labels).astype(np.int64), np.asarray(prediction_F1).astype(np.int64)))
+        P,R,F1 = precision_recall_fscore_support(np.asarray(labels).astype(np.int64), np.asarray(prediction_F1).astype(np.int64), average='binary')[:3]
         return correct / total, chance ,P,R,F1
     else:
         return correct / total
+def compute_mutual_information(vector1, vector2):
+    import math
+    """
+    Compute the mutual information between two binary vectors.
 
+    Args:
+        vector1 (list or array-like): The first binary vector.
+        vector2 (list or array-like): The second binary vector.
+
+    Returns:
+        float: The mutual information.
+    """
+    assert len(vector1) == len(vector2), "Vectors must have the same length."
+    
+    n = len(vector1)
+    
+    # Calculate the joint probability distribution
+    joint_prob = [[0, 0], [0, 0]]
+    
+    for i in range(n):
+        joint_prob[vector1[i]][vector2[i]] += 1
+    
+    joint_prob = [[count / n for count in row] for row in joint_prob]
+    print(joint_prob)
+    # Calculate the marginal probability distributions
+    marg_prob1 = [sum(joint_prob[i][j] for j in range(2)) for i in range(2)]
+    marg_prob2 = [sum(joint_prob[i][j] for i in range(2)) for j in range(2)]
+    
+    # Calculate the mutual information
+    mutual_info = 0
+    
+    for i in range(2):
+        for j in range(2):
+            if joint_prob[i][j] > 0 and marg_prob1[i] > 0 and marg_prob2[j] > 0:
+                mutual_info += joint_prob[i][j] * \
+                    (math.log(joint_prob[i][j] /
+                              (marg_prob1[i] * marg_prob2[j]), 2))
+    
+    return mutual_info
 def training_MLP(model,X_train, X_test, z_train, z_test,opt):
 
     model = model.to(opt.device)
@@ -124,10 +192,12 @@ def training_MLP(model,X_train, X_test, z_train, z_test,opt):
         scheduler.step()
         #print accuracy in train and test set and loss
         if epoch%5==0 and opt.verboseMLP:
+            model.eval()
             train_acc,_,_,_,_=compute_accuracy(model, dataloader_train,opt.device)
             test_acc,_,_,_,_ = compute_accuracy(model, dataloader_test,opt.device)
             print(f'Epoch {epoch},Train loss: {round(tot_loss/len(dataloader_train),3)}, Train accuracy: {round(train_acc,3)} | Test accuracy: {round(test_acc,3)}')
-    
+            model.train()
+    model.eval()
     accuracy,chance, precision, recall,F1 = compute_accuracy(model, dataloader_test,opt.device)
     accuracy_test_ex = compute_accuracy(model, dataloader_test,opt.device,0)
     accuracy_train_ex = compute_accuracy(model, dataloader_test,opt.device,1)
@@ -138,7 +208,7 @@ def training_MLP(model,X_train, X_test, z_train, z_test,opt):
         print(f'Test accuracy for case test examples: {round(accuracy_test_ex,3)}')
         print(f'Test accuracy for case training examples: {round(accuracy_train_ex,3)}')
 
-    return accuracy,chance, precision, recall,F1
+    return accuracy,chance,accuracy_test_ex,accuracy_train_ex, precision, recall,F1
 
 def collect_prob(data_loader, model,opt):
     
@@ -209,8 +279,8 @@ def get_MIA_MLP(train_loader, test_loader, model, opt):
     for i in range(opt.iter_MLP):
         train_data, train_labels, test_data, test_labels = get_membership_attack_data_MLP(train_loader, test_loader, model, opt)
         model_MLP = DeepMLP(input_classes=opt.num_classes, num_classes=2, num_layers=opt.num_layers_MLP, num_hidden=opt.num_hidden_MLP)
-        accuracy, chance, P,R,F1 = training_MLP(model_MLP, train_data, test_data, train_labels, test_labels, opt)
-        results.append(np.asarray([accuracy, chance, P,R,F1]))
+        accuracy, chance,accuracy_test_ex,accuracy_train_ex, P,R,F1 = training_MLP(model_MLP, train_data, test_data, train_labels, test_labels, opt)
+        results.append(np.asarray([accuracy, chance,accuracy_test_ex,accuracy_train_ex,P,R,F1]))
     results = np.asarray(results)
-    df = pd.DataFrame(results,columns=['accuracy','chance','precision','recall','F1'])
+    df = pd.DataFrame(results,columns=['accuracy','chance','acc | test ex','acc | train ex','precision','recall','F1'])
     return df
