@@ -6,6 +6,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from sklearn.metrics import precision_recall_fscore_support
 
+import pandas as pd
 
 # deep mlp
 class DeepMLP(nn.Module):
@@ -69,6 +70,7 @@ def compute_accuracy(model, dataloader,device,targ_val = None):
     if targ_val is None:
         labels= np.asarray(labels)
         chance = labels.sum()/labels.shape[0]
+        #print('check',np.asarray(prediction_F1).astype(np.int64).sum(),np.asarray(labels).astype(np.int64).sum())
         P,R,F1 = precision_recall_fscore_support(np.asarray(labels).astype(np.int64), np.asarray(prediction_F1).astype(np.int64), average='macro')[:3]
         return correct / total, chance ,P,R,F1
     else:
@@ -122,7 +124,9 @@ def training_MLP(model,X_train, X_test, z_train, z_test,opt):
         scheduler.step()
         #print accuracy in train and test set and loss
         if epoch%5==0 and opt.verboseMLP:
-            print(f'Epoch {epoch},Train loss: {round(tot_loss/len(dataloader_train),3)}, Train accuracy: {round(compute_accuracy(model, dataloader_train,opt.device),3)} | Test accuracy: {round(compute_accuracy(model, dataloader_test,opt.device),3)}')
+            train_acc,_,_,_,_=compute_accuracy(model, dataloader_train,opt.device)
+            test_acc,_,_,_,_ = compute_accuracy(model, dataloader_test,opt.device)
+            print(f'Epoch {epoch},Train loss: {round(tot_loss/len(dataloader_train),3)}, Train accuracy: {round(train_acc,3)} | Test accuracy: {round(test_acc,3)}')
     
     accuracy,chance, precision, recall,F1 = compute_accuracy(model, dataloader_test,opt.device)
     accuracy_test_ex = compute_accuracy(model, dataloader_test,opt.device,0)
@@ -201,7 +205,12 @@ def get_membership_attack_data_MLP(train_loader, test_loader, model,opt):
     return xtrain,ytrain,xtest,ytest
 
 def get_MIA_MLP(train_loader, test_loader, model, opt):
+    results = []
     for i in range(opt.iter_MLP):
         train_data, train_labels, test_data, test_labels = get_membership_attack_data_MLP(train_loader, test_loader, model, opt)
         model_MLP = DeepMLP(input_classes=opt.num_classes, num_classes=2, num_layers=opt.num_layers_MLP, num_hidden=opt.num_hidden_MLP)
         accuracy, chance, P,R,F1 = training_MLP(model_MLP, train_data, test_data, train_labels, test_labels, opt)
+        results.append(np.asarray([accuracy, chance, P,R,F1]))
+    results = np.asarray(results)
+    df = pd.DataFrame(results,columns=['accuracy','chance','precision','recall','F1'])
+    return df

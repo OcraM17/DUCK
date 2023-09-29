@@ -2,7 +2,7 @@ import os
 import numpy as np
 import requests
 import torch
-from torchvision.models.resnet import resnet18
+from torchvision.models.resnet import resnet18,ResNet18_Weights
 #from resnet import resnet18 
 from sklearn import linear_model, model_selection
 import torch.nn as nn
@@ -88,9 +88,9 @@ def simple_mia(sample_loss, members, n_splits=10, random_state=0):
 
 
 # Initialize GoogleDrive instance with the credentials
-def download_weights_drive(model_weights,link_weights):
+def download_weights_drive(model_weights,link_weights,root_folder):
     # Specify the path to your JSON key file
-    json_key_file_path = '/home/luigi/Work/MachineUnlearning/client_secrets.json'
+    json_key_file_path = root_folder+'client_secrets.json'
 
     # Check if the JSON key file exists
     if not os.path.isfile(json_key_file_path):
@@ -119,6 +119,7 @@ def download_weights_drive(model_weights,link_weights):
     file.GetContentFile(download_path)
 
     print(f"File '{file['title']}' downloaded to '{download_path}'")
+
 def get_retrained_model(retain_loader, forget_loader):
     # download weights of a model trained exclusively on the retain set
     if opt.class_to_be_removed is None:
@@ -149,14 +150,16 @@ def get_resnet18_trained():
 
     local_path = opt.model_weights
     if not os.path.exists(local_path):
-        download_weights_drive(local_path,opt.link_weights)
+        download_weights_drive(local_path,opt.link_weights,opt.root_folder)
 
     weights_pretrained = torch.load(local_path)
-    model = torchvision.models.resnet18(pretrained=True)
+    model = torchvision.models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
     if opt.dataset != 'cifar10':
         model.conv1 = nn.Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
         model.maxpool = nn.Identity()
-    model.fc = nn.Sequential(nn.Dropout(0), nn.Linear(512, opt.num_classes)) 
+        model.fc = nn.Sequential(nn.Dropout(0), nn.Linear(512, opt.num_classes)) 
+    else:
+        model.fc = nn.Linear(512, opt.num_classes)
 
     model.load_state_dict(weights_pretrained)
 
