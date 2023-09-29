@@ -14,8 +14,19 @@ import glob
 def split_retain_forget(dataset, class_to_remove):
 
     # find forget indices
-    forget_idx = np.where(np.array(dataset.targets) == class_to_remove)[0]
-    
+    #print(np.unique(np.array(dataset.targets),return_counts=True))
+    if type(class_to_remove) is tuple:
+        forget_idx = None
+        for class_rm in class_to_remove:
+            if forget_idx is None:
+                forget_idx = np.where(np.array(dataset.targets) == class_rm)[0]
+            else:
+                forget_idx = np.concatenate((forget_idx, np.where(np.array(dataset.targets) == class_rm)[0]))
+            
+            #print(class_rm,forget_idx.shape)
+    else:
+        forget_idx = np.where(np.array(dataset.targets) == class_to_remove)[0]
+
     forget_mask = np.zeros(len(dataset.targets), dtype=bool)
     forget_mask[forget_idx] = True
     retain_idx = np.arange(forget_mask.size)[~forget_mask]

@@ -31,7 +31,7 @@ class OPT:
     # unlearning params
     #set class to be remove to None if you want to unlearn a set of samples that belong to different classes
     batch_size = 128
-    class_to_be_removed = None#5 
+    class_to_be_removed = 5,6,7,8
     epochs_unlearn = 2000 #best 5
     lr_unlearn = 0.0001#cifar100
     #0.0001#0.0000005 #best 0.001
