@@ -14,7 +14,7 @@ import tqdm
 import torch.nn.functional as F
 from sklearn.metrics import precision_recall_fscore_support
 import os
-
+import zipfile
 
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
@@ -88,7 +88,7 @@ def simple_mia(sample_loss, members, n_splits=10, random_state=0):
 
 
 # Initialize GoogleDrive instance with the credentials
-def download_weights_drive(model_weights,link_weights,root_folder):
+def download_weights_drive(model_weights,weight_file_id,root_folder):
     # Specify the path to your JSON key file
     json_key_file_path = root_folder+'client_secrets.json'
 
@@ -104,12 +104,11 @@ def download_weights_drive(model_weights,link_weights,root_folder):
     # Perform user authentication using LocalWebserverAuth
     gauth.LocalWebserverAuth()
 
-
     # Create GoogleDrive instance
     drive = GoogleDrive(gauth)
 
     # Set the ID of the file in your Google Drive
-    file_id = link_weights  # Replace with the actual file ID
+    file_id = weight_file_id  # Replace with the actual file ID
 
     # Set the path to save the downloaded file
     download_path = model_weights  # Replace with your desired local file path
@@ -145,9 +144,10 @@ def get_retrained_model():
 
     local_path = opt.model_weights_RT
     #DOWNLOAD ZIP
-    # if not os.path.exists(local_path):
-    #     download_weights_drive(local_path,opt.link_weights_RT,opt.root_folder)
-
+    if not os.path.exists(local_path):
+        download_weights_drive("rt_models.zip", opt.weight_file_id_RT, opt.root_folder)
+        unzip_file(opt.root_folder + "rt_models.zip", opt.root_folder + "weights/.")
+        os.system("rm rt_models.zip")
     weights_pretrained = torch.load(local_path)
     model = torchvision.models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
     if opt.dataset != 'cifar10':
@@ -166,7 +166,7 @@ def get_resnet18_trained():
 
     local_path = opt.model_weights
     if not os.path.exists(local_path):
-        download_weights_drive(local_path,opt.link_weights,opt.root_folder)
+        download_weights_drive(local_path,opt.weight_file_id,opt.root_folder)
 
     weights_pretrained = torch.load(local_path)
     model = torchvision.models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
@@ -203,7 +203,7 @@ def get_resnet18_trained_on_tinyimagenet():
 
     local_path = opt.model_weights
     if not os.path.exists(local_path):
-        download_weights_drive(local_path,opt.link_weights)
+        download_weights_drive(local_path,opt.weight_file_id)
 
     weights_pretrained = torch.load(local_path)
 
@@ -321,7 +321,9 @@ def get_outputs(retain,forget,net,filename,opt=opt):
 
     pk.dump([out_all_fgt.detach().cpu(),out_all_ret.detach().cpu(),logits_all_fgt.detach().cpu(),logits_all_ret.detach().cpu(),torch.cat(lab_fgt_list).detach().cpu(),torch.cat(lab_ret_list).detach().cpu()],file)
 
-
+def unzip_file(file_path, destination_path):
+    with zipfile.ZipFile(file_path, 'r') as zip_ref:
+        zip_ref.extractall(destination_path)
 
 ########################
 #OLD STUFF
