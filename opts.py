@@ -5,27 +5,33 @@ class OPT:
     dataset = 'cifar100'
     seed = 42
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
-    #root_folder = '/home/luigi/Work/MachineUnlearning/'
+    
     # gets current folder path
     root_folder = os.path.dirname(os.path.abspath(__file__)) + "/"
 
     # Model
     model = 'resnet18'#'AllCNN'
     ### RUN model type
-    run_original = False
+    run_original = True
     run_unlearn = True
     run_rt_model = False
     
     # Data
     data_path = '~/data'
-    num_classes = 100
+    if dataset == 'cifar10':
+        num_classes = 10
+    elif dataset == 'cifar100':
+        num_classes = 100
+    elif dataset == 'tinyImagenet':
+        num_classes = 200
+    
     num_workers = 4
 
     
     # unlearning params
     #set class to be remove to None if you want to unlearn a set of samples that belong to different classes
     batch_size = 128
-    class_to_be_removed = None#5 
+    class_to_be_removed = 5,6,7,8
     epochs_unlearn = 2000 #best 5
     lr_unlearn = 0.001#cifar100
     #0.0001#0.0000005 #best 0.001
@@ -33,7 +39,7 @@ class OPT:
     momentum_unlearn = 0.
     lambda_1 = 1. #1#cifar100 .1#vgg subj
     lambda_2 = 0.7 #0.5#cifar100 1#vgg subj
-    target_accuracy = 0.77 #0.76 cifar100
+    target_accuracy = 0.67 #0.76 cifar100
 
 
     ###MLP
@@ -62,7 +68,7 @@ class OPT:
             else:
                 model_weights_RT = root_folder+f'weights/chks_cifar10/best_checkpoint_without_{class_to_be_removed}.pth'
                 link_weights_RT = '1IhuzENiHGDuFtb5cDShAhgXdfujlq-lK'
-        elif dataset== 'TinyImagenet':
+        elif dataset== 'tinyImagenet':
             model_weights = root_folder+'weights/best_model_tiny.pth'
             link_weights = '11wMtPzADDxBsRKBctK0BSJa3jhg48jK4'
             
@@ -84,9 +90,9 @@ class OPT:
 
     # random elements rem
     #                    cifar10   cifar100     TinyImagenet
-    # lr_unlearn =       0.0001    0.0001       #0.0000005 #best 0.001
+    # lr_unlearn =       0.0001    0.0001       0.0001  #best 0.001
     #wd_unlearn =        0.        0
     #momentum_unlearn =  0.        0
-    #lambda_1 =          1         1            #cifar100 .1#vgg subj
-    #lambda_2 =          0.5       0.7          #cifar100 1#vgg subj
-    #target_accuracy =   0.87      0.76  
+    #lambda_1 =          1         1            1       .1#vgg subj
+    #lambda_2 =          0.5       0.7          0.7      1#vgg subj
+    #target_accuracy =   0.87      0.76         0.67
