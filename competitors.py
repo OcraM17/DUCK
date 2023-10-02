@@ -5,26 +5,27 @@ from torch import optim
 from opts import OPT as opt
 import tqdm
 import pickle
+
 class BaseMethod:
-    def __init__(self, net, retain, forget):
+    def __init__(self, net, retain, forget, lr=opt.lr_unlearn):
         self.net = net
         self.retain = retain
         self.forget = forget
         self.criterion = nn.CrossEntropyLoss()
-        self.optimizer = optim.SGD(self.net.parameters(), lr=opt.lr_unlearn, momentum=opt.momentum_fine_tune, weight_decay=opt.wd_fine_tune)
+        self.optimizer = optim.SGD(self.net.parameters(), lr=lr, momentum=opt.momentum_fine_tune, weight_decay=opt.wd_fine_tune)
         self.epochs = opt.epochs_unlearn
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=self.epochs)
 
     def loss_f(self, net, inputs, targets):
         return None
 
-    def run(self, loader):
+    def run(self):
         self.net.train()
-        for _ in tqdm(range(self.epochs)):
+        for _ in range(self.epochs):
             for inputs, targets in self.loader:
                 inputs, targets = inputs.to(opt.device), targets.to(opt.device)
                 self.optimizer.zero_grad()
-                loss = self.loss_f(self.net, inputs, targets)
+                loss = self.loss_f(inputs, targets)
                 loss.backward()
                 self.optimizer.step()
             self.scheduler.step()
@@ -36,29 +37,31 @@ class FineTuning(BaseMethod):
         super().__init__(net, retain, forget)
         self.loader = self.retain
     
-    def loss_f(self, net, inputs, targets):
-        outputs = net(inputs)
+    def loss_f(self, inputs, targets):
+        outputs = self.net(inputs)
         loss = self.criterion(outputs, targets)
         return loss
 
 class RandomLabels(BaseMethod):
-    def __init__(self, net, retain, forget):
-        super().__init__(net, retain, forget)
+    def __init__(self, net, retain, forget, lr):
+        super().__init__(net, retain, forget, lr)
         self.loader = self.forget
+        self.epochs=5
     
-    def loss_f(self, net, inputs, targets):
-        outputs = net(inputs)
+    def loss_f(self, inputs, targets):
+        outputs = self.net(inputs)
         random_labels = torch.randint(0, 10, (targets.shape[0],)).to(opt.device)
         loss = self.criterion(outputs, random_labels)
         return loss
 
 class NegativeGradient(BaseMethod):
-    def __init__(self, net, retain, forget):
-        super().__init__(net, retain, forget)
+    def __init__(self, net, retain, forget, lr):
+        super().__init__(net, retain, forget, lr)
         self.loader = self.forget
+        self.epochs=5
     
-    def loss_f(self, net, inputs, targets):
-        outputs = net(inputs)
+    def loss_f(self, inputs, targets):
+        outputs = self.net(inputs)
         loss = self.criterion(outputs, targets) * (-1)
         return loss
 
@@ -151,7 +154,7 @@ class Amnesiac(BaseMethod):
         path = F"/home/marco/Documenti/MachineUnlearning/resnet/selective_trained_e{epoch}.pt"
         torch.save({
             'model_state_dict': self.net.state_dict(),
-            'optimizer_state_dict': self.net.state_dict(),
+            'optimizer_state_dict': self.optimizer.state_dict(),
             }, path)
         self.net.eval()
         return self.net
