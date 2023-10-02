@@ -1,7 +1,7 @@
 import torch 
 import os
 class OPT:
-
+    run_name = "test"
     dataset = 'cifar100'
     seed = 42
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -27,7 +27,7 @@ class OPT:
     batch_size = 128
     class_to_be_removed = None#5 
     epochs_unlearn = 2000 #best 5
-    lr_unlearn = 0.0001#cifar100
+    lr_unlearn = 0.001#cifar100
     #0.0001#0.0000005 #best 0.001
     wd_unlearn = 0.
     momentum_unlearn = 0.

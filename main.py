@@ -17,11 +17,16 @@ import pickle as pk
 import torch.nn as nn
 import pickle as pk
 import matplotlib.pyplot as plt
-
+from publisher import push_results
 
 def main():
     # set random seed
     set_seed(opt.seed)
+    
+    #set all df to None
+    df_or_model = None
+    df_un_model = None
+    df_rt_model = None 
 
     ##### GET DATA #####
     if opt.class_to_be_removed is None:
@@ -105,7 +110,8 @@ def main():
             df_rt_model = get_MIA_MLP(train_fgt_loader, test_fgt_loader, rt_model, opt)
         #print(df_un_model)
         print('Results MIA:\n',df_rt_model.mean(0))
-    
+
+    push_results(opt, df_or_model, df_un_model, df_rt_model)
 
 if __name__ == "__main__":
     main()
