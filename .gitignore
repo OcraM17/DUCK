@@ -1,3 +1,7 @@
+*.png
+*.pkl
+*.csv
+*.zip
 *.pth
 *.npy
 data/
@@ -5,3 +9,5 @@ __pycache__/
 faces/
 cropped_faces/
 _torchshow/
+client_secrets.json
+.vscode
