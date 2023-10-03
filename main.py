@@ -18,6 +18,7 @@ import torch.nn as nn
 import pickle as pk
 import matplotlib.pyplot as plt
 from publisher import push_results
+import time
 
 def main():
     # set random seed
@@ -52,16 +53,21 @@ def main():
     if opt.run_original:
         print('\n----ORIGINAL MODEL----')
         if opt.class_to_be_removed is None:
-            print(f"TEST-LOADER:{accuracy(original_pretr_model, test_loader):.3f} \nFORGET-LOADER: {accuracy(original_pretr_model, train_fgt_loader):.3f}\nRETAIN-LOADER: {accuracy(original_pretr_model, train_retain_loader):.3f}  ")
-            #MIA
             df_or_model = get_MIA_MLP(train_fgt_loader, test_loader, original_pretr_model, opt)
+            print(f"TEST-LOADER:{accuracy(original_pretr_model, test_loader):.3f} \nFORGET-LOADER: {accuracy(original_pretr_model, train_fgt_loader):.3f}\nRETAIN-LOADER: {accuracy(original_pretr_model, train_retain_loader):.3f}  ")
+            
+            df_or_model["forget_test_accuracy"] = accuracy(original_pretr_model, test_fgt_loader)
+            df_or_model["retain_test_accuracy"] = accuracy(original_pretr_model, test_retain_loader)
         else:
+            df_or_model = get_MIA_MLP(train_fgt_loader, test_fgt_loader, original_pretr_model, opt)
+            df_or_model["forget_test_accuracy"] = accuracy(original_pretr_model, test_fgt_loader)
+            df_or_model["retain_test_accuracy"] = accuracy(original_pretr_model, test_retain_loader)
+
             print('TRAIN:')
             print(f'FORGET-LOADER: {accuracy(original_pretr_model,train_fgt_loader ):.3f}\nRETAIN-LOADER: {accuracy(original_pretr_model, train_retain_loader):.3f}')
             print('TEST:')
-            print(f'FORGET-LOADER: {accuracy(original_pretr_model, test_fgt_loader):.3f}\nRETAIN-LOADER: {accuracy(original_pretr_model,test_retain_loader ):.3f}')
+            print(f'FORGET-LOADER: {df_or_model["forget_test_accuracy"][0]:.3f}\nRETAIN-LOADER: {df_or_model["retain_test_accuracy"][0]:.3f}')
             #MIA
-            df_or_model = get_MIA_MLP(train_fgt_loader, test_fgt_loader, original_pretr_model, opt)
         #print(df_or_model)
         print('Results MIA:\n',df_or_model.mean(0))
 
@@ -72,8 +78,11 @@ def main():
     pretr_model.eval()
 
     if opt.run_unlearn:
-        print('\n----- UNLEARNED ----')
+        print('\n----- UNLEARNED ----') 
+        # saves first time checkpoint to compute time interval  
+        timestamp1 = time.time()
         unlearned_model = unlearning(pretr_model, train_retain_loader, train_fgt_loader,target_accuracy=opt.target_accuracy)
+        opt.unlearning_time = time.time() - timestamp1
 
         if opt.class_to_be_removed is None:
             print(f"TEST-LOADER:{accuracy(unlearned_model, test_loader):.3f} \nFORGET-LOADER: {accuracy(unlearned_model, train_fgt_loader):.3f}\nRETAIN-LOADER: {accuracy(unlearned_model, train_retain_loader):.3f}  ")
@@ -81,12 +90,14 @@ def main():
             df_un_model = get_MIA_MLP(train_fgt_loader, test_loader, unlearned_model, opt)
 
         else:
+            df_un_model = get_MIA_MLP(train_fgt_loader, test_fgt_loader, unlearned_model, opt)
+            df_un_model["forget_test_accuracy"] = accuracy(unlearned_model, test_fgt_loader)
+            df_un_model["retain_test_accuracy"] = accuracy(unlearned_model, test_retain_loader)
             print('TRAIN:')
             print(f'FORGET-LOADER: {accuracy(unlearned_model,train_fgt_loader ):.3f}\nRETAIN-LOADER: {accuracy(unlearned_model, train_retain_loader):.3f}')
             print('TEST:')
-            print(f'FORGET-LOADER: {accuracy(unlearned_model, test_fgt_loader):.3f}\nRETAIN-LOADER: {accuracy(unlearned_model,test_retain_loader ):.3f}')
+            print(f'FORGET-LOADER: {df_un_model["forget_test_accuracy"][0]:.3f}\nRETAIN-LOADER: { df_un_model["retain_test_accuracy"][0]:.3f}')
             #MIA
-            df_un_model = get_MIA_MLP(train_fgt_loader, test_fgt_loader, unlearned_model, opt)
         #print(df_un_model)
         print('Results MIA:\n',df_un_model.mean(0))
 
@@ -102,12 +113,14 @@ def main():
             df_rt_model = get_MIA_MLP(train_fgt_loader, test_loader, rt_model, opt)
 
         else:
+            df_rt_model = get_MIA_MLP(train_fgt_loader, test_fgt_loader, rt_model, opt)
+            df_rt_model["forget_test_accuracy"] = accuracy(rt_model, test_fgt_loader)
+            df_rt_model["retain_test_accuracy"] = accuracy(rt_model, test_retain_loader)
             print('TRAIN:')
             print(f'FORGET-LOADER: {accuracy(rt_model,train_fgt_loader ):.3f}\nRETAIN-LOADER: {accuracy(rt_model, train_retain_loader):.3f}')
             print('TEST:')
-            print(f'FORGET-LOADER: {accuracy(rt_model, test_fgt_loader):.3f}\nRETAIN-LOADER: {accuracy(rt_model,test_retain_loader ):.3f}')
+            print(f'FORGET-LOADER: {df_rt_model["forget_test_accuracy"][0]:.3f}\nRETAIN-LOADER: {df_rt_model["retain_test_accuracy"][0]:.3f}')
             #MIA
-            df_rt_model = get_MIA_MLP(train_fgt_loader, test_fgt_loader, rt_model, opt)
         #print(df_un_model)
         print('Results MIA:\n',df_rt_model.mean(0))
 

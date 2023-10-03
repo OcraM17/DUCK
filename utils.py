@@ -88,7 +88,7 @@ def simple_mia(sample_loss, members, n_splits=10, random_state=0):
 
 
 # Initialize GoogleDrive instance with the credentials
-def download_weights_drive(model_weights,weight_file_id,root_folder):
+def download_weights_drive(model_weights_path, weight_file_id, root_folder):
     # Specify the path to your JSON key file
     json_key_file_path = root_folder+'client_secrets.json'
 
@@ -111,7 +111,7 @@ def download_weights_drive(model_weights,weight_file_id,root_folder):
     file_id = weight_file_id  # Replace with the actual file ID
 
     # Set the path to save the downloaded file
-    download_path = model_weights  # Replace with your desired local file path
+    download_path = model_weights_path  # Replace with your desired local file path
 
     # Download the file
     file = drive.CreateFile({'id': file_id})
@@ -122,7 +122,7 @@ def download_weights_drive(model_weights,weight_file_id,root_folder):
 # def get_retrained_model(opt):
 #     # download weights of a model trained exclusively on the retain set
 #     if opt.class_to_be_removed is None:
-#         local_path = opt.model_weights_RT
+#         local_path = opt.RT_model_weights_path
 #         if not os.path.exists(local_path):
 #             response = requests.get(
 #                 "https://unlearning-challenge.s3.eu-west-1.amazonaws.com/cifar10/" + local_path
@@ -142,7 +142,7 @@ def download_weights_drive(model_weights,weight_file_id,root_folder):
 
 def get_retrained_model():
 
-    local_path = opt.model_weights_RT
+    local_path = opt.RT_model_weights_path
     #DOWNLOAD ZIP
     if not os.path.exists(local_path):
         download_weights_drive("rt_models.zip", opt.weight_file_id_RT, opt.root_folder)
@@ -164,7 +164,7 @@ def get_retrained_model():
 
 def get_resnet18_trained():
 
-    local_path = opt.model_weights
+    local_path = opt.or_model_weights_path
     if not os.path.exists(local_path):
         download_weights_drive(local_path,opt.weight_file_id,opt.root_folder)
 
@@ -185,7 +185,7 @@ def get_resnet18_trained():
 
 def get_resnet18_trained_on_cifar10():
     
-    local_path = opt.model_weights
+    local_path = opt.or_model_weights_path
     if not os.path.exists(local_path):
         response = requests.get(
             "https://unlearning-challenge.s3.eu-west-1.amazonaws.com/weights_resnet18_cifar10.pth"
@@ -201,7 +201,7 @@ def get_resnet18_trained_on_cifar10():
 
 def get_resnet18_trained_on_tinyimagenet():
 
-    local_path = opt.model_weights
+    local_path = opt.or_model_weights_path
     if not os.path.exists(local_path):
         download_weights_drive(local_path,opt.weight_file_id)
 

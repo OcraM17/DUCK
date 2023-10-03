@@ -2,7 +2,7 @@ import torch
 import os
 class OPT:
     run_name = "test"
-    dataset = 'cifar10'
+    dataset = 'cifar100'
     seed = 42
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     
@@ -31,9 +31,9 @@ class OPT:
     # unlearning params
     #set class to be remove to None if you want to unlearn a set of samples that belong to different classes
     batch_size = 128
-    class_to_be_removed = 5#,6,7,8
+    class_to_be_removed = 0 ##,6,7,8
     epochs_unlearn = 2000 #best 5
-    lr_unlearn = 0.0001#cifar100
+    lr_unlearn = 0.0002#cifar100
     #0.0001#0.0000005 #best 0.001
     wd_unlearn = 0.
     momentum_unlearn = 0.
@@ -54,27 +54,32 @@ class OPT:
 
     if model== 'resnet18':
         if dataset== 'cifar100':
-            model_weights = root_folder+'weights/Final_CIFAR100_Resnet18.pth'
+            or_model_weights_path = root_folder+'weights/Final_CIFAR100_Resnet18.pth'
             weight_file_id = '1pksj54mSsaDdkwSh1V9KA_SP7ZkafkVI'
+            weight_file_id_RT = '1QizS5_YTNmsfgvVw0a2H9HSU8xuzBG8N'
+
+            if class_to_be_removed is None:
+                RT_model_weights_path = root_folder+'weights/chks_cifar100/best_checkpoint_without_5000.pth'
+            else:
+                RT_model_weights_path = root_folder+f'weights/chks_cifar100/best_checkpoint_without_{class_to_be_removed}.pth'
         
         elif dataset== 'cifar10':
-            model_weights = root_folder+'weights/Final_CIFAR10_Resnet18.pth'
+            or_model_weights_path = root_folder+'weights/Final_CIFAR10_Resnet18.pth'
             weight_file_id = '198mmeueWTdH66eTlE0vJu0lLd72nQBbr'
+            weight_file_id_RT = '1URa2nH_IyAUzIUgv_ICEdm-5b1w-Zrf0'
+
             if class_to_be_removed is None:
-                model_weights_RT = root_folder+'weights/chks_cifar10/best_checkpoint_without_5000.pth'
-                #fare download del file zip e unzipparlo 
-                # https://drive.google.com/file/d/1URa2nH_IyAUzIUgv_ICEdm-5b1w-Zrf0/view?usp=drive_link
-                weight_file_id_RT = '1URa2nH_IyAUzIUgv_ICEdm-5b1w-Zrf0'
+                RT_model_weights_path = root_folder+'weights/chks_cifar10/best_checkpoint_without_5000.pth'
             else:
-                model_weights_RT = root_folder+f'weights/chks_cifar10/best_checkpoint_without_{class_to_be_removed}.pth'
-                weight_file_id_RT = '1URa2nH_IyAUzIUgv_ICEdm-5b1w-Zrf0'
+                RT_model_weights_path = root_folder+f'weights/chks_cifar10/best_checkpoint_without_{class_to_be_removed}.pth'
+
         elif dataset== 'tinyImagenet':
-            model_weights = root_folder+'weights/best_model_tiny.pth'
+            or_model_weights_path = root_folder+'weights/best_model_tiny.pth'
             weight_file_id = '11wMtPzADDxBsRKBctK0BSJa3jhg48jK4'
             
         elif dataset== 'VGG':
             #to fix
-            model_weights = '/home/jb/Documents/MachineUnlearning/weights/resnet18-184-bestXXX.pth'
+            or_model_weights_path = '/home/jb/Documents/MachineUnlearning/weights/resnet18-184-bestXXX.pth'
     else:
         raise NotImplementedError
 
