@@ -119,26 +119,6 @@ def download_weights_drive(model_weights_path, weight_file_id, root_folder):
 
     print(f"File '{file['title']}' downloaded to '{download_path}'")
 
-# def get_retrained_model(opt):
-#     # download weights of a model trained exclusively on the retain set
-#     if opt.class_to_be_removed is None:
-#         local_path = opt.RT_model_weights_path
-#         if not os.path.exists(local_path):
-#             response = requests.get(
-#                 "https://unlearning-challenge.s3.eu-west-1.amazonaws.com/cifar10/" + local_path
-#             )
-#             open(local_path, "wb").write(response.content)
-            
-#     else:
-#         local_path = '/home/jb/Documents/MachineUnlearning/oracle_cifar10_class_rem.pth'
-
-#     weights_pretrained = torch.load(local_path)
-
-#     # load model with pre-trained weights
-#     rt_model = resnet18(weights=None, num_classes=opt.num_classes)
-#     rt_model.load_state_dict(weights_pretrained)
-
-#     return rt_model
 
 def get_retrained_model():
 
@@ -183,38 +163,8 @@ def get_resnet18_trained():
 
 ##############################################################################################################
 
-def get_resnet18_trained_on_cifar10():
-    
-    local_path = opt.or_model_weights_path
-    if not os.path.exists(local_path):
-        response = requests.get(
-            "https://unlearning-challenge.s3.eu-west-1.amazonaws.com/weights_resnet18_cifar10.pth"
-        )
-        open(local_path, "wb").write(response.content)
 
-    weights_pretrained = torch.load(local_path, map_location=opt.device)
-    model = torchvision.models.resnet18(weights=None, num_classes=opt.num_classes)
 
-    model.load_state_dict(weights_pretrained)
-
-    return model
-
-def get_resnet18_trained_on_tinyimagenet():
-
-    local_path = opt.or_model_weights_path
-    if not os.path.exists(local_path):
-        download_weights_drive(local_path,opt.weight_file_id)
-
-    weights_pretrained = torch.load(local_path)
-
-    model = torchvision.models.resnet18(pretrained=True)
-    model.conv1 = nn.Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
-    model.maxpool = nn.Identity()
-    model.fc = nn.Sequential(nn.Dropout(0), nn.Linear(512, 100)) 
-
-    model.load_state_dict(weights_pretrained)
-
-    return model
 
 def get_resnet50_trained_on_VGGFace():
     local_path = "/home/jb/Documents/MachineUnlearning/weights/net_weights_resnet50_VGG.pth"
@@ -241,12 +191,6 @@ def get_resnet50_trained_on_VGGFace_10_subjects():
     model.load_state_dict(weights_pretrained)
     return model
 
-def get_allcnn_trained_on_cifar10():
-    weight_path = "./checkpoints/main_epoch0078_seed42_acc0.921_BEST.pt"
-    model = AllCNN(num_classes=opt.num_classes)
-    model.load_state_dict(torch.load(weight_path, map_location=opt.device))
-
-    return model
 
 
 def compute_metrics(model, train_loader, forget_loader, retain_loader, all_val_loader, val_fgt_loader, val_retain_loader):
@@ -327,7 +271,69 @@ def unzip_file(file_path, destination_path):
 
 ########################
 #OLD STUFF
-########################
+# ########################
+
+
+# def get_allcnn_trained_on_cifar10():
+#     weight_path = "./checkpoints/main_epoch0078_seed42_acc0.921_BEST.pt"
+#     model = AllCNN(num_classes=opt.num_classes)
+#     model.load_state_dict(torch.load(weight_path, map_location=opt.device))
+
+#     return model
+# def get_retrained_model(opt):
+#     # download weights of a model trained exclusively on the retain set
+#     if opt.class_to_be_removed is None:
+#         local_path = opt.RT_model_weights_path
+#         if not os.path.exists(local_path):
+#             response = requests.get(
+#                 "https://unlearning-challenge.s3.eu-west-1.amazonaws.com/cifar10/" + local_path
+#             )
+#             open(local_path, "wb").write(response.content)
+            
+#     else:
+#         local_path = '/home/jb/Documents/MachineUnlearning/oracle_cifar10_class_rem.pth'
+
+#     weights_pretrained = torch.load(local_path)
+
+#     # load model with pre-trained weights
+#     rt_model = resnet18(weights=None, num_classes=opt.num_classes)
+#     rt_model.load_state_dict(weights_pretrained)
+
+#     return rt_model
+
+# def get_resnet18_trained_on_tinyimagenet():
+
+#     local_path = opt.or_model_weights_path
+#     if not os.path.exists(local_path):
+#         download_weights_drive(local_path,opt.weight_file_id)
+
+#     weights_pretrained = torch.load(local_path)
+
+#     model = torchvision.models.resnet18(pretrained=True)
+#     model.conv1 = nn.Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+#     model.maxpool = nn.Identity()
+#     model.fc = nn.Sequential(nn.Dropout(0), nn.Linear(512, 100)) 
+
+#     model.load_state_dict(weights_pretrained)
+
+    # return model
+
+# def get_resnet18_trained_on_cifar10():
+    
+#     local_path = opt.or_model_weights_path
+#     if not os.path.exists(local_path):
+#         response = requests.get(
+#             "https://unlearning-challenge.s3.eu-west-1.amazonaws.com/weights_resnet18_cifar10.pth"
+#         )
+#         open(local_path, "wb").write(response.content)
+
+#     weights_pretrained = torch.load(local_path, map_location=opt.device)
+#     model = torchvision.models.resnet18(weights=None, num_classes=opt.num_classes)
+
+#     model.load_state_dict(weights_pretrained)
+
+#     return model
+
 # from utils import get_membership_attack_prob, get_MIA_MLP
 # def get_outputs(retain,forget,net,filename,opt=opt):
 #     bbone = torch.nn.Sequential(*(list(net.children())[:-1] + [torch.nn.Flatten()]))

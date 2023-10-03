@@ -33,7 +33,7 @@ class OPT:
     batch_size = 128
     class_to_be_removed = 0 ##,6,7,8
     epochs_unlearn = 2000 #best 5
-    lr_unlearn = 0.0002#cifar100
+    lr_unlearn = 0.0005#cifar100
     #0.0001#0.0000005 #best 0.001
     wd_unlearn = 0.
     momentum_unlearn = 0.
@@ -49,7 +49,7 @@ class OPT:
     lr_MLP=0.001
     weight_decay_MLP = 0
     batch_size_MLP=128
-    num_hidden_MLP=100
+    num_hidden_MLP=300
     verboseMLP = False
 
     if model== 'resnet18':

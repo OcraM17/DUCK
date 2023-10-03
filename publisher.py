@@ -96,18 +96,19 @@ def push_results(args, df_or_model=None, df_un_model=None, df_rt_model=None):
     
     range_name = 'Results!A:P'
     results = [str(vars(args)["run_name"])]
+    n_df_params = 11
     if df_or_model is not None:
         results.extend([df_or_model[i][0] for i in df_or_model])
     else:
-        results.extend([None]*9)
+        results.extend([None]*n_df_params)
     if df_un_model is not None:
         results.extend([df_un_model[i][0] for i in df_un_model])
     else:
-        results.extend([None]*9)
+        results.extend([None]*n_df_params)
     if df_rt_model is not None:
         results.extend([df_rt_model[i][0] for i in df_rt_model])
     else:
-        results.extend([None]*9)
+        results.extend([None]*n_df_params)
     results = [str(r) for r in results]
     
     publish_with_retries([results], range_name)
