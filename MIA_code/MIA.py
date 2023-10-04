@@ -6,6 +6,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from sklearn.metrics import precision_recall_fscore_support
 from sklearn.metrics import adjusted_mutual_info_score
+from sklearn.svm import SVC
 
 import pandas as pd
 
@@ -144,6 +145,40 @@ def compute_mutual_information(vector1, vector2):
                               (marg_prob1[i] * marg_prob2[j]), 2))
     
     return mutual_info
+def compute_accuracy_SVC(predicted, labels, targ_val = None):
+    if targ_val is not None:
+        predicted, labels = predicted[labels==targ_val], labels[labels==targ_val]
+
+    total = len(predicted)
+    correct = np.equal(predicted,labels).sum().item()
+    #compute F1 score
+    if targ_val is None:
+        labels= np.asarray(labels)
+        chance = labels.sum()/labels.shape[0]
+        #print('check',np.asarray(prediction_F1).astype(np.int64).sum(),np.asarray(labels).astype(np.int64).sum())
+        #print('MI:',adjusted_mutual_info_score(np.asarray(labels).astype(np.int64), np.asarray(prediction_F1).astype(np.int64)))
+        P,R,F1 = precision_recall_fscore_support(np.asarray(labels).astype(np.int64), np.asarray(predicted).astype(np.int64), average='binary')[:3]
+        return correct / total, chance ,P,R,F1
+    else:
+        return correct / total
+
+def training_SVC(model,X_train, X_test, z_train, z_test,opt):
+
+    model.fit(X_train, z_train)
+    results = model.predict(X_test)
+
+    accuracy,chance, precision, recall,F1 = compute_accuracy_SVC(results, z_test)
+    accuracy_test_ex = compute_accuracy_SVC(results, z_test,0)
+    accuracy_train_ex = compute_accuracy_SVC(results, z_test,1)
+
+    if opt.verboseMLP:
+        print(f'Test accuracy: {round(accuracy,3)}')
+        #print accuracy for test set with targets equal to 0 or 1   
+        print(f'Test accuracy for case test examples: {round(accuracy_test_ex,3)}')
+        print(f'Test accuracy for case training examples: {round(accuracy_train_ex,3)}')
+
+    return accuracy,chance,accuracy_test_ex,accuracy_train_ex, precision, recall,F1
+
 def training_MLP(model,X_train, X_test, z_train, z_test,opt):
 
     model = model.to(opt.device)
@@ -170,7 +205,7 @@ def training_MLP(model,X_train, X_test, z_train, z_test,opt):
     optimizer = optim.Adam(model.parameters(), lr=opt.lr_MLP, weight_decay=opt.weight_decay_MLP)
     #multistep scheduler 
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[10,20,50], gamma=0.3, last_epoch=-1, verbose=False)
-
+   
     # Training loop
     for epoch in range(opt.num_epochs_MLP):
         tot_loss=0
@@ -278,8 +313,13 @@ def get_MIA_MLP(train_loader, test_loader, model, opt):
     results = []
     for i in range(opt.iter_MLP):
         train_data, train_labels, test_data, test_labels = get_membership_attack_data_MLP(train_loader, test_loader, model, opt)
-        model_MLP = DeepMLP(input_classes=opt.num_classes, num_classes=2, num_layers=opt.num_layers_MLP, num_hidden=opt.num_hidden_MLP)
-        accuracy, chance,accuracy_test_ex,accuracy_train_ex, P,R,F1 = training_MLP(model_MLP, train_data, test_data, train_labels, test_labels, opt)
+        if opt.useMLP:
+            model_MLP = DeepMLP(input_classes=opt.num_classes, num_classes=2, num_layers=opt.num_layers_MLP, num_hidden=opt.num_hidden_MLP)
+            accuracy, chance,accuracy_test_ex,accuracy_train_ex, P,R,F1 = training_MLP(model_MLP, train_data, test_data, train_labels, test_labels, opt)
+        else:
+            model_SVC = SVC(C=3,gamma='auto',kernel='rbf', tol = 1e-4, class_weight='balanced', random_state=i)
+            accuracy, chance,accuracy_test_ex,accuracy_train_ex, P,R,F1 = training_SVC(model_SVC, train_data, test_data, train_labels, test_labels, opt)
+
         results.append(np.asarray([accuracy, chance,accuracy_test_ex,accuracy_train_ex,P,R,F1]))
     results = np.asarray(results)
     df = pd.DataFrame(results,columns=['accuracy','chance','acc | test ex','acc | train ex','precision','recall','F1'])
