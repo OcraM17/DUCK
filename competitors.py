@@ -58,7 +58,7 @@ class NegativeGradient(BaseMethod):
     def __init__(self, net, retain, forget, lr):
         super().__init__(net, retain, forget, lr)
         self.loader = self.forget
-        self.epochs=5
+        self.epochs=10
     
     def loss_f(self, inputs, targets):
         outputs = self.net(inputs)
