@@ -7,13 +7,13 @@ import tqdm
 import pickle
 
 class BaseMethod:
-    def __init__(self, net, retain, forget, lr=opt.lr_unlearn):
+    def __init__(self, net, retain, forget):
         self.net = net
         self.retain = retain
         self.forget = forget
         self.criterion = nn.CrossEntropyLoss()
-        self.optimizer = optim.SGD(self.net.parameters(), lr=lr, momentum=opt.momentum_fine_tune, weight_decay=opt.wd_fine_tune)
-        self.epochs = opt.epochs_unlearn
+        self.optimizer = optim.SGD(self.net.parameters(), lr=opt.lr_competitor, momentum=opt.momentum_competitor, weight_decay=opt.wd_competitor)
+        self.epochs = opt.epochs_competitor
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=self.epochs)
 
     def loss_f(self, net, inputs, targets):
@@ -43,10 +43,9 @@ class FineTuning(BaseMethod):
         return loss
 
 class RandomLabels(BaseMethod):
-    def __init__(self, net, retain, forget, lr):
-        super().__init__(net, retain, forget, lr)
+    def __init__(self, net, retain, forget):
+        super().__init__(net, retain, forget)
         self.loader = self.forget
-        self.epochs=5
     
     def loss_f(self, inputs, targets):
         outputs = self.net(inputs)
@@ -55,10 +54,9 @@ class RandomLabels(BaseMethod):
         return loss
 
 class NegativeGradient(BaseMethod):
-    def __init__(self, net, retain, forget, lr):
-        super().__init__(net, retain, forget, lr)
+    def __init__(self, net, retain, forget):
+        super().__init__(net, retain, forget)
         self.loader = self.forget
-        self.epochs=10
     
     def loss_f(self, inputs, targets):
         outputs = self.net(inputs)

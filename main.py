@@ -9,6 +9,7 @@ from opts import OPT as opt
 import torch.nn as nn
 from publisher import push_results
 import time
+from utils import choose_competitor
 
 def main():
     # set random seed
@@ -71,7 +72,11 @@ def main():
         print('\n----- UNLEARNED ----') 
         # saves first time checkpoint to compute time interval  
         timestamp1 = time.time()
-        unlearned_model = unlearning(pretr_model, train_retain_loader, train_fgt_loader,target_accuracy=opt.target_accuracy)
+        if not opt.competitor:
+            unlearned_model = unlearning(pretr_model, train_retain_loader, train_fgt_loader,target_accuracy=opt.target_accuracy)
+        else:
+            approach = choose_competitor(opt.name_competitor)(pretr_model,train_retain_loader, train_fgt_loader)
+            unlearned_model = approach.run()
         opt.unlearning_time = time.time() - timestamp1
 
         if opt.class_to_be_removed is None:

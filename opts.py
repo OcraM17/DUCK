@@ -1,7 +1,7 @@
 import torch 
 import os
 class OPT:
-    run_name = "cifar100_SVC_low_treshold"
+    run_name = "Prova_FineTuning"
     dataset = 'cifar100'
     seed = 42
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -52,6 +52,14 @@ class OPT:
     num_hidden_MLP=100
     verboseMLP = False
     useMLP = False
+
+    #Competitor
+    competitor = True
+    name_competitor = 'FineTuning' #NegativeGradient, FineTuning, RandomLabels, Amnesiac, Hiding...
+    lr_competitor = 0.1 #FineTuning:0.1, else:0.01
+    epochs_competitor = 10
+    momentum_competitor = 0.9
+    wd_competitor = 5e-4
 
     if model== 'resnet18':
         if dataset== 'cifar100':
