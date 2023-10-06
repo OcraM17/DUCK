@@ -29,20 +29,28 @@ class DeepMLP(nn.Module):
         x = nn.functional.relu(self.bn1(self.fc1(x)))
         for i in range(self.num_layers):
             x = self.fully_connected[i](x)
-            x = self.bnorms[i](x)
             x = nn.functional.relu(x)
+            x = self.bnorms[i](x)
         x = self.fc(x)
 
         return x
     
 class CustomDataset(torch.utils.data.Dataset):
-    def __init__(self, X_train, z_train):
+    def __init__(self, X_train, z_train, transform=False):
         self.X_train = X_train
         self.z_train = z_train
+        self.transform = transform
     
     def __getitem__(self, index):
         x = self.X_train[index]
         z = self.z_train[index]
+        
+        if self.transform:
+            mean = x.mean()
+            std = x.std()
+            noise = torch.randn_like(x) * std
+            x = x + noise*0.05
+
         return x, z
     
     def __len__(self):
@@ -189,59 +197,78 @@ def training_MLP(model,X_train, X_test, z_train, z_test,opt):
     sampler = torch.utils.data.WeightedRandomSampler(samples_weight, len(samples_weight))
     
     # Create a custom dataset instance
-    dataset_train = CustomDataset(X_train, z_train)
-
+    dataset_train = CustomDataset(X_train, z_train, transform=True)
 
     # Create a custom dataset instance
     dataset_test = CustomDataset(X_test, z_test)
 
     # Create a data loader
-    dataloader_train = DataLoader(dataset_train, batch_size=opt.batch_size_MLP,drop_last=True,shuffle=True)
+    dataloader_train = DataLoader(dataset_train, batch_size=opt.batch_size_MLP,drop_last=True,shuffle=False)
     dataloader_test = DataLoader(dataset_test, batch_size=opt.batch_size_MLP, shuffle=False)
 
-
-    # Define the loss function and optimizer
+    # Define the loss function, optimizer and scheduler
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=opt.lr_MLP, weight_decay=opt.weight_decay_MLP)
-    #multistep scheduler 
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[10,20,50], gamma=0.3, last_epoch=-1, verbose=False)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[10,20,30,], gamma=0.9, last_epoch=-1, verbose=False)
    
     # Training loop
     for epoch in range(opt.num_epochs_MLP):
         tot_loss=0
         model.train()
+        targets_all = []
+        preds_all = []
         for batch_idx, (data, targets) in enumerate(dataloader_train):
             data = data.to(opt.device)
             targets = targets.to(opt.device)
             
             # Forward pass
+            optimizer.zero_grad()
             outputs = model(data)
             loss = criterion(outputs, targets)
             
             # Backward pass and optimization
-            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             #accumulate loss
             tot_loss+=loss.item()
+            #accumulate predictions and targets
+            targets_all += list(targets.cpu().detach().numpy())
+            preds_all += list(outputs.argmax(dim=1).cpu().detach().numpy())
         scheduler.step()
         #print accuracy in train and test set and loss
         if epoch%5==0 and opt.verboseMLP:
             model.eval()
-            train_acc,_,_,_,_=compute_accuracy(model, dataloader_train,opt.device)
-            test_acc,_,_,_,_ = compute_accuracy(model, dataloader_test,opt.device)
-            print(f'Epoch {epoch},Train loss: {round(tot_loss/len(dataloader_train),3)}, Train accuracy: {round(train_acc,3)} | Test accuracy: {round(test_acc,3)}')
+            #compute test accuracy
+            preds_test_all = []
+            targets_test_all = []
+            for batch_idx_test, (data_test, targets_test) in enumerate(dataloader_test):
+                data_test = data_test.to(opt.device)
+                targets_test = targets_test.to(opt.device)
+                outputs = model(data_test)
+                preds_test_all += list(outputs.argmax(dim=1).cpu().detach().numpy())
+                targets_test_all += list(targets_test.cpu().detach().numpy())
+
+            #compute and print accuracies
+            test_acc = (torch.tensor(targets_test_all) == torch.tensor(preds_test_all)).sum()/len(preds_test_all)
+            train_acc = (torch.tensor(targets_all) == torch.tensor(preds_all)).sum()/len(preds_all)
+            print(f'Epoch {epoch},Train loss: {round(tot_loss/len(dataloader_train),3)}, Train accuracy: {round(train_acc.item(),3)} | Test accuracy: {round(test_acc.item(),3)}')
             model.train()
+
+
+            # train_acc,_,_,_,_=compute_accuracy(model, dataloader_train,opt.device)
+            # test_acc,_,_,_,_ = compute_accuracy(model, dataloader_test,opt.device)
+            # print(f'Epoch {epoch},Train loss: {round(tot_loss/len(dataloader_train),3)}, Train accuracy: {round(train_acc,3)} | Test accuracy: {round(test_acc,3)}')
+            # model.train()
     model.eval()
     accuracy,chance, precision, recall,F1 = compute_accuracy(model, dataloader_test,opt.device)
     accuracy_test_ex = compute_accuracy(model, dataloader_test,opt.device,0)
     accuracy_train_ex = compute_accuracy(model, dataloader_test,opt.device,1)
 
     if opt.verboseMLP:
-        print(f'Test accuracy: {round(accuracy,3)}')
+        print(f'Test accuracy: {round(accuracy,4)}')
         #print accuracy for test set with targets equal to 0 or 1   
-        print(f'Test accuracy for case test examples: {round(accuracy_test_ex,3)}')
-        print(f'Test accuracy for case training examples: {round(accuracy_train_ex,3)}')
+        print(f'Test accuracy for case test examples: {round(accuracy_test_ex,4)}')
+        print(f'Test accuracy for case training examples: {round(accuracy_train_ex,4)}')
 
     return accuracy,chance,accuracy_test_ex,accuracy_train_ex, precision, recall,F1
 
@@ -267,28 +294,28 @@ def get_membership_attack_data_MLP(train_loader, test_loader, model,opt):
     train_prob = collect_prob(train_loader, model,opt)
     test_prob = collect_prob(test_loader, model,opt)
 
-    X_r = test_prob.cpu()
-    Y_r = torch.zeros(len(test_prob),dtype=torch.int64)
+    X_tr = train_prob.cpu()
+    Y_tr = torch.zeros(len(train_prob),dtype=torch.int64)
     
-    X_f = train_prob.cpu()
-    Y_f = torch.ones(len(train_prob),dtype=torch.int64)
+    X_te = test_prob.cpu()
+    Y_te = torch.ones(len(test_prob),dtype=torch.int64)
 
 
-    N_r = X_r.shape[0]
-    N_f = X_f.shape[0]
+    N_tr = X_tr.shape[0]
+    N_te = X_te.shape[0]
 
     #sample from training data N_r samples
-    Idx = np.arange(N_f)
+    Idx = np.arange(N_tr)
     np.random.shuffle(Idx)
-    X_f = X_f[Idx[:N_r],:]
-    Y_f = Y_f[Idx[:N_r]]
-    N_f = X_f.shape[0]
+    X_tr = X_tr[Idx[:N_te],:]
+    Y_tr = Y_tr[Idx[:N_te]]
+    N_tr = X_tr.shape[0]
 
-    xtrain = torch.cat([X_r[:int(0.8*N_r)],X_f[:int(0.8*N_f)]],dim=0)
-    ytrain = torch.cat([Y_r[:int(0.8*N_r)],Y_f[:int(0.8*N_f)]],dim=0)
+    xtrain = torch.cat([X_tr[:int(0.8*N_tr)],X_te[:int(0.8*N_te)]],dim=0)
+    ytrain = torch.cat([Y_tr[:int(0.8*N_tr)],Y_te[:int(0.8*N_te)]],dim=0)
 
-    xtest = torch.cat([X_r[int(0.8*N_r):],X_f[int(0.8*N_f):]],dim=0) 
-    ytest = torch.cat([Y_r[int(0.8*N_r):],Y_f[int(0.8*N_f):]],dim=0)
+    xtest = torch.cat([X_tr[int(0.8*N_tr):],X_te[int(0.8*N_te):]],dim=0) 
+    ytest = torch.cat([Y_tr[int(0.8*N_tr):],Y_te[int(0.8*N_te):]],dim=0)
 
     # N_r_train = X_r[:int(0.8*N_r)].shape[0]
     # X_f_train = X_f[:int(0.8*N_f)]

@@ -45,6 +45,7 @@ def main():
         print('\n----ORIGINAL MODEL----')
         if opt.class_to_be_removed is None:
             df_or_model = get_MIA_MLP(train_fgt_loader, test_loader, original_pretr_model, opt)
+
             #print(f"TEST-LOADER:{accuracy(original_pretr_model, test_loader):.3f} \nFORGET-LOADER: {accuracy(original_pretr_model, train_fgt_loader):.3f}\nRETAIN-LOADER: {accuracy(original_pretr_model, train_retain_loader):.3f}  ")
         else:
             df_or_model = get_MIA_MLP(train_fgt_loader, test_fgt_loader, original_pretr_model, opt)
@@ -112,6 +113,7 @@ def main():
 
         else:
             df_rt_model = get_MIA_MLP(train_fgt_loader, test_fgt_loader, rt_model, opt)
+
             
         df_rt_model["forget_train_accuracy"] = accuracy(rt_model, train_fgt_loader)
         df_rt_model["retain_train_accuracy"] = accuracy(rt_model, train_retain_loader)
