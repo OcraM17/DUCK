@@ -79,8 +79,8 @@ def get_dsets_remove_class(class_to_remove):
             transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
             ])
 
-        data_path = '/home/pelosinf/data/VGG-Face2/data/train/'
-        txt_path = '/home/pelosinf/data/VGG-Face2/data/train_list.txt'
+        data_path = '/media/marco/MarcoSSD/VGG-Face2/data/vggface2_train/train/'
+        txt_path = '/media/marco/MarcoSSD/VGG-Face2/data/train_list.txt'
 
         folder_list = glob.glob(data_path+'*')
 
@@ -112,12 +112,29 @@ def get_dsets_remove_class(class_to_remove):
         #shuffle dataframe
         df = df.sample(frac=1)
         
-        trainset = CustomDataset_10subj(df, path=data_path, best_10_subject=best_10_subject, train= True, transform=transform)
-        testset = CustomDataset_10subj(df, path=data_path,best_10_subject=best_10_subject, train=False, transform=transform)
+        trainset = CustomDataset_10subj(df,path = data_path,best_10_subject=best_10_subject, train= True, transform=transform_dset)
+        all_train_loader = torch.utils.data.DataLoader(trainset, batch_size=256, shuffle=True,num_workers=opt.num_workers)
 
+        testset = CustomDataset_10subj(df,path = data_path,best_10_subject=best_10_subject, train=False, transform=transform_dset)
+        all_test_loader = torch.utils.data.DataLoader(testset, batch_size=256, shuffle=False,num_workers=opt.num_workers)
+        
+        retain_set = CustomDataset_10subj(df,path = data_path,best_10_subject=best_10_subject, train= True,split=True,retain=True, transform=transform_dset,class_to_remove=[opt.class_to_be_removed,])
+        forget_set = CustomDataset_10subj(df,path = data_path,best_10_subject=best_10_subject, train= True,split=True,retain=False, transform=transform_dset,class_to_remove=[opt.class_to_be_removed,])
 
-    test_forget_set, test_retain_set = split_retain_forget(test_set, class_to_remove)
-    forget_set, retain_set = split_retain_forget(train_set, class_to_remove)
+        train_fgt_loader = DataLoader(forget_set, batch_size=opt.batch_size, drop_last=False, shuffle=False, num_workers=opt.num_workers)
+        train_retain_loader = DataLoader(retain_set, batch_size=opt.batch_size, drop_last=False, shuffle=True, num_workers=opt.num_workers)
+        
+
+        testset_retain = CustomDataset_10subj(df,path = data_path,best_10_subject=best_10_subject, train=False,split=True,retain=True,transform=transform_dset,class_to_remove=[opt.class_to_be_removed,])
+        test_retain_loader = torch.utils.data.DataLoader(testset_retain, batch_size=opt.batch_size, shuffle=False,num_workers=opt.num_workers)
+
+        testset_forget = CustomDataset_10subj(df,path = data_path,best_10_subject=best_10_subject, train=False,split=True,retain=False,transform=transform_dset,class_to_remove=[opt.class_to_be_removed,])
+        test_fgt_loader = torch.utils.data.DataLoader(testset_forget, batch_size=opt.batch_size, shuffle=False,num_workers=opt.num_workers)
+
+        return all_train_loader,all_test_loader, train_fgt_loader, train_retain_loader, test_fgt_loader, test_retain_loader
+    
+    test_forget_set, test_retain_set = split_retain_forget(testset, class_to_remove)
+    forget_set, retain_set = split_retain_forget(trainset, class_to_remove)
 
     # validation set and its subsets 
     all_test_loader = DataLoader(test_set, batch_size=opt.batch_size, shuffle=False, num_workers=opt.num_workers)
