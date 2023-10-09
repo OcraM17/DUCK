@@ -1,7 +1,7 @@
 import torch 
 import os
 class OPT:
-    run_name = "Prova_FineTuning"
+    run_name = "Tuning_MLP"
     dataset = 'cifar100'
     seed = 42
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -30,36 +30,39 @@ class OPT:
     
     # unlearning params
     #set class to be remove to None if you want to unlearn a set of samples that belong to different classes
-    batch_size = 128
-    class_to_be_removed = 0 ##,6,7,8
+    batch_size = 1000
+    class_to_be_removed = 0##,6,7,8
     epochs_unlearn = 2000 #best 5
     lr_unlearn = 0.001#cifar100
     #0.0001#0.0000005 #best 0.001
     wd_unlearn = 0.
     momentum_unlearn = 0.
-    lambda_1 = 1. #1#cifar100 .1#vgg subj
-    lambda_2 = .7 #0.5#cifar100 1#vgg subj
+    lambda_1 = .5 #1#cifar100 .1#vgg subj
+    lambda_2 = .5 #0.5#cifar100 1#vgg subj
     target_accuracy = 0.01 #0.76 cifar100
-
+    unlearning_time = None
 
     ###MLP
     iter_MLP = 3 #numo f iterations
-    num_layers_MLP=3
-    num_epochs_MLP=90
-    lr_MLP=0.005
-    weight_decay_MLP = 0
-    batch_size_MLP=128
-    num_hidden_MLP=100
-    verboseMLP = False
-    useMLP = False
+    num_layers_MLP = 3
+    num_epochs_MLP = 120
+    lr_MLP = 0.005
+    weight_decay_MLP = 0.#00001#001
+    batch_size_MLP = 160
+    num_hidden_MLP = 80
+    verboseMLP = True
+    useMLP = True
 
     #Competitor
-    competitor = True
-    name_competitor = 'FineTuning' #NegativeGradient, FineTuning, RandomLabels, Amnesiac, Hiding...
-    lr_competitor = 0.1 #FineTuning:0.1, else:0.01
-    epochs_competitor = 10
-    momentum_competitor = 0.9
-    wd_competitor = 5e-4
+    competitor = False
+    if competitor:
+        name_competitor = 'FineTuning' #NegativeGradient, FineTuning, RandomLabels, Amnesiac, Hiding...
+        lr_competitor = 0.1 #FineTuning:0.1, else:0.01
+        epochs_competitor = 10
+        momentum_competitor = 0.9
+        wd_competitor = 5e-4
+    else:
+        name_competitor, lr_competitor, epochs_competitor, momentum_competitor, wd_competitor = None, None, None, None, None
 
     if model== 'resnet18':
         if dataset== 'cifar100':

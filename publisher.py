@@ -98,15 +98,15 @@ def push_results(args, df_or_model=None, df_un_model=None, df_rt_model=None):
     results = [str(vars(args)["run_name"])]
     n_df_params = 11
     if df_or_model is not None:
-        results.extend([df_or_model[i][0] for i in df_or_model])
+        results.extend([val for val in df_or_model.mean(axis=0)])
     else:
         results.extend([None]*n_df_params)
     if df_un_model is not None:
-        results.extend([df_un_model[i][0] for i in df_un_model])
+        results.extend([val for val in df_un_model.mean(axis=0)])
     else:
         results.extend([None]*n_df_params)
     if df_rt_model is not None:
-        results.extend([df_rt_model[i][0] for i in df_rt_model])
+        results.extend([val for val in df_rt_model.mean(axis=0)])
     else:
         results.extend([None]*n_df_params)
     results = [str(r) for r in results]
