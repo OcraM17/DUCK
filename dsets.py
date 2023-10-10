@@ -41,13 +41,15 @@ def get_dsets_remove_class(class_to_remove):
     mean = {
             'cifar10': (0.4914, 0.4822, 0.4465),
             'cifar100': (0.5071, 0.4867, 0.4408),
-            'tinyImagenet': (0.485, 0.456, 0.406)
+            'tinyImagenet': (0.485, 0.456, 0.406),
+            'vgg':(0.547, 0.460, 0.404)
             }
 
     std = {
             'cifar10': (0.2023, 0.1994, 0.2010),
             'cifar100': (0.2675, 0.2565, 0.2761),
-            'tinyImagenet': (0.229, 0.224, 0.225)
+            'tinyImagenet': (0.229, 0.224, 0.225),
+            'vgg':(0.323, 0.298, 0.263)
             }
 
     # download and pre-process CIFAR10
@@ -66,22 +68,83 @@ def get_dsets_remove_class(class_to_remove):
         train_set = torchvision.datasets.CIFAR100(root=opt.data_path, train=True, download=True, transform=transform_dset)
         test_set = torchvision.datasets.CIFAR100(root=opt.data_path, train=False, download=True, transform=transform_dset)
     elif opt.dataset == 'tinyImagenet':
-        train_set = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/train/',transform=transform_dset)
-        test_set = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/val/images/',transform=transform_dset)
+        train_set = torchvision.datasets.ImageFolder(root='/home/node002/Downloads/tiny-imagenet-200/train',transform=transform_dset)
+        test_set = torchvision.datasets.ImageFolder(root='/home/node002/Downloads/tiny-imagenet-200/val/images',transform=transform_dset)
     #val_set, test_set = torch.utils.data.random_split(held_out, [0.7, 0.3])
+    elif opt.dataset == 'vgg':
+                # Load and transform the data
+        transform_dset = transforms.Compose([
+            transforms.Resize((128,128)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
+            ])
 
-    test_forget_set, test_retain_set = split_retain_forget(test_set, class_to_remove)
-    forget_set, retain_set = split_retain_forget(train_set, class_to_remove)
+        data_path = '/media/marco/MarcoSSD/VGG-Face2/data/vggface2_train/train/'
+        txt_path = '/media/marco/MarcoSSD/VGG-Face2/data/train_list.txt'
+
+        folder_list = glob.glob(data_path+'*')
+
+        dict_subj = {}
+        for fold in folder_list:
+            files = glob.glob(fold+'/*.jpg')
+            
+            if len(files)>500:
+                dict_subj[fold.split('/')[-1]] = len(files)
+        print(f'Num subject suitable: {len(list(dict_subj.keys()))}')
+
+        df = pd.read_csv(txt_path,sep=',',header=None, names=['Id',])
+
+        sorted_dict_subj = sorted(dict_subj.items(), key=lambda x:x[1], reverse=True)
+        sorted_dict_subj = dict(sorted_dict_subj)
+
+        best_10_subject=[]
+        skip = list(sorted_dict_subj.keys())[9]
+        for key in sorted_dict_subj.keys():
+            if key!=skip:
+                best_10_subject.append(key)
+                if len(best_10_subject)==10:
+                    break
+
+        #filter for subjects
+        mask = df.Id.apply(lambda x: any(item for item in best_10_subject if item in x))
+        df = df[mask]
+
+        #shuffle dataframe
+        df = df.sample(frac=1)
+        
+        trainset = CustomDataset_10subj(df,path = data_path,best_10_subject=best_10_subject, train= True, transform=transform_dset)
+        all_train_loader = torch.utils.data.DataLoader(trainset, batch_size=256, shuffle=True,num_workers=opt.num_workers)
+
+        testset = CustomDataset_10subj(df,path = data_path,best_10_subject=best_10_subject, train=False, transform=transform_dset)
+        all_test_loader = torch.utils.data.DataLoader(testset, batch_size=256, shuffle=False,num_workers=opt.num_workers)
+        
+        retain_set = CustomDataset_10subj(df,path = data_path,best_10_subject=best_10_subject, train= True,split=True,retain=True, transform=transform_dset,class_to_remove=[opt.class_to_be_removed,])
+        forget_set = CustomDataset_10subj(df,path = data_path,best_10_subject=best_10_subject, train= True,split=True,retain=False, transform=transform_dset,class_to_remove=[opt.class_to_be_removed,])
+
+        train_fgt_loader = DataLoader(forget_set, batch_size=opt.batch_size, drop_last=False, shuffle=False, num_workers=opt.num_workers)
+        train_retain_loader = DataLoader(retain_set, batch_size=opt.batch_size, drop_last=False, shuffle=True, num_workers=opt.num_workers)
+        
+
+        testset_retain = CustomDataset_10subj(df,path = data_path,best_10_subject=best_10_subject, train=False,split=True,retain=True,transform=transform_dset,class_to_remove=[opt.class_to_be_removed,])
+        test_retain_loader = torch.utils.data.DataLoader(testset_retain, batch_size=opt.batch_size, shuffle=False,num_workers=opt.num_workers)
+
+        testset_forget = CustomDataset_10subj(df,path = data_path,best_10_subject=best_10_subject, train=False,split=True,retain=False,transform=transform_dset,class_to_remove=[opt.class_to_be_removed,])
+        test_fgt_loader = torch.utils.data.DataLoader(testset_forget, batch_size=opt.batch_size, shuffle=False,num_workers=opt.num_workers)
+
+        return all_train_loader,all_test_loader, train_fgt_loader, train_retain_loader, test_fgt_loader, test_retain_loader
+    
+    test_forget_set, test_retain_set = split_retain_forget(testset, class_to_remove)
+    forget_set, retain_set = split_retain_forget(trainset, class_to_remove)
 
     # validation set and its subsets 
-    all_test_loader = DataLoader(test_set, batch_size=opt.batch_size, shuffle=False, num_workers=2)
-    test_fgt_loader = DataLoader(test_forget_set, batch_size=opt.batch_size, shuffle=False, num_workers=2)
-    test_retain_loader = DataLoader(test_retain_set, batch_size=opt.batch_size, shuffle=False, num_workers=2)
+    all_test_loader = DataLoader(test_set, batch_size=opt.batch_size, shuffle=False, num_workers=opt.num_workers)
+    test_fgt_loader = DataLoader(test_forget_set, batch_size=opt.batch_size, shuffle=False, num_workers=opt.num_workers)
+    test_retain_loader = DataLoader(test_retain_set, batch_size=opt.batch_size, shuffle=False, num_workers=opt.num_workers)
     
     # all train and its subsets
-    all_train_loader = DataLoader(train_set, batch_size=opt.batch_size, shuffle=False, num_workers=2)
-    train_fgt_loader = DataLoader(forget_set, batch_size=opt.batch_size, shuffle=False, num_workers=2)
-    train_retain_loader = DataLoader(retain_set, batch_size=opt.batch_size, shuffle=False, num_workers=2)
+    all_train_loader = DataLoader(train_set, batch_size=opt.batch_size, shuffle=False, num_workers=opt.num_workers)
+    train_fgt_loader = DataLoader(forget_set, batch_size=opt.batch_size, shuffle=False, num_workers=opt.num_workers)
+    train_retain_loader = DataLoader(retain_set, batch_size=opt.batch_size, shuffle=False, num_workers=opt.num_workers)
 
 
     return all_train_loader,all_test_loader, train_fgt_loader, train_retain_loader, test_fgt_loader, test_retain_loader
@@ -93,13 +156,15 @@ def get_dsets():
     mean = {
             'cifar10': (0.4914, 0.4822, 0.4465),
             'cifar100': (0.5071, 0.4867, 0.4408),
-            'tinyImagenet': (0.485, 0.456, 0.406)
+            'tinyImagenet': (0.485, 0.456, 0.406),
+            'vgg':(0.547, 0.460, 0.404),
             }
 
     std = {
             'cifar10': (0.2023, 0.1994, 0.2010),
             'cifar100': (0.2675, 0.2565, 0.2761),
-            'tinyImagenet': (0.229, 0.224, 0.225)
+            'tinyImagenet': (0.229, 0.224, 0.225),
+            'vgg':[0.323, 0.298, 0.263]            
             }
 
     transform_dset = transforms.Compose(
@@ -125,18 +190,18 @@ def get_dsets():
         train_set = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/train/',transform=transform_dset)
         held_out = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/val/images/',transform=transform_dset)
         forget_idx = np.loadtxt('./forget_idx_5000_tinyImagenet.txt').astype(np.int64)
-        
-    else:
-        raise NotImplementedError
     
-    train_loader = DataLoader(train_set, batch_size=opt.batch_size, shuffle=False, num_workers=2)
+        
+        
+    
+    train_loader = DataLoader(train_set, batch_size=opt.batch_size, shuffle=False, num_workers=opt.num_workers)
 
     
     ### get held out dataset for generating test and validation 
     
     test_set, val_set = random_split(held_out, [0.5, 0.5])
-    test_loader = DataLoader(test_set, batch_size=opt.batch_size, drop_last=True, shuffle=False, num_workers=2)
-    val_loader = DataLoader(val_set, batch_size=opt.batch_size, drop_last=True, shuffle=False, num_workers=2)
+    test_loader = DataLoader(test_set, batch_size=opt.batch_size, drop_last=True, shuffle=False, num_workers=opt.num_workers)
+    val_loader = DataLoader(val_set, batch_size=opt.batch_size, drop_last=True, shuffle=False, num_workers=opt.num_workers)
 
     
 
@@ -149,8 +214,8 @@ def get_dsets():
     retain_set = Subset(train_set, retain_idx)
 
 
-    train_forget_loader = DataLoader(forget_set, batch_size=opt.batch_size, drop_last=True, shuffle=False, num_workers=4)
-    train_retain_loader = DataLoader(retain_set, batch_size=opt.batch_size, drop_last=True, shuffle=True, num_workers=4)
+    train_forget_loader = DataLoader(forget_set, batch_size=opt.batch_size, drop_last=True, shuffle=False, num_workers=opt.num_workers)
+    train_retain_loader = DataLoader(retain_set, batch_size=opt.batch_size, drop_last=True, shuffle=True, num_workers=opt.num_workers)
 
     return train_loader, test_loader, train_forget_loader, train_retain_loader
 
@@ -228,7 +293,7 @@ class OPT_VGG:
     # Data
     PATH = '/home/jb/data/VGG-Face2/data/train/'
     data_path = '/home/jb/data/VGG-Face2/train.age_detected_filtered.csv'
-    num_workers = 4
+    num_workers = 8
 
 
 def get_dsets_VGGFace():
@@ -423,8 +488,8 @@ def get_dsets_VGGFace_10_subjects():
     retain_set = CustomDataset_10subj(df,path = opt_vgg.PATH,best_10_subject=best_10_subject, train= True,split=True,retain=True, transform=transform_test,class_to_remove=[opt.class_to_be_removed,])
     forget_set = CustomDataset_10subj(df,path = opt_vgg.PATH,best_10_subject=best_10_subject, train= True,split=True,retain=False, transform=transform_test,class_to_remove=[opt.class_to_be_removed,])
 
-    forget_loader = DataLoader(forget_set, batch_size=opt.batch_size, drop_last=True, shuffle=False, num_workers=4)
-    retain_loader = DataLoader(retain_set, batch_size=opt.batch_size, drop_last=True, shuffle=True, num_workers=4)
+    forget_loader = DataLoader(forget_set, batch_size=opt.batch_size, drop_last=True, shuffle=False, num_workers=opt.num_workers)
+    retain_loader = DataLoader(retain_set, batch_size=opt.batch_size, drop_last=True, shuffle=True, num_workers=opt.num_workers)
     
 
     testset_retain = CustomDataset_10subj(df,path = opt_vgg.PATH,best_10_subject=best_10_subject, train=False,split=True,retain=True,transform=transform_test,class_to_remove=[opt.class_to_be_removed,])

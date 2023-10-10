@@ -45,15 +45,19 @@ def unlearning(net, retain, forget,target_accuracy=0.76, opt=opt):
     # compute centroids from embeddings
     centroids=[]
     for i in range(opt.num_classes):
-        if i!=opt.class_to_be_removed:
-            centroids.append(ret_embs[labs==i].mean(0))
+        if type(opt.class_to_be_removed) is tuple:
+            if not i in opt.class_to_be_removed:
+                centroids.append(ret_embs[labs==i].mean(0))
+        else:
+            if i!=opt.class_to_be_removed:
+                centroids.append(ret_embs[labs==i].mean(0))
     centroids=torch.stack(centroids)
 
 
     bbone.train(), fc.train()
     #optimizer = optim.SGD(net.parameters(), lr=opt.lr_unlearn, momentum=opt.momentum_unlearn, weight_decay=opt.wd_unlearn)
     optimizer = optim.Adam(net.parameters(), lr=opt.lr_unlearn, weight_decay=opt.wd_unlearn)
-    #scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=opt.epochs_unlearn)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=opt.epochs_unlearn)
 
     init = True
     flag_exit = False
@@ -97,7 +101,7 @@ def unlearning(net, retain, forget,target_accuracy=0.76, opt=opt):
         with torch.no_grad():
             net.eval()
             curr_acc = accuracy(net, forget)
-            tr_acc = accuracy(net,retain)
+            tr_acc = accuracy(net, retain)
             net.train()
             print(f"ACCURACY FORGET SET: {curr_acc:.3f}, target is {target_accuracy:.3f}")
             print(f"ACCURACY retain SET: {tr_acc:.3f}")

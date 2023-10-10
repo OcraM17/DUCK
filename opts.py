@@ -24,22 +24,24 @@ class OPT:
         num_classes = 100
     elif dataset == 'tinyImagenet':
         num_classes = 200
+    elif dataset == 'VGG':
+        num_classes = 10
+    
     
     num_workers = 4
 
     
     # unlearning params
     #set class to be remove to None if you want to unlearn a set of samples that belong to different classes
-    batch_size = 1000
-    class_to_be_removed = 0##,6,7,8
+    batch_size = 4096
+    class_to_be_removed = 0 ##,6,7,8
     epochs_unlearn = 2000 #best 5
-    lr_unlearn = 0.001#cifar100
-    #0.0001#0.0000005 #best 0.001
-    wd_unlearn = 0.
-    momentum_unlearn = 0.
+    lr_unlearn = 0.001#cifar100 #0.0001#0.0000005 #best 0.001
+    wd_unlearn = 0
+    momentum_unlearn = 0.9
     lambda_1 = .5 #1#cifar100 .1#vgg subj
     lambda_2 = .5 #0.5#cifar100 1#vgg subj
-    target_accuracy = 0.01 #0.76 cifar100
+    target_accuracy = 0.01 #0.76 cifar100 
     unlearning_time = None
 
     ###MLP
@@ -51,7 +53,7 @@ class OPT:
     batch_size_MLP = 160
     num_hidden_MLP = 80
     verboseMLP = True
-    useMLP = True
+    useMLP = False
 
     #Competitor
     competitor = False
@@ -91,7 +93,11 @@ class OPT:
             
         elif dataset== 'VGG':
             #to fix
-            or_model_weights_path = '/home/jb/Documents/MachineUnlearning/weights/resnet18-184-bestXXX.pth'
+            or_model_weights_path = '/home/node002/Documents/MachineUnlearning/chks_vgg/best_model_VGG.pth'
+            if class_to_be_removed is None:
+                RT_model_weights_path = '/home/node002/Documents/MachineUnlearning/chks_vgg/chk_VGG_10perc.pth'
+            else:
+                RT_model_weights_path = "/home/node002/Documents/MachineUnlearning/chks_vgg/best_model_00.pth"
     else:
         raise NotImplementedError
 
