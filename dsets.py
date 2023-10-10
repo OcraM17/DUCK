@@ -67,12 +67,17 @@ def get_dsets_remove_class(class_to_remove):
     elif opt.dataset == 'cifar100':
         train_set = torchvision.datasets.CIFAR100(root=opt.data_path, train=True, download=True, transform=transform_dset)
         test_set = torchvision.datasets.CIFAR100(root=opt.data_path, train=False, download=True, transform=transform_dset)
+        
     elif opt.dataset == 'tinyImagenet':
-        train_set = torchvision.datasets.ImageFolder(root='/home/node002/Downloads/tiny-imagenet-200/train',transform=transform_dset)
-        test_set = torchvision.datasets.ImageFolder(root='/home/node002/Downloads/tiny-imagenet-200/val/images',transform=transform_dset)
+        train_set = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/train',transform=transform_dset)
+        test_set = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/val/images',transform=transform_dset)
     #val_set, test_set = torch.utils.data.random_split(held_out, [0.7, 0.3])
+
     elif opt.dataset == 'vgg':
-                # Load and transform the data
+        
+        #### FIX and uniform to the rest 
+
+        # Load and transform the data
         transform_dset = transforms.Compose([
             transforms.Resize((128,128)),
             transforms.ToTensor(),
@@ -133,8 +138,8 @@ def get_dsets_remove_class(class_to_remove):
 
         return all_train_loader,all_test_loader, train_fgt_loader, train_retain_loader, test_fgt_loader, test_retain_loader
     
-    test_forget_set, test_retain_set = split_retain_forget(testset, class_to_remove)
-    forget_set, retain_set = split_retain_forget(trainset, class_to_remove)
+    test_forget_set, test_retain_set = split_retain_forget(test_set, class_to_remove)
+    forget_set, retain_set = split_retain_forget(train_set, class_to_remove)
 
     # validation set and its subsets 
     all_test_loader = DataLoader(test_set, batch_size=opt.batch_size, shuffle=False, num_workers=opt.num_workers)
@@ -143,8 +148,8 @@ def get_dsets_remove_class(class_to_remove):
     
     # all train and its subsets
     all_train_loader = DataLoader(train_set, batch_size=opt.batch_size, shuffle=False, num_workers=opt.num_workers)
-    train_fgt_loader = DataLoader(forget_set, batch_size=opt.batch_size, shuffle=False, num_workers=opt.num_workers)
-    train_retain_loader = DataLoader(retain_set, batch_size=opt.batch_size, shuffle=False, num_workers=opt.num_workers)
+    train_fgt_loader = DataLoader(forget_set, batch_size=opt.batch_size, shuffle=True, num_workers=opt.num_workers)
+    train_retain_loader = DataLoader(retain_set, batch_size=opt.batch_size, shuffle=True, num_workers=opt.num_workers)
 
 
     return all_train_loader,all_test_loader, train_fgt_loader, train_retain_loader, test_fgt_loader, test_retain_loader
@@ -194,7 +199,7 @@ def get_dsets():
         
         
     
-    train_loader = DataLoader(train_set, batch_size=opt.batch_size, shuffle=False, num_workers=opt.num_workers)
+    train_loader = DataLoader(train_set, batch_size=opt.batch_size, shuffle=True, num_workers=opt.num_workers)
 
     
     ### get held out dataset for generating test and validation 

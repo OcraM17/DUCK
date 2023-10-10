@@ -243,34 +243,51 @@ def get_outputs(retain,forget,net,filename,opt=opt):
     bbone.eval(), fc.eval()
 
     out_all_fgt = None
+    out_all_ret = None
     lab_ret_list = []
     lab_fgt_list = []
 
-    for (img_ret, lab_ret), (img_fgt, lab_fgt) in zip(retain, forget):
-        img_ret, lab_ret, img_fgt, lab_fgt = img_ret.to(opt.device), lab_ret.to(opt.device), img_fgt.to(opt.device), lab_fgt.to(opt.device)
+    for img_ret, lab_ret in retain:
         
-        logits_fgt = bbone(img_fgt)
-        outputs_fgt = fc(logits_fgt)
+        img_ret, lab_ret = img_ret.to(opt.device), lab_ret.to(opt.device)
         
         logits_ret = bbone(img_ret)
         outputs_ret = fc(logits_ret)
         
-        lab_fgt_list.append(lab_fgt)
         lab_ret_list.append(lab_ret)
+
+        if out_all_ret is None:
+
+            out_all_ret = outputs_ret
+            logits_all_ret = logits_ret
+
+        else:
+            out_all_ret = torch.concatenate((out_all_ret,outputs_ret),dim=0)
+            logits_all_ret = torch.concatenate((logits_all_ret,logits_ret),dim=0)
+
+
+    for img_fgt, lab_fgt in forget:
+
+        img_fgt, lab_fgt = img_fgt.to(opt.device), lab_fgt.to(opt.device)
+    
+        logits_fgt = bbone(img_fgt)
+        outputs_fgt = fc(logits_fgt)
+        
+
+        
+        lab_fgt_list.append(lab_fgt)
 
         if out_all_fgt is None:
             out_all_fgt = outputs_fgt
-            out_all_ret = outputs_ret
+
             logits_all_fgt = logits_fgt
-            logits_all_ret = logits_ret
+
 
 
         else:
             out_all_fgt = torch.concatenate((out_all_fgt,outputs_fgt),dim=0)
-            out_all_ret = torch.concatenate((out_all_ret,outputs_ret),dim=0)
-
             logits_all_fgt = torch.concatenate((logits_all_fgt,logits_fgt),dim=0)
-            logits_all_ret = torch.concatenate((logits_all_ret,logits_ret),dim=0)
+
 
 
     print('check ACCURACY retain ',torch.sum((torch.argmax(out_all_ret,dim=1))==torch.cat(lab_ret_list))/out_all_ret.shape[0])

@@ -55,6 +55,7 @@ def unlearning(net, retain, forget,target_accuracy=0.76, opt=opt):
 
 
     bbone.train(), fc.train()
+
     #optimizer = optim.SGD(net.parameters(), lr=opt.lr_unlearn, momentum=opt.momentum_unlearn, weight_decay=opt.wd_unlearn)
     optimizer = optim.Adam(net.parameters(), lr=opt.lr_unlearn, weight_decay=opt.wd_unlearn)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=opt.epochs_unlearn)
@@ -62,40 +63,53 @@ def unlearning(net, retain, forget,target_accuracy=0.76, opt=opt):
     init = True
     flag_exit = False
     all_closest_centroids = []
+
     for _ in tqdm(range(opt.epochs_unlearn)):
-        for n_batch, ((img_ret, lab_ret), (img_fgt, lab_fgt)) in enumerate(zip(retain, forget)):
-            img_ret, lab_ret, img_fgt, lab_fgt = img_ret.to(opt.device), lab_ret.to(opt.device), img_fgt.to(opt.device), lab_fgt.to(opt.device)
-            optimizer.zero_grad()
+        #for n_batch, ((img_ret, lab_ret), (img_fgt, lab_fgt)) in enumerate(zip(retain, forget)):
+        #modified to account for high number of classes in tinyimagenet
+        for n_batch, (img_fgt, lab_fgt) in enumerate(forget):
+            for n_batch_ret, (img_ret, lab_ret) in enumerate(tqdm(retain)):
 
-            logits_fgt = bbone(img_fgt)
+                img_ret, lab_ret, img_fgt, lab_fgt = img_ret.to(opt.device), lab_ret.to(opt.device), img_fgt.to(opt.device), lab_fgt.to(opt.device)
+                
+                optimizer.zero_grad()
 
-            # compute pairwise cosine distance between embeddings and centroids
-            dists = pairwise_cos_dist(logits_fgt, centroids)
+                logits_fgt = bbone(img_fgt)
+
+                # compute pairwise cosine distance between embeddings and centroids
+                dists = pairwise_cos_dist(logits_fgt, centroids)
 
 
-            # pick the closest centroid that has class different from lab_fgt (only first time)
-            if init:
-                closest_centroids = torch.argsort(dists, dim=1)
-                tmp = closest_centroids[:, 0]
-                closest_centroids = torch.where(tmp == lab_fgt, closest_centroids[:, 1], tmp)
-                all_closest_centroids.append(closest_centroids)
-                closest_centroids = all_closest_centroids[-1]
-            else:
-                closest_centroids = all_closest_centroids[n_batch]
+                # pick the closest centroid that has class different from lab_fgt (only first time)
+                if init:
+                    closest_centroids = torch.argsort(dists, dim=1)
+                    tmp = closest_centroids[:, 0]
+                    closest_centroids = torch.where(tmp == lab_fgt, closest_centroids[:, 1], tmp)
+                    all_closest_centroids.append(closest_centroids)
+                    closest_centroids = all_closest_centroids[-1]
+                else:
+                    closest_centroids = all_closest_centroids[n_batch]
 
-            dists = dists[torch.arange(dists.shape[0]), closest_centroids[:dists.shape[0]]]
-            loss_fgt = torch.mean(dists) * opt.lambda_1
-            # outputs_fgt = fc(logits_fgt)
+                dists = dists[torch.arange(dists.shape[0]), closest_centroids[:dists.shape[0]]]
+                loss_fgt = torch.mean(dists) * opt.lambda_1
+                # outputs_fgt = fc(logits_fgt)
 
-            logits_ret = bbone(img_ret)
-            outputs_ret = fc(logits_ret)
-            loss_ret = torch.nn.functional.cross_entropy(outputs_ret, lab_ret) * opt.lambda_2
-            #print(torch.nn.functional.cross_entropy(outputs_ret, lab_ret))
+                logits_ret = bbone(img_ret)
+                outputs_ret = fc(logits_ret)
 
-            loss =  loss_fgt + loss_ret
-            print(f"LOSS FGT: {loss_fgt.item():.4f}  -  LOSS RET: {loss_ret.item():.4f}")
-            loss.backward()
-            optimizer.step()
+                loss_ret = torch.nn.functional.cross_entropy(outputs_ret, lab_ret) * opt.lambda_2
+                #print(torch.nn.functional.cross_entropy(outputs_ret, lab_ret))
+                #loss_fgt = 0
+                loss = loss_ret+ loss_fgt
+                
+                #print(f"LOSS FGT: {loss_fgt.item():.4f}  -  LOSS RET: {loss_ret.item():.4f}")#
+
+                if n_batch_ret>opt.batch_fgt_ret_ratio:
+                    break
+                
+                loss.backward()
+                optimizer.step()
+
 
         # evaluate accuracy on forget set every batch
         with torch.no_grad():
