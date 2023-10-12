@@ -84,8 +84,8 @@ def get_dsets_remove_class(class_to_remove):
             transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
             ])
 
-        data_path = '/media/marco/MarcoSSD/VGG-Face2/data/vggface2_train/train/'
-        txt_path = '/media/marco/MarcoSSD/VGG-Face2/data/train_list.txt'
+        data_path = '/home/node002/Documents/VGG-Face2/data/train/'
+        txt_path = '/home/node002/Documents/VGG-Face2/data/train_list.txt'
 
         folder_list = glob.glob(data_path+'*')
 
@@ -126,7 +126,7 @@ def get_dsets_remove_class(class_to_remove):
         retain_set = CustomDataset_10subj(df,path = data_path,best_10_subject=best_10_subject, train= True,split=True,retain=True, transform=transform_dset,class_to_remove=[opt.class_to_be_removed,])
         forget_set = CustomDataset_10subj(df,path = data_path,best_10_subject=best_10_subject, train= True,split=True,retain=False, transform=transform_dset,class_to_remove=[opt.class_to_be_removed,])
 
-        train_fgt_loader = DataLoader(forget_set, batch_size=opt.batch_size, drop_last=False, shuffle=False, num_workers=opt.num_workers)
+        train_fgt_loader = DataLoader(forget_set, batch_size=opt.batch_size, drop_last=False, shuffle=True, num_workers=opt.num_workers)
         train_retain_loader = DataLoader(retain_set, batch_size=opt.batch_size, drop_last=False, shuffle=True, num_workers=opt.num_workers)
         
 
@@ -397,6 +397,10 @@ class CustomDataset_10subj(Dataset):
             pass
         self.best_10_subject = best_10_subject
         self.map_subj_to_class()
+        self.img_paths = self.df.iloc[:, 0]
+        self.targets = torch.tensor([self.dictionary_class[i.split('/')[0]] for i in self.df.iloc[:, 0].to_list()])
+
+
 
     def __len__(self):
         return len(self.df)
@@ -409,9 +413,9 @@ class CustomDataset_10subj(Dataset):
             cnt+=1
 
     def __getitem__(self, idx):
-        img_path = self.df.iloc[idx, 0]
+        img_path = self.img_paths.iloc[idx]
         image = Image.open(self.path+img_path).convert('RGB')
-        label = self.dictionary_class[self.df.iloc[idx, 0].split('/')[0]]
+        label = self.targets[idx]
 
         if self.transform:
             image = self.transform(image)
