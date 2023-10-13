@@ -9,7 +9,7 @@ from MIA_code.MIA import get_MIA_MLP
 from opts import OPT as opt
 import torch.nn as nn
 from tqdm import tqdm
-#from publisher import push_results
+from publisher import push_results
 import time
 from utils import choose_competitor
 
@@ -78,4 +78,5 @@ if __name__ == "__main__":
     print('Results original:\n',df_orig_total.mean(0))
     print('Results unlearned:\n',df_unlearned_total.mean(0))
     print('Results retained:\n',df_retained_total.mean(0))
+    push_results(opt, df_orig_total, df_unlearned_total, df_retained_total)
 
