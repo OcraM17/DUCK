@@ -1,8 +1,8 @@
 import torch 
 import os
 class OPT:
-    run_name = "Tuning_MLP"
-    dataset = 'tinyImagenet'
+    run_name = "test"
+    dataset = 'cifar100'
     seed = 42
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     
@@ -36,16 +36,15 @@ class OPT:
     
     # unlearning params
     #set class to be remove to None if you want to unlearn a set of samples that belong to different classes
-    batch_size = 512
+    batch_size = 1000
     class_to_be_removed = 0 ##,6,7,8
     epochs_unlearn = 2000 #best 5
-    lr_unlearn = 0.0001#cifar100 #0.0001#0.0000005 #best 0.001
+    lr_unlearn = 0.001#cifar100 #0.0001#0.0000005 #best 0.001
     wd_unlearn = 0
     momentum_unlearn = 0.9
-    lambda_1 = 0.5#1#.5#cifar100 .1#vgg subj
+    lambda_1 = 1.5#1#.5#cifar100 .1#vgg subj
     lambda_2 = 1.5#1.5 #0.5#cifar100 1#vgg subj
     target_accuracy = 0.01 #0.76 cifar100 
-    unlearning_time = None
     
 
     ###MLP

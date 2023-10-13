@@ -104,7 +104,7 @@ def push_results(args, df_or_model=None, df_un_model=None, df_rt_model=None):
     if df_un_model is not None:
         results.extend([val for val in df_un_model.mean(axis=0)])
     else:
-        results.extend([None]*n_df_params)
+        results.extend([None]*(n_df_params+1))
     if df_rt_model is not None:
         results.extend([val for val in df_rt_model.mean(axis=0)])
     else:

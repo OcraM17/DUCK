@@ -78,7 +78,6 @@ def main():
         else:
             approach = choose_competitor(opt.name_competitor)(pretr_model,train_retain_loader, train_fgt_loader)
             unlearned_model = approach.run()
-        opt.unlearning_time = time.time() - timestamp1
 
         if opt.class_to_be_removed is None:
             #print(f"TEST-LOADER:{accuracy(unlearned_model, test_loader):.3f} \nFORGET-LOADER: {accuracy(unlearned_model, train_fgt_loader):.3f}\nRETAIN-LOADER: {accuracy(unlearned_model, train_retain_loader):.3f}  ")
@@ -87,6 +86,7 @@ def main():
 
         else:
             df_un_model = get_MIA_MLP(train_fgt_loader, test_fgt_loader, unlearned_model, opt)
+        df_un_model["unlearn_time"] = time.time() - timestamp1
 
         df_un_model["forget_train_accuracy"] = accuracy(unlearned_model, train_fgt_loader)
         df_un_model["retain_train_accuracy"] = accuracy(unlearned_model, train_retain_loader)
