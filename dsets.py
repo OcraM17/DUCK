@@ -157,7 +157,7 @@ def get_dsets_remove_class(class_to_remove):
 
 
 
-def get_dsets():
+def get_dsets(file_fgt=None):
     mean = {
             'cifar10': (0.4914, 0.4822, 0.4465),
             'cifar100': (0.5071, 0.4867, 0.4408),
@@ -182,19 +182,29 @@ def get_dsets():
     if opt.dataset == 'cifar10':
         train_set = torchvision.datasets.CIFAR10(root=opt.data_path, train=True, download=True, transform=transform_dset)
         held_out = torchvision.datasets.CIFAR10(root=opt.data_path, train=False, download=True, transform=transform_dset)
-        forget_idx = np.loadtxt('./forget_idx_5000_cifar10.txt').astype(np.int64)
+        if file_fgt is None:
+            forget_idx = np.loadtxt('./forget_idx_5000_cifar10.txt').astype(np.int64)
+        else:
+            forget_idx = np.loadtxt(file_fgt).astype(np.int64)
+
 
 
     elif opt.dataset=='cifar100':
         train_set = torchvision.datasets.CIFAR100(root=opt.data_path, train=True, download=True, transform=transform_dset)
         held_out = torchvision.datasets.CIFAR100(root=opt.data_path, train=False, download=True, transform=transform_dset)
         #use numpy modules to read txt file for cifar100
-        forget_idx = np.loadtxt('./forget_idx_5000_cifar100.txt').astype(np.int64)
+        if file_fgt is None:
+            forget_idx = np.loadtxt('./forget_idx_5000_cifar100.txt').astype(np.int64)
+        else:
+            forget_idx = np.loadtxt(file_fgt).astype(np.int64)
 
     elif opt.dataset == 'tinyImagenet':
         train_set = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/train/',transform=transform_dset)
         held_out = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/val/images/',transform=transform_dset)
-        forget_idx = np.loadtxt('./forget_idx_5000_tinyImagenet.txt').astype(np.int64)
+        if file_fgt is None:
+            forget_idx = np.loadtxt('./forget_idx_5000_tinyImagenet.txt').astype(np.int64)
+        else:
+            forget_idx = np.loadtxt(file_fgt).astype(np.int64)
     
         
         

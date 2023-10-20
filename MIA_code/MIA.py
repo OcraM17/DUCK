@@ -333,7 +333,9 @@ def get_membership_attack_data_MLP(train_loader, test_loader, model,opt):
 
 
 
-    if opt.verboseMLP: print(f'Train and test classification chance, train: {ytrain.sum()/ytrain.shape[0]}, chance test {ytest.sum()/ytest.shape[0]}')
+    if opt.verboseMLP: 
+        print(f'Train and test classification chance, train: {ytrain.sum()/ytrain.shape[0]}, chance test {ytest.sum()/ytest.shape[0]}')
+        print('check input vectors: ',torch.unique(ytrain),torch.unique(ytest),torch.max(xtrain),torch.max(xtest))
     return xtrain,ytrain,xtest,ytest
 
 def get_MIA_MLP(train_loader, test_loader, model, opt):

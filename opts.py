@@ -2,7 +2,7 @@ import torch
 import os
 class OPT:
     run_name = "test"
-    dataset = 'cifar100'
+    dataset = 'tinyImagenet'
     seed = 42
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     
@@ -36,8 +36,8 @@ class OPT:
     
     # unlearning params
     #set class to be remove to None if you want to unlearn a set of samples that belong to different classes
-    batch_size = 1000
-    class_to_be_removed = 0 ##,6,7,8
+    batch_size = 256
+    class_to_be_removed = None ##,6,7,8
     epochs_unlearn = 2000 #best 5
     lr_unlearn = 0.001#cifar100 #0.0001#0.0000005 #best 0.001
     wd_unlearn = 0
@@ -48,7 +48,7 @@ class OPT:
     
 
     ###MLP
-    iter_MLP = 3 #numo f iterations
+    iter_MLP = 5 #numo f iterations
     num_layers_MLP = 3
     num_epochs_MLP = 120
     lr_MLP = 0.005
@@ -62,11 +62,11 @@ class OPT:
     useMLP = False
 
     #Competitor
-    competitor = False
+    competitor = True
     if competitor:
-        name_competitor = 'FineTuning' #NegativeGradient, FineTuning, RandomLabels, Amnesiac, Hiding...
-        lr_competitor = 0.1 #FineTuning:0.1, else:0.01
-        epochs_competitor = 10
+        name_competitor = 'FineTuning' #NegativeGradient, RandomLabels,         # Amnesiac, Hiding...
+        lr_competitor = 0.08 #FineTuning:0.1, else:0.01
+        epochs_competitor = 15
         momentum_competitor = 0.9
         wd_competitor = 5e-4
     else:

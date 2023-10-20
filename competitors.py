@@ -7,44 +7,88 @@ import tqdm
 import pickle
 
 class BaseMethod:
-    def __init__(self, net, retain, forget):
+    def __init__(self, net, retain, forget,test=None):
         self.net = net
         self.retain = retain
         self.forget = forget
         self.criterion = nn.CrossEntropyLoss()
         self.optimizer = optim.SGD(self.net.parameters(), lr=opt.lr_competitor, momentum=opt.momentum_competitor, weight_decay=opt.wd_competitor)
         self.epochs = opt.epochs_competitor
-        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=self.epochs)
-
+        self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[8,12], gamma=0.5)
+        #torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=self.epochs)
+        if test is None:
+            pass 
+        else:
+            self.test = test
     def loss_f(self, net, inputs, targets):
         return None
 
     def run(self):
         self.net.train()
-        for _ in range(self.epochs):
+        for _ in tqdm.tqdm(range(self.epochs)):
             for inputs, targets in self.loader:
                 inputs, targets = inputs.to(opt.device), targets.to(opt.device)
                 self.optimizer.zero_grad()
                 loss = self.loss_f(inputs, targets)
                 loss.backward()
                 self.optimizer.step()
+            
             self.scheduler.step()
+            print('Accuracy: ',self.evalNet())
         self.net.eval()
         return self.net
-        
+    
+    def evalNet(self):
+        #compute model accuracy on self.loader
+
+        self.net.eval()
+        with torch.no_grad():
+            correct = 0
+            total = 0
+            for inputs, targets in self.retain:
+                inputs, targets = inputs.to(opt.device), targets.to(opt.device)
+                outputs = self.net(inputs)
+                _, predicted = torch.max(outputs.data, 1)
+                total += targets.size(0)
+                correct += (predicted == targets).sum().item()
+
+            correct2 = 0
+            total2 = 0
+            for inputs, targets in self.forget:
+                inputs, targets = inputs.to(opt.device), targets.to(opt.device)
+                outputs = self.net(inputs)
+                _, predicted = torch.max(outputs.data, 1)
+                total2 += targets.size(0)
+                correct2+= (predicted == targets).sum().item()
+
+            if not(self.test is None):
+                correct3 = 0
+                total3 = 0
+                for inputs, targets in self.test:
+                    inputs, targets = inputs.to(opt.device), targets.to(opt.device)
+                    outputs = self.net(inputs)
+                    _, predicted = torch.max(outputs.data, 1)
+                    total3 += targets.size(0)
+                    correct3+= (predicted == targets).sum().item()
+        self.net.train()
+        if self.test is None:
+            return correct/total,correct2/total2
+        else:
+            return correct/total,correct2/total2,correct3/total3
+    
 class FineTuning(BaseMethod):
-    def __init__(self, net, retain, forget):
-        super().__init__(net, retain, forget)
+    def __init__(self, net, retain, forget,test=None):
+        super().__init__(net, retain, forget,test=test)
         self.loader = self.retain
     
-    def loss_f(self, inputs, targets):
+    def loss_f(self, inputs, targets,test=None):
         outputs = self.net(inputs)
         loss = self.criterion(outputs, targets)
         return loss
 
 class RandomLabels(BaseMethod):
-    def __init__(self, net, retain, forget):
-        super().__init__(net, retain, forget)
+    def __init__(self, net, retain, forget,test=None):
+        super().__init__(net, retain, forget,test=test)
         self.loader = self.forget
     
     def loss_f(self, inputs, targets):
@@ -54,8 +98,8 @@ class RandomLabels(BaseMethod):
         return loss
 
 class NegativeGradient(BaseMethod):
-    def __init__(self, net, retain, forget):
-        super().__init__(net, retain, forget)
+    def __init__(self, net, retain, forget,test=None):
+        super().__init__(net, retain, forget,test=test)
         self.loader = self.forget
     
     def loss_f(self, inputs, targets):

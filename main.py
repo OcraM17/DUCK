@@ -50,17 +50,22 @@ def main():
         else:
             df_or_model = get_MIA_MLP(train_fgt_loader, test_fgt_loader, original_pretr_model, opt)
 
-        df_or_model["forget_train_accuracy"] = accuracy(original_pretr_model, train_fgt_loader)
-        df_or_model["retain_train_accuracy"] = accuracy(original_pretr_model, train_retain_loader)
-        df_or_model["forget_test_accuracy"] = accuracy(original_pretr_model, test_fgt_loader)
-        df_or_model["retain_test_accuracy"] = accuracy(original_pretr_model, test_retain_loader)
+        if opt.class_to_be_removed is None:
+            df_or_model["test_accuracy"] = accuracy(original_pretr_model, test_loader)
+            df_or_model["forget_accuracy"] = accuracy(original_pretr_model, train_fgt_loader)
+            df_or_model["retain_accuracy"] = accuracy(original_pretr_model, train_retain_loader)
+        else:
+            df_or_model["forget_train_accuracy"] = accuracy(original_pretr_model, train_fgt_loader)
+            df_or_model["retain_train_accuracy"] = accuracy(original_pretr_model, train_retain_loader)
+            df_or_model["forget_test_accuracy"] = accuracy(original_pretr_model, test_fgt_loader)
+            df_or_model["retain_test_accuracy"] = accuracy(original_pretr_model, test_retain_loader)
 
-        print('TRAIN:')
-        print(f'FORGET-LOADER: {df_or_model["forget_train_accuracy"][0]:.3f}\nRETAIN-LOADER: {df_or_model["retain_train_accuracy"][0]:.3f}')
-        print('TEST:')
-        print(f'FORGET-LOADER: {df_or_model["forget_test_accuracy"][0]:.3f}\nRETAIN-LOADER: {df_or_model["retain_test_accuracy"][0]:.3f}')
-            #MIA
-        #print(df_or_model)
+            print('TRAIN:')
+            print(f'FORGET-LOADER: {df_or_model["forget_train_accuracy"][0]:.3f}\nRETAIN-LOADER: {df_or_model["retain_train_accuracy"][0]:.3f}')
+            print('TEST:')
+            print(f'FORGET-LOADER: {df_or_model["forget_test_accuracy"][0]:.3f}\nRETAIN-LOADER: {df_or_model["retain_test_accuracy"][0]:.3f}')
+                #MIA
+            #print(df_or_model)
         print('Results MIA:\n',df_or_model.mean(0))
 
     ##### UNLEARN #####
@@ -88,15 +93,21 @@ def main():
             df_un_model = get_MIA_MLP(train_fgt_loader, test_fgt_loader, unlearned_model, opt)
         df_un_model["unlearn_time"] = time.time() - timestamp1
 
-        df_un_model["forget_train_accuracy"] = accuracy(unlearned_model, train_fgt_loader)
-        df_un_model["retain_train_accuracy"] = accuracy(unlearned_model, train_retain_loader)
-        df_un_model["forget_test_accuracy"] = accuracy(unlearned_model, test_fgt_loader)
-        df_un_model["retain_test_accuracy"] = accuracy(unlearned_model, test_retain_loader)
-        print('TRAIN:')
-        print(f'FORGET-LOADER: {df_un_model["forget_train_accuracy"][0]:.3f}\nRETAIN-LOADER: {df_un_model["retain_train_accuracy"][0]:.3f}')
-        print('TEST:')
-        print(f'FORGET-LOADER: {df_un_model["forget_test_accuracy"][0]:.3f}\nRETAIN-LOADER: {df_un_model["retain_test_accuracy"][0]:.3f}')
-            #MIA
+        
+        if opt.class_to_be_removed is None:
+            df_un_model["test_accuracy"] = accuracy(unlearned_model, test_loader)
+            df_un_model["forget_accuracy"] = accuracy(unlearned_model, train_fgt_loader)
+            df_un_model["retain_accuracy"] = accuracy(unlearned_model, train_retain_loader)
+        else:
+            df_un_model["forget_train_accuracy"] = accuracy(unlearned_model, train_fgt_loader)
+            df_un_model["retain_train_accuracy"] = accuracy(unlearned_model, train_retain_loader)
+            df_un_model["forget_test_accuracy"] = accuracy(unlearned_model, test_fgt_loader)
+            df_un_model["retain_test_accuracy"] = accuracy(unlearned_model, test_retain_loader)
+            print('TRAIN:')
+            print(f'FORGET-LOADER: {df_un_model["forget_train_accuracy"][0]:.3f}\nRETAIN-LOADER: {df_un_model["retain_train_accuracy"][0]:.3f}')
+            print('TEST:')
+            print(f'FORGET-LOADER: {df_un_model["forget_test_accuracy"][0]:.3f}\nRETAIN-LOADER: {df_un_model["retain_test_accuracy"][0]:.3f}')
+                #MIA
         #print(df_un_model)
         print('Results MIA:\n',df_un_model.mean(0))
 
@@ -114,17 +125,21 @@ def main():
         else:
             df_rt_model = get_MIA_MLP(train_fgt_loader, test_fgt_loader, rt_model, opt)
 
-            
-        df_rt_model["forget_train_accuracy"] = accuracy(rt_model, train_fgt_loader)
-        df_rt_model["retain_train_accuracy"] = accuracy(rt_model, train_retain_loader)
-        df_rt_model["forget_test_accuracy"] = accuracy(rt_model, test_fgt_loader)
-        df_rt_model["retain_test_accuracy"] = accuracy(rt_model, test_retain_loader)
-        print('TRAIN:')
-        print(f'FORGET-LOADER: {df_rt_model["forget_train_accuracy"][0]:.3f}\nRETAIN-LOADER: {df_rt_model["retain_train_accuracy"][0]:.3f}')
-        print('TEST:')
-        print(f'FORGET-LOADER: {df_rt_model["forget_test_accuracy"][0]:.3f}\nRETAIN-LOADER: {df_rt_model["retain_test_accuracy"][0]:.3f}')
-            #MIA
-        #print(df_un_model)
+        if opt.class_to_be_removed is None:
+            df_rt_model["test_accuracy"] = accuracy(rt_model, test_loader)
+            df_rt_model["forget_accuracy"] = accuracy(rt_model, train_fgt_loader)
+            df_rt_model["retain_accuracy"] = accuracy(rt_model, train_retain_loader)
+        else:
+            df_rt_model["forget_train_accuracy"] = accuracy(rt_model, train_fgt_loader)
+            df_rt_model["retain_train_accuracy"] = accuracy(rt_model, train_retain_loader)
+            df_rt_model["forget_test_accuracy"] = accuracy(rt_model, test_fgt_loader)
+            df_rt_model["retain_test_accuracy"] = accuracy(rt_model, test_retain_loader)
+            print('TRAIN:')
+            print(f'FORGET-LOADER: {df_rt_model["forget_train_accuracy"][0]:.3f}\nRETAIN-LOADER: {df_rt_model["retain_train_accuracy"][0]:.3f}')
+            print('TEST:')
+            print(f'FORGET-LOADER: {df_rt_model["forget_test_accuracy"][0]:.3f}\nRETAIN-LOADER: {df_rt_model["retain_test_accuracy"][0]:.3f}')
+                #MIA
+            #print(df_un_model)
         print('Results MIA:\n',df_rt_model.mean(0))
 
     push_results(opt, df_or_model, df_un_model, df_rt_model)
