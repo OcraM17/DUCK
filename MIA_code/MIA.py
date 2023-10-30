@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 from sklearn.metrics import precision_recall_fscore_support
 from sklearn.metrics import adjusted_mutual_info_score
 from sklearn.svm import SVC
+from sklearn.model_selection import GridSearchCV
 
 import pandas as pd
 
@@ -165,15 +166,21 @@ def compute_accuracy_SVC(predicted, labels, targ_val = None):
         chance = labels.sum()/labels.shape[0]
         #print('check',np.asarray(prediction_F1).astype(np.int64).sum(),np.asarray(labels).astype(np.int64).sum())
         #print('MI:',adjusted_mutual_info_score(np.asarray(labels).astype(np.int64), np.asarray(prediction_F1).astype(np.int64)))
-        P,R,F1 = precision_recall_fscore_support(np.asarray(labels).astype(np.int64), np.asarray(predicted).astype(np.int64), average='binary')[:3]
+        P,R,F1 = precision_recall_fscore_support(np.asarray(labels).astype(np.int64), np.asarray(predicted).astype(np.int64), average='micro')[:3]
         return correct / total, chance ,P,R,F1
     else:
         return correct / total
 
 def training_SVC(model,X_train, X_test, z_train, z_test,opt):
+    param_grid = {'C': [0.1, 1, 5, 10, 100, 1000],
+              'gamma': [1, 0.1, 0.01, 0.001, 0.0001], 
+              'kernel': ['rbf']}
+    grid = GridSearchCV(model, param_grid, refit = True, verbose=0, cv=3, n_jobs=4) 
+    grid.fit(X_train, z_train)
+    print(grid.best_params_)
+    best_model = grid.best_estimator_
 
-    model.fit(X_train, z_train)
-    results = model.predict(X_test)
+    results = best_model.predict(X_test)
 
     accuracy,chance, precision, recall,F1 = compute_accuracy_SVC(results, z_test)
     accuracy_test_ex = compute_accuracy_SVC(results, z_test,0)
@@ -184,7 +191,7 @@ def training_SVC(model,X_train, X_test, z_train, z_test,opt):
         #print accuracy for test set with targets equal to 0 or 1   
         print(f'Test accuracy for case test examples: {round(accuracy_test_ex,3)}')
         print(f'Test accuracy for case training examples: {round(accuracy_train_ex,3)}')
-
+        print(f'Test F1: {round(F1,3)}')
     return accuracy,chance,accuracy_test_ex,accuracy_train_ex, precision, recall,F1
 
 def training_MLP(model,X_train, X_test, z_train, z_test,opt):
@@ -346,7 +353,7 @@ def get_MIA_MLP(train_loader, test_loader, model, opt):
             model_MLP = DeepMLP(input_classes=opt.num_classes, num_classes=2, num_layers=opt.num_layers_MLP, num_hidden=opt.num_hidden_MLP)
             accuracy, chance,accuracy_test_ex,accuracy_train_ex, P,R,F1 = training_MLP(model_MLP, train_data, test_data, train_labels, test_labels, opt)
         else:
-            model_SVC = SVC(C=3,gamma='auto',kernel='rbf', tol = 1e-4, class_weight='balanced', random_state=i)
+            model_SVC = SVC(kernel='rbf', tol = 1e-4, class_weight='balanced', random_state=i) 
             accuracy, chance,accuracy_test_ex,accuracy_train_ex, P,R,F1 = training_SVC(model_SVC, train_data, test_data, train_labels, test_labels, opt)
 
         results.append(np.asarray([accuracy, chance,accuracy_test_ex,accuracy_train_ex,P,R,F1]))

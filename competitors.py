@@ -34,7 +34,7 @@ class BaseMethod:
                 self.optimizer.step()
             
             self.scheduler.step()
-            print('Accuracy: ',self.evalNet())
+            #print('Accuracy: ',self.evalNet())
         self.net.eval()
         return self.net
     
