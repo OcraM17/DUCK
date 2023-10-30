@@ -93,22 +93,40 @@ if __name__ == "__main__":
             df_orig_total.append(row_orig.values)
         if row_ret is not None:
             df_retained_total.append(row_ret.values)
+        break
     print(opt.dataset)
-    if df_orig_total is not None:
+    if df_orig_total:
+        print("ORIGINAL \n")
         df_orig_total=pd.DataFrame(df_orig_total,columns=['accuracy', 'chance', 'acc | test ex', 'acc | train ex', 'precision', 'recall', 'F1', 
                                              'test_accuracy', 'forget_accuracy', 'retain_accuracy'])
-        print(df_orig_total.shape)
-        print('Results original:\n',df_orig_total.mean(0))
-        print('Results original:\n',df_orig_total.std(0))
-    if df_unlearned_total is not None:
+        #print(df_orig_total.shape)
+        #print('Results original:\n',df_orig_total.mean(0))
+        #print('Results original:\n',df_orig_total.std(0))
+        means = df_orig_total.mean()
+        std_devs = df_orig_total.std()
+        output = "\n".join([f"{col}: {mean:.2f} \\pm {std:.2f}" for col, mean, std in zip(means.index, means, std_devs)])
+        print(output)
+
+    if df_unlearned_total:
+        print("UNLEARNED \n")
         df_unlearned_total=pd.DataFrame(df_unlearned_total,columns=['accuracy', 'chance', 'acc | test ex', 'acc | train ex', 'precision', 'recall', 'F1', 'unlearning_time',
                                              'test_accuracy', 'forget_accuracy', 'retain_accuracy'])
-        print('Results unlearned:\n',df_unlearned_total.mean(0))
-        print('Results unlearned:\n',df_unlearned_total.std(0))
-    if df_retained_total is not None:
+        #print('Results unlearned:\n',df_unlearned_total.mean(0))
+        #print('Results unlearned:\n',df_unlearned_total.std(0))
+        means = df_unlearned_total.mean()
+        std_devs = df_unlearned_total.std()
+        output = "\n".join([f"{col}: {mean:.2f} \\pm {std:.2f}" for col, mean, std in zip(means.index, means, std_devs)])
+        print(output)
+
+    if df_retained_total:
+        print("RETAINED \n")
         df_retained_total=pd.DataFrame(df_retained_total,columns=['accuracy', 'chance', 'acc | test ex', 'acc | train ex', 'precision', 'recall', 'F1','test_accuracy', 'forget_accuracy', 'retain_accuracy'])
-        print('Results retained:\n',df_retained_total.mean(0))
-        print('Results retained:\n',df_retained_total.std(0))
+        #print('Results retained:\n',df_retained_total.mean(0))
+        #print('Results retained:\n',df_retained_total.std(0))
+        means = df_retained_total.mean()
+        std_devs = df_retained_total.std()
+        output = "\n".join([f"{col}: {mean:.2f} \\pm {std:.2f}" for col, mean, std in zip(means.index, means, std_devs)])
+        print(output)
 
     #push_results(opt, df_orig_total, df_unlearned_total, df_retained_total)
 
