@@ -12,6 +12,7 @@ from tqdm import tqdm
 #from publisher import push_results
 import time
 from utils import choose_competitor
+from error_propagation import Complex
 
 def main(train_loader, test_loader, train_fgt_loader, train_retain_loader):
     v_orig, v_unlearn, v_rt = None, None, None
@@ -66,13 +67,14 @@ def main(train_loader, test_loader, train_fgt_loader, train_retain_loader):
     return v_orig, v_unlearn, v_rt
 
 if __name__ == "__main__":
-    set_seed(opt.seed)
     df_unlearned_total=[]
     df_retained_total=[]
     df_orig_total=[]
     
-    seed_list = [0,1,2,3,4,5,6,7,8,42]
+    seed_list = [0, 1,2]#,3,4,5,6,7,8,42]
     for i in seed_list:
+        set_seed(i)
+
         print(f"Seed {i}")
     
         if opt.dataset == "cifar10":
@@ -93,7 +95,7 @@ if __name__ == "__main__":
             df_orig_total.append(row_orig.values)
         if row_ret is not None:
             df_retained_total.append(row_ret.values)
-        break
+        
     print(opt.dataset)
     if df_orig_total:
         print("ORIGINAL \n")
@@ -115,8 +117,17 @@ if __name__ == "__main__":
         #print('Results unlearned:\n',df_unlearned_total.std(0))
         means = df_unlearned_total.mean()
         std_devs = df_unlearned_total.std()
-        output = "\n".join([f"{col}: {mean:.2f} \\pm {std:.2f}" for col, mean, std in zip(means.index, means, std_devs)])
+        output = "\n".join([f"{col}: {100*mean:.2f} \\pm {100*std:.2f}" if col != 'unlearning_time' else f"{col}: {mean:.2f} \\pm {std:.2f}" for col, mean, std in zip(means.index, means, std_devs)])
+        
         print(output)
+        a=Complex(means["test_accuracy"], std_devs["test_accuracy"])
+        b=Complex(means["forget_accuracy"], std_devs["forget_accuracy"])
+        aus=(a)/(1+abs(a-b))
+        print(f"AUS: {100*aus.value:.2f} \pm {100*aus.error:.2f}")
+        
+        #save df_unlearned_total
+        df_unlearned_total.to_csv(f"{opt.root_folder}unlearned_results_{opt.dataset if opt.dataset!='tinyImagenet' else 'tiny'}.csv")
+
 
     if df_retained_total:
         print("RETAINED \n")
@@ -125,7 +136,7 @@ if __name__ == "__main__":
         #print('Results retained:\n',df_retained_total.std(0))
         means = df_retained_total.mean()
         std_devs = df_retained_total.std()
-        output = "\n".join([f"{col}: {mean:.2f} \\pm {std:.2f}" for col, mean, std in zip(means.index, means, std_devs)])
+        output = "\n".join([f"{col}: {100*mean:.2f} \\pm {100*std:.2f}" for col, mean, std in zip(means.index, means, std_devs)])
         print(output)
 
     #push_results(opt, df_orig_total, df_unlearned_total, df_retained_total)
