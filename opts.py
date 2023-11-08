@@ -8,11 +8,13 @@ class OPT:
     seed = [0]#,2,3,4,5,6,7,8,42]
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     class_to_be_removed = [0,1] ##,6,7,8
+
     if class_to_be_removed is None:
-        mode = "CR"
-    else:
         mode = "HR"
-            
+
+    else:
+        mode = "CR"
+
     # gets current folder path
     root_folder = os.path.dirname(os.path.abspath(__file__)) + "/"
 
@@ -28,7 +30,7 @@ class OPT:
     data_path = '~/data'
     if dataset == 'cifar10':
         num_classes = 10
-        batch_fgt_ret_ratio = 1
+        batch_fgt_ret_ratio = 6
     elif dataset == 'cifar100':
         num_classes = 100
         batch_fgt_ret_ratio = 1
@@ -42,11 +44,11 @@ class OPT:
     num_workers = 8
 
     competitor = True
-    name_competitor = 'NegativeGradient' #NegativeGradient, RandomLabels,         # Amnesiac, Hiding...
+    name_competitor = 'CBCR' #NegativeGradient, RandomLabels,         # Amnesiac, Hiding...
     
     # unlearning params
     #set class to be remove to None if you want to unlearn a set of samples that belong to different classes
-    batch_size = 512
+    batch_size = 2048
     epochs_unlearn = 2000 #best 5
     lr_unlearn = 0.001#cifar100 #0.0001#0.0000005 #best 0.001
     wd_unlearn = 0
@@ -60,7 +62,7 @@ class OPT:
 
     ###MLP
     iter_MIA = 2 #numo f iterations
-    verboseMIA = True
+    verboseMIA = False
 
    
     if model== 'resnet18':
@@ -69,7 +71,7 @@ class OPT:
             weight_file_id = '1pksj54mSsaDdkwSh1V9KA_SP7ZkafkVI'
             weight_file_id_RT = '1QizS5_YTNmsfgvVw0a2H9HSU8xuzBG8N'
 
-            if class_to_be_removed is None:
+            if mode == "HR":
                 RT_model_weights_path = root_folder+'weights/chks_cifar100/best_checkpoint_without_5000.pth'
             else:
                 RT_model_weights_path = root_folder+f'weights/chks_cifar100/best_checkpoint_without_{class_to_be_removed}.pth'
@@ -79,7 +81,7 @@ class OPT:
             weight_file_id = '198mmeueWTdH66eTlE0vJu0lLd72nQBbr'
             weight_file_id_RT = '1URa2nH_IyAUzIUgv_ICEdm-5b1w-Zrf0'
 
-            if class_to_be_removed is None:
+            if mode == "HR":
                 RT_model_weights_path = root_folder+'weights/chks_cifar10/best_checkpoint_without_5000.pth'
             else:
                 RT_model_weights_path = root_folder+f'weights/chks_cifar10/best_checkpoint_without_{class_to_be_removed}.pth'

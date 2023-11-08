@@ -15,21 +15,10 @@ import torch.nn.functional as F
 from sklearn.metrics import precision_recall_fscore_support
 import os
 import zipfile
-from competitors import *
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 
-def choose_competitor(name):
-    if name=='FineTuning':
-        return FineTuning
-    elif name=='NegativeGradient':
-        return NegativeGradient
-    elif name=='RandomLabels':
-        return RandomLabels
-    elif name=='Amnesiac':
-        return Amnesiac
-    elif name=='Hidden':
-        return Hiding
+
     
 
 def set_seed(seed):

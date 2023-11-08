@@ -12,12 +12,16 @@ import torch.nn as nn
 from tqdm import tqdm
 #from publisher import push_results
 import time
-from utils import choose_competitor
+from Unlearning_methods import choose_competitor
 from error_propagation import Complex
+import os
 def AUS(a_t, a_or, a_f):
-    aus=(Complex(1, 0)-(a_or-a_t))/(Complex(1, 0)+abs(a_f-a_t))
+    if opt.mode == "HR":
+        aus=(Complex(1, 0)-(a_or-a_t))/(Complex(1, 0)+abs(a_f-a_t))
+    else:
+        aus=(Complex(1, 0)-(a_or-a_t))/(Complex(1, 0)+abs(a_f))
     return aus
-def main(train_fgt_loader, train_retain_loader, test_loader=None, test_fgt_loader=None, test_retain_loader=None):
+def main(train_fgt_loader, train_retain_loader, test_loader=None, test_fgt_loader=None, test_retain_loader=None, class_to_remove=0):
     v_orig, v_unlearn, v_rt = None, None, None
     original_pretr_model = get_resnet18_trained()
     original_pretr_model.to(opt.device)
@@ -41,17 +45,24 @@ def main(train_fgt_loader, train_retain_loader, test_loader=None, test_fgt_loade
 
     if opt.run_unlearn:
         pretr_model = deepcopy(original_pretr_model)
-        pretr_model.fc = nn.Sequential(nn.Dropout(0.4),pretr_model.fc) 
+        #pretr_model.fc = nn.Sequential(nn.Dropout(0.4),pretr_model.fc) 
         pretr_model.to(opt.device)
         pretr_model.eval()
 
         timestamp1 = time.time()
-        if not opt.competitor:
+        if opt.mode == "HR":
             opt.target_accuracy = accuracy(original_pretr_model, test_loader)
-            unlearned_model = unlearning(pretr_model, train_retain_loader, train_fgt_loader,target_accuracy=opt.target_accuracy)            
-        else:
             approach = choose_competitor(opt.name_competitor)(pretr_model,train_retain_loader, train_fgt_loader,test_loader)
-            unlearned_model = approach.run()
+
+        elif opt.mode == "CR":
+            opt.target_accuracy = 0.01
+            if opt.name_competitor == "CBCR":
+                approach = choose_competitor(opt.name_competitor)(pretr_model,train_retain_loader, train_fgt_loader,test_fgt_loader, class_to_remove=class_to_remove)
+            else:
+                approach = choose_competitor(opt.name_competitor)(pretr_model,train_retain_loader, train_fgt_loader,test_fgt_loader)
+
+        
+        unlearned_model = approach.run()
 
         if opt.mode == "HR":
             df_un_model = get_MIA_MLP(train_fgt_loader, test_loader, unlearned_model, opt)
@@ -99,7 +110,11 @@ if __name__ == "__main__":
     df_unlearned_total=[]
     df_retained_total=[]
     df_orig_total=[]
-    
+    if not os.path.exists(opt.root_folder+"out"):
+        os.makedirs(opt.root_folder+"results")
+    if not os.path.exists(opt.root_folder+"out/"+opt.mode+"/"+opt.dataset+"/models"):
+        os.makedirs(opt.root_folder+"out/"+opt.mode+"/"+opt.dataset+"/models")
+        os.makedirs(opt.root_folder+"results/"+opt.mode+"/"+opt.dataset+"/dfs")
     seed_list = [0]#,2,3,4,5,6,7,8,42]
     for i in opt.seed:
         set_seed(i)
@@ -128,7 +143,10 @@ if __name__ == "__main__":
             for class_to_be_removed in opt.class_to_be_removed:
                 print(f'------------class {class_to_be_removed}-----------')
                 _, _, train_fgt_loader, train_retain_loader, test_fgt_loader, test_retain_loader = get_dsets_remove_class(class_to_be_removed)
-                row_orig, row_unl, row_ret=main(train_fgt_loader, train_retain_loader, test_fgt_loader=test_fgt_loader, test_retain_loader=test_retain_loader)
+
+                opt.RT_model_weights_path = opt.root_folder+f'chks_{opt.dataset if opt.dataset!="tinyImagenet" else "tiny"}/chks_{opt.dataset if opt.dataset!="tinyImagenet" else "tiny"}_seed_{i}.pth'
+                print(opt.RT_model_weights_path)
+                row_orig, row_unl, row_ret=main(train_fgt_loader, train_retain_loader, test_fgt_loader=test_fgt_loader, test_retain_loader=test_retain_loader, class_to_remove=class_to_be_removed)
                 if row_unl is not None:
                     df_unlearned_total.append(row_unl)
                 if row_orig is not None:
@@ -137,15 +155,14 @@ if __name__ == "__main__":
                     df_retained_total.append(row_ret)
         
     print(opt.dataset)
+    #create results folder if doesn't exist
+    
+
     if df_orig_total:
         print("ORIGINAL \n")
         #merge list of pd dataframes
         df_orig_total = pd.concat(df_orig_total)
-        #df_orig_total=pd.DataFrame(df_orig_total,columns=['accuracy', 'chance', 'acc | test ex', 'acc | train ex', 'precision', 'recall', 'F1','mutual' ,
-        #                                     'test_accuracy', 'forget_accuracy', 'retain_accuracy'])
-        #print(df_orig_total.shape)
-        #print('Results original:\n',df_orig_total.mean(0))
-        #print('Results original:\n',df_orig_total.std(0))
+
         means = df_orig_total.mean()
         std_devs = df_orig_total.std()
         output = "\n".join([f"{col}: {mean*100:.4f} \\pm {std*100:.4f}" for col, mean, std in zip(means.index, means, std_devs)])
@@ -154,10 +171,7 @@ if __name__ == "__main__":
     if df_unlearned_total:
         print("UNLEARNED \n")
         df_unlearned_total = pd.concat(df_unlearned_total)
-        # df_unlearned_total=pd.DataFrame(df_unlearned_total,columns=['accuracy', 'chance', 'acc | test ex', 'acc | train ex', 'precision', 'recall', 'F1','mutual', 'unlearning_time',
-        #                                      'test_accuracy', 'forget_accuracy', 'retain_accuracy'])
-        #print('Results unlearned:\n',df_unlearned_total.mean(0))
-        #print('Results unlearned:\n',df_unlearned_total.std(0))
+
         means = df_unlearned_total.mean()
         std_devs = df_unlearned_total.std()
         output = "\n".join([f"{col}: {100*mean:.2f} \\pm {100*std:.2f}" if col != 'unlearning_time' else f"{col}: {mean:.2f} \\pm {std:.2f}" for col, mean, std in zip(means.index, means, std_devs)])
@@ -182,9 +196,7 @@ if __name__ == "__main__":
     if df_retained_total:
         print("RETAINED \n")
         df_retained_total = pd.concat(df_retained_total)
-        #df_retained_total=pd.DataFrame(df_retained_total,columns=['accuracy', 'chance', 'acc | test ex', 'acc | train ex', 'precision', 'recall', 'F1','mutual','test_accuracy', 'forget_accuracy', 'retain_accuracy'])
-        #print('Results retained:\n',df_retained_total.mean(0))
-        #print('Results retained:\n',df_retained_total.std(0))
+
         means = df_retained_total.mean()
         std_devs = df_retained_total.std()
         output = "\n".join([f"{col}: {100*mean:.2f} \\pm {100*std:.2f}" for col, mean, std in zip(means.index, means, std_devs)])

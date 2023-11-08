@@ -130,7 +130,7 @@ def training_SVC(model,X_train, X_test, z_train, z_test,opt):
     param_grid = {'C': [0.001, 0.01, 0.0001],
               'gamma': [10,25,50], 
               'kernel': ['poly']}
-    grid = GridSearchCV(model, param_grid, refit = True, verbose=3, cv=3, n_jobs=4) 
+    grid = GridSearchCV(model, param_grid, refit = True, verbose=3 if opt.verboseMIA else 0, cv=3, n_jobs=4) 
     grid.fit(X_train, z_train)
     best_model = grid.best_estimator_
     print(grid.best_params_)
