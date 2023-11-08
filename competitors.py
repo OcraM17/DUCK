@@ -12,8 +12,8 @@ class BaseMethod:
         self.retain = retain
         self.forget = forget
         self.criterion = nn.CrossEntropyLoss()
-        self.optimizer = optim.SGD(self.net.parameters(), lr=opt.lr_competitor, momentum=opt.momentum_competitor, weight_decay=opt.wd_competitor)
-        self.epochs = opt.epochs_competitor
+        self.optimizer = optim.SGD(self.net.parameters(), lr=opt.lr_unlearn, momentum=opt.momentum_unlearn, weight_decay=opt.wd_unlearn)
+        self.epochs = opt.epochs_unlearn
         self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[8,12], gamma=0.5)
         #torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=self.epochs)
         if test is None:

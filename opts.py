@@ -1,16 +1,21 @@
 import torch 
 import os
+from error_propagation import Complex
+
 class OPT:
     run_name = "test"
-    dataset = 'tinyImagenet'
-    seed = 42
+    dataset = 'cifar10'
+    seed = [0]#,2,3,4,5,6,7,8,42]
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
-    
+    mode = "CR"
+    class_to_be_removed = [0,1] ##,6,7,8
+
     # gets current folder path
     root_folder = os.path.dirname(os.path.abspath(__file__)) + "/"
 
     # Model
     model = 'resnet18'#'AllCNN'
+    
     ### RUN model type
     run_original = False
     run_unlearn = True
@@ -33,45 +38,28 @@ class OPT:
     
     num_workers = 8
 
+    competitor = True
+    name_competitor = 'NegativeGradient' #NegativeGradient, RandomLabels,         # Amnesiac, Hiding...
     
     # unlearning params
     #set class to be remove to None if you want to unlearn a set of samples that belong to different classes
-    batch_size = 256
-    class_to_be_removed = None ##,6,7,8
+    batch_size = 512
     epochs_unlearn = 2000 #best 5
     lr_unlearn = 0.001#cifar100 #0.0001#0.0000005 #best 0.001
     wd_unlearn = 0
     momentum_unlearn = 0.9
+
+    #CBCR specific
     lambda_1 = 1.5#1#.5#cifar100 .1#vgg subj
     lambda_2 = 1.5#1.5 #0.5#cifar100 1#vgg subj
     target_accuracy = 0.01 #0.76 cifar100 
     
 
     ###MLP
-    iter_MLP = 5 #numo f iterations
-    num_layers_MLP = 3
-    num_epochs_MLP = 120
-    lr_MLP = 0.005
-    weight_decay_MLP = 0.#00001#001
-    batch_size_MLP = 160
-    num_hidden_MLP = 80
-    verboseMLP = True
+    iter_MIA = 2 #numo f iterations
+    verboseMIA = True
 
-
-
-    useMLP = False
-
-    #Competitor
-    competitor = True
-    if competitor:
-        name_competitor = 'FineTuning' #NegativeGradient, RandomLabels,         # Amnesiac, Hiding...
-        lr_competitor = 0.08 #FineTuning:0.1, else:0.01
-        epochs_competitor = 15
-        momentum_competitor = 0.9
-        wd_competitor = 5e-4
-    else:
-        name_competitor, lr_competitor, epochs_competitor, momentum_competitor, wd_competitor = None, None, None, None, None
-
+   
     if model== 'resnet18':
         if dataset== 'cifar100':
             or_model_weights_path = root_folder+'weights/Final_CIFAR100_Resnet18.pth'
@@ -106,7 +94,14 @@ class OPT:
                 RT_model_weights_path = "/home/node002/Documents/MachineUnlearning/chks_vgg/best_model_00.pth"
     else:
         raise NotImplementedError
+    
 
+    a_or = {
+        "cifar10" : [Complex(88.72, 0.28)/100.,Complex(88.64, 0.63)/100.], #[0] HR, [1] CR 
+        "cifar100" : [Complex(77.56, 0.29)/100., Complex(77.55, 0.11)/100.],
+        "tinyImagenet" : [Complex(68.22, 0.54)/100.,Complex(68.40, 0.07)/100.]
+
+    }
     #class rem
     #                    cifar10   cifar100
     # lr_unlearn =       0.0001    0.0001       #0.0000005 #best 0.001

@@ -12,3 +12,11 @@ cropped_faces/
 _torchshow/
 client_secrets.json
 .vscode
+client_secrets.json
+creds_1.json
+publisher_key.json
+Compute_AUS_table_1.py
+Compute_AUS_table_2.py
+table_1.tex
+table_2.tex
+data

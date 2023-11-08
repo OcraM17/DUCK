@@ -21,7 +21,7 @@ for num in [1000,5000]:
     #np.savetxt(f'forget_idx_{num}_tinyImagenet.txt', forget_idx_tiny.astype(np.int64))
 
 
-for i in [0,1,2,3,4,5,6,7,8,42]:
+for i in [0]:#,1,2,3,4,5,6,7,8,42]:
     data_path = '~/data'
     np.random.seed(i)
 

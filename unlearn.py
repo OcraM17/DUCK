@@ -81,7 +81,7 @@ def unlearning(net, retain, forget,target_accuracy=0.76, opt=opt):
 
 
                 # pick the closest centroid that has class different from lab_fgt (only first time)
-                if init:
+                if init and n_batch_ret==0:
                     closest_centroids = torch.argsort(dists, dim=1)
                     tmp = closest_centroids[:, 0]
                     closest_centroids = torch.where(tmp == lab_fgt, closest_centroids[:, 1], tmp)
