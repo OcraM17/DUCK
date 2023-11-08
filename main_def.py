@@ -112,9 +112,9 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
        
     #save dfs
     if opt.mode == "HR":
-        df_un_model.to_csv(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/dfs/{opt.name_competitor}_seed_{seed}.csv")
+        v_unlearn.to_csv(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/dfs/{opt.name_competitor}_seed_{seed}.csv")
     elif opt.mode == "CR":
-        df_un_model.to_csv(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/dfs/{opt.name_competitor}_seed_{seed}_class_{class_to_remove}.csv")
+        v_unlearn.to_csv(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/dfs/{opt.name_competitor}_seed_{seed}_class_{class_to_remove}.csv")
 
     return v_orig, v_unlearn, v_rt
 
@@ -143,7 +143,7 @@ if __name__ == "__main__":
             opt.RT_model_weights_path=opt.root_folder+f'chks_{opt.dataset if opt.dataset!="tinyImagenet" else "tiny"}/chks_{opt.dataset if opt.dataset!="tinyImagenet" else "tiny"}_seed_{i}.pth'
             print(opt.RT_model_weights_path)
 
-            row_orig, row_unl, row_ret=main(train_fgt_loader, train_retain_loader, test_loader, seed=i)
+            row_orig, row_unl, row_ret=main(train_fgt_loader, train_retain_loader, test_loader=test_loader, seed=i)
 
             if row_unl is not None:
                 df_unlearned_total.append(row_unl.values)
@@ -202,10 +202,6 @@ if __name__ == "__main__":
             a_or = opt.a_or[opt.dataset][1]
         aus = AUS(a_t, a_or, a_f)
         print(f"AUS: {aus.value:.4f} \pm {aus.error:.4f}")
-        
-        #save df_unlearned_total
-        df_unlearned_total.to_csv(f"{opt.root_folder}unlearned_results_{opt.dataset if opt.dataset!='tinyImagenet' else 'tiny'}.csv")
-
 
     if df_retained_total:
         print("RETAINED \n")
