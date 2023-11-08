@@ -13,7 +13,9 @@ from tqdm import tqdm
 import time
 from utils import choose_competitor
 from error_propagation import Complex
-
+def AUS(a_t, a_or, a_f):
+    aus=(Complex(1, 0)-(a_or-a_t))/(Complex(1, 0)+abs(a_f-a_t))
+    return aus
 def main(train_loader, test_loader, train_fgt_loader, train_retain_loader):
     v_orig, v_unlearn, v_rt = None, None, None
     original_pretr_model = get_resnet18_trained()
@@ -71,7 +73,7 @@ if __name__ == "__main__":
     df_retained_total=[]
     df_orig_total=[]
     
-    seed_list = [0, 1,2]#,3,4,5,6,7,8,42]
+    seed_list = [0]#,1,2,3,4,5,6,7,8,42]
     for i in seed_list:
         set_seed(i)
 
@@ -120,10 +122,11 @@ if __name__ == "__main__":
         output = "\n".join([f"{col}: {100*mean:.2f} \\pm {100*std:.2f}" if col != 'unlearning_time' else f"{col}: {mean:.2f} \\pm {std:.2f}" for col, mean, std in zip(means.index, means, std_devs)])
         
         print(output)
-        a=Complex(means["test_accuracy"], std_devs["test_accuracy"])
-        b=Complex(means["forget_accuracy"], std_devs["forget_accuracy"])
-        aus=(a)/(1+abs(a-b))
-        print(f"AUS: {100*aus.value:.2f} \pm {100*aus.error:.2f}")
+        a_t=Complex(means["test_accuracy"], std_devs["test_accuracy"])
+        a_or = opt.a_or[opt.dataset]
+        a_r = Complex(means["forget_accuracy"], std_devs["forget_accuracy"])
+        aus = AUS(a_t, a_or, a_r)
+        print(f"AUS: {aus.value:.4f} \pm {aus.error:.4f}")
         
         #save df_unlearned_total
         df_unlearned_total.to_csv(f"{opt.root_folder}unlearned_results_{opt.dataset if opt.dataset!='tinyImagenet' else 'tiny'}.csv")
