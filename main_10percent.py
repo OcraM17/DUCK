@@ -1,6 +1,7 @@
 from copy import deepcopy
 from dsets import get_dsets_remove_class, get_dsets
 import pandas as pd
+from error_propagation import Complex
 #to clean up
 from utils import accuracy, set_seed, get_retrained_model,get_resnet50_trained_on_VGGFace_10_subjects,get_resnet18_trained
 
@@ -39,8 +40,9 @@ def main(train_loader, test_loader, train_fgt_loader, train_retain_loader):
 
         timestamp1 = time.time()
         if not opt.competitor:
+            opt.target_accuracy = accuracy(original_pretr_model, test_loader)
             unlearned_model = unlearning(pretr_model, train_retain_loader, train_fgt_loader,target_accuracy=opt.target_accuracy)
-            opt.target_accuracy = df_or_model["test_accuracy"].values[0]
+            
         else:
             approach = choose_competitor(opt.name_competitor)(pretr_model,train_retain_loader, train_fgt_loader,test_loader)
             unlearned_model = approach.run()
@@ -101,19 +103,19 @@ if __name__ == "__main__":
     print(opt.dataset)
     if df_orig_total:
         print("ORIGINAL \n")
-        df_orig_total=pd.DataFrame(df_orig_total,columns=['accuracy', 'chance', 'acc | test ex', 'acc | train ex', 'precision', 'recall', 'F1', 
+        df_orig_total=pd.DataFrame(df_orig_total,columns=['accuracy', 'chance', 'acc | test ex', 'acc | train ex', 'precision', 'recall', 'F1','mutual' ,
                                              'test_accuracy', 'forget_accuracy', 'retain_accuracy'])
         #print(df_orig_total.shape)
         #print('Results original:\n',df_orig_total.mean(0))
         #print('Results original:\n',df_orig_total.std(0))
         means = df_orig_total.mean()
         std_devs = df_orig_total.std()
-        output = "\n".join([f"{col}: {mean:.2f} \\pm {std:.2f}" for col, mean, std in zip(means.index, means, std_devs)])
+        output = "\n".join([f"{col}: {mean*100:.4f} \\pm {std*100:.4f}" for col, mean, std in zip(means.index, means, std_devs)])
         print(output)
 
     if df_unlearned_total:
         print("UNLEARNED \n")
-        df_unlearned_total=pd.DataFrame(df_unlearned_total,columns=['accuracy', 'chance', 'acc | test ex', 'acc | train ex', 'precision', 'recall', 'F1', 'unlearning_time',
+        df_unlearned_total=pd.DataFrame(df_unlearned_total,columns=['accuracy', 'chance', 'acc | test ex', 'acc | train ex', 'precision', 'recall', 'F1','mutual', 'unlearning_time',
                                              'test_accuracy', 'forget_accuracy', 'retain_accuracy'])
         #print('Results unlearned:\n',df_unlearned_total.mean(0))
         #print('Results unlearned:\n',df_unlearned_total.std(0))
@@ -134,7 +136,7 @@ if __name__ == "__main__":
 
     if df_retained_total:
         print("RETAINED \n")
-        df_retained_total=pd.DataFrame(df_retained_total,columns=['accuracy', 'chance', 'acc | test ex', 'acc | train ex', 'precision', 'recall', 'F1','test_accuracy', 'forget_accuracy', 'retain_accuracy'])
+        df_retained_total=pd.DataFrame(df_retained_total,columns=['accuracy', 'chance', 'acc | test ex', 'acc | train ex', 'precision', 'recall', 'F1','mutual','test_accuracy', 'forget_accuracy', 'retain_accuracy'])
         #print('Results retained:\n',df_retained_total.mean(0))
         #print('Results retained:\n',df_retained_total.std(0))
         means = df_retained_total.mean()

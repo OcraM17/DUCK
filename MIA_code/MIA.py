@@ -167,32 +167,23 @@ def compute_accuracy_SVC(predicted, labels, targ_val = None):
         #print('check',np.asarray(prediction_F1).astype(np.int64).sum(),np.asarray(labels).astype(np.int64).sum())
         #print('MI:',adjusted_mutual_info_score(np.asarray(labels).astype(np.int64), np.asarray(prediction_F1).astype(np.int64)))
         P,R,F1 = precision_recall_fscore_support(np.asarray(labels).astype(np.int64), np.asarray(predicted).astype(np.int64), average='micro')[:3]
-        return correct / total, chance ,P,R,F1
+        mutual = compute_mutual_information(np.asarray(labels).astype(np.int64), np.asarray(predicted).astype(np.int64))
+        return correct / total, chance ,P,R,F1, mutual
     else:
         return correct / total
 
 def training_SVC(model,X_train, X_test, z_train, z_test,opt):
     param_grid = {'C': [0.001, 0.01, 0.0001],
-              'gamma': [10,25,50,], 
+              'gamma': [10,25,50], 
               'kernel': ['poly']}
     grid = GridSearchCV(model, param_grid, refit = True, verbose=3, cv=3, n_jobs=4) 
     grid.fit(X_train, z_train)
     best_model = grid.best_estimator_
     print(grid.best_params_)
-    # param_grid = {'C': [0.1, 1, 5, 10, 100, 1000],
-    #           'gamma': [1, 0.1, 0.01, 0.001, 0.0001], 
-    #           'kernel': ['rbf']}
-    # grid = GridSearchCV(model, param_grid, refit = True, verbose=0, cv=3, n_jobs=4) 
-    # grid.fit(X_train, z_train)
-    # print(grid.best_params_)
-    # best_model = grid.best_estimator_
 
     results = best_model.predict(X_test)
 
-    #results = model.fit(X_train, z_train).predict(X_test)
-
-
-    accuracy,chance, precision, recall,F1 = compute_accuracy_SVC(results, z_test)
+    accuracy,chance, precision, recall,F1, mutual = compute_accuracy_SVC(results, z_test)
     accuracy_test_ex = compute_accuracy_SVC(results, z_test,0)
     accuracy_train_ex = compute_accuracy_SVC(results, z_test,1)
 
@@ -202,7 +193,7 @@ def training_SVC(model,X_train, X_test, z_train, z_test,opt):
         print(f'Test accuracy for case test examples: {round(accuracy_test_ex,3)}')
         print(f'Test accuracy for case training examples: {round(accuracy_train_ex,3)}')
         print(f'Test F1: {round(F1,3)}')
-    return accuracy,chance,accuracy_test_ex,accuracy_train_ex, precision, recall,F1
+    return accuracy,chance,accuracy_test_ex,accuracy_train_ex, precision, recall,F1, mutual
 
 def training_MLP(model,X_train, X_test, z_train, z_test,opt):
 
@@ -301,8 +292,8 @@ def collect_prob(data_loader, model,opt):
             data, target = batch
             output = model(data)
             prob.append(F.softmax(output, dim=1).data)
-            
-    return torch.cat(prob)
+        prob=torch.cat(prob)            
+    return prob
 
 def get_membership_attack_data_MLP(train_loader, test_loader, model,opt):    
     #get membership attack data, this function will return X_r, Y_r, X_f, Y_f
@@ -333,14 +324,12 @@ def get_membership_attack_data_MLP(train_loader, test_loader, model,opt):
 
     xtest = torch.cat([X_tr[int(0.8*N_tr):],X_te[int(0.8*N_te):]],dim=0) 
     ytest = torch.cat([Y_tr[int(0.8*N_tr):],Y_te[int(0.8*N_te):]],dim=0)
-    for prob in [test_prob, train_prob]:
-        entropy=torch.sum(-prob*torch.log(torch.clamp(prob,min=1e-5)),dim=1)
-        #print(entropy)
-        #from matplotlib import pyplot as plt
-        #plt.hist(entropy.cpu().numpy(), bins=100, alpha=0.5)
-        #plt.savefig('/home/node002/Documents/MachineUnlearning/MIA_code/entropy.png')
-        print("ENTROPY:")
-        print(torch.mean(entropy), torch.std(entropy)) 
+
+    for data in [train_prob, test_prob]:
+        entropy=torch.sum(-data*torch.log(torch.clamp(data,min=1e-5)),dim=1)
+        print(torch.mean(data), torch.std(data))
+
+
     # N_r_train = X_r[:int(0.8*N_r)].shape[0]
     # X_f_train = X_f[:int(0.8*N_f)]
     # Y_f_train = Y_f[:int(0.8*N_f)]
@@ -370,11 +359,10 @@ def get_MIA_MLP(train_loader, test_loader, model, opt):
             model_MLP = DeepMLP(input_classes=opt.num_classes, num_classes=2, num_layers=opt.num_layers_MLP, num_hidden=opt.num_hidden_MLP)
             accuracy, chance,accuracy_test_ex,accuracy_train_ex, P,R,F1 = training_MLP(model_MLP, train_data, test_data, train_labels, test_labels, opt)
         else:
-            #model_SVC = SVC(kernel='rbf', tol = 1e-4, class_weight='balanced', random_state=i) 
-            model_SVC = SVC(C=0.001, gamma = 25, kernel='poly', tol = 1e-4, class_weight='balanced', random_state=i, max_iter=4000)
-            accuracy, chance,accuracy_test_ex,accuracy_train_ex, P,R,F1 = training_SVC(model_SVC, train_data, test_data, train_labels, test_labels, opt)
-            #accuracy, chance,accuracy_test_ex,accuracy_train_ex, P,R,F1 = 0,0,0,0,0,0,0
-        results.append(np.asarray([accuracy, chance,accuracy_test_ex,accuracy_train_ex,P,R,F1]))
+            model_SVC = SVC( tol = 1e-4, max_iter=4000, class_weight='balanced', random_state=i) 
+            accuracy, chance,accuracy_test_ex,accuracy_train_ex, P,R,F1, mutual = training_SVC(model_SVC, train_data, test_data, train_labels, test_labels, opt)
+
+        results.append(np.asarray([accuracy, chance,accuracy_test_ex,accuracy_train_ex,P,R,F1, mutual]))
     results = np.asarray(results)
-    df = pd.DataFrame(results,columns=['accuracy','chance','acc | test ex','acc | train ex','precision','recall','F1'])
+    df = pd.DataFrame(results,columns=['accuracy','chance','acc | test ex','acc | train ex','precision','recall','F1', 'Mutual'])
     return df
