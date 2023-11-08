@@ -15,13 +15,14 @@ import time
 from Unlearning_methods import choose_competitor
 from error_propagation import Complex
 import os
+import torch
 def AUS(a_t, a_or, a_f):
     if opt.mode == "HR":
         aus=(Complex(1, 0)-(a_or-a_t))/(Complex(1, 0)+abs(a_f-a_t))
     else:
         aus=(Complex(1, 0)-(a_or-a_t))/(Complex(1, 0)+abs(a_f))
     return aus
-def main(train_fgt_loader, train_retain_loader, test_loader=None, test_fgt_loader=None, test_retain_loader=None, class_to_remove=0):
+def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_fgt_loader=None, test_retain_loader=None, class_to_remove=0):
     v_orig, v_unlearn, v_rt = None, None, None
     original_pretr_model = get_resnet18_trained()
     original_pretr_model.to(opt.device)
@@ -61,8 +62,14 @@ def main(train_fgt_loader, train_retain_loader, test_loader=None, test_fgt_loade
             else:
                 approach = choose_competitor(opt.name_competitor)(pretr_model,train_retain_loader, train_fgt_loader,test_fgt_loader)
 
-        
+       
         unlearned_model = approach.run()
+        #save model
+        if opt.save_model:
+            if opt.mode == "HR":
+                torch.save(unlearned_model.state_dict(), f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/models/unlearned_model_{opt.name_competitor}_seed_{seed}.pth")
+            elif opt.mode == "CR":
+                torch.save(unlearned_model.state_dict(), f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/models/unlearned_model_{opt.name_competitor}_seed_{seed}_class_{class_to_remove}.pth")
 
         if opt.mode == "HR":
             df_un_model = get_MIA_MLP(train_fgt_loader, test_loader, unlearned_model, opt)
@@ -103,19 +110,23 @@ def main(train_fgt_loader, train_retain_loader, test_loader=None, test_fgt_loade
         v_rt = df_rt_model.mean(0)
         v_rt = pd.DataFrame(v_rt).T
        
-    
+    #save dfs
+    if opt.mode == "HR":
+        df_un_model.to_csv(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/dfs/{opt.name_competitor}_seed_{seed}.csv")
+    elif opt.mode == "CR":
+        df_un_model.to_csv(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/dfs/{opt.name_competitor}_seed_{seed}_class_{class_to_remove}.csv")
+
     return v_orig, v_unlearn, v_rt
 
 if __name__ == "__main__":
     df_unlearned_total=[]
     df_retained_total=[]
     df_orig_total=[]
-    if not os.path.exists(opt.root_folder+"out"):
-        os.makedirs(opt.root_folder+"results")
+  
     if not os.path.exists(opt.root_folder+"out/"+opt.mode+"/"+opt.dataset+"/models"):
         os.makedirs(opt.root_folder+"out/"+opt.mode+"/"+opt.dataset+"/models")
-        os.makedirs(opt.root_folder+"results/"+opt.mode+"/"+opt.dataset+"/dfs")
-    seed_list = [0]#,2,3,4,5,6,7,8,42]
+    if not os.path.exists(opt.root_folder+"out/"+opt.mode+"/"+opt.dataset+"/dfs"):
+        os.makedirs(opt.root_folder+"out/"+opt.mode+"/"+opt.dataset+"/dfs")
     for i in opt.seed:
         set_seed(i)
 
@@ -131,7 +142,9 @@ if __name__ == "__main__":
             train_loader, test_loader, train_fgt_loader, train_retain_loader = get_dsets(file_fgt=file_fgt)
             opt.RT_model_weights_path=opt.root_folder+f'chks_{opt.dataset if opt.dataset!="tinyImagenet" else "tiny"}/chks_{opt.dataset if opt.dataset!="tinyImagenet" else "tiny"}_seed_{i}.pth'
             print(opt.RT_model_weights_path)
-            row_orig, row_unl, row_ret=main(train_fgt_loader, train_retain_loader, test_loader)
+
+            row_orig, row_unl, row_ret=main(train_fgt_loader, train_retain_loader, test_loader, seed=i)
+
             if row_unl is not None:
                 df_unlearned_total.append(row_unl.values)
             if row_orig is not None:
@@ -146,7 +159,8 @@ if __name__ == "__main__":
 
                 opt.RT_model_weights_path = opt.root_folder+f'chks_{opt.dataset if opt.dataset!="tinyImagenet" else "tiny"}/chks_{opt.dataset if opt.dataset!="tinyImagenet" else "tiny"}_seed_{i}.pth'
                 print(opt.RT_model_weights_path)
-                row_orig, row_unl, row_ret=main(train_fgt_loader, train_retain_loader, test_fgt_loader=test_fgt_loader, test_retain_loader=test_retain_loader, class_to_remove=class_to_be_removed)
+
+                row_orig, row_unl, row_ret=main(train_fgt_loader, train_retain_loader, test_fgt_loader=test_fgt_loader, seed=i, test_retain_loader=test_retain_loader, class_to_remove=class_to_be_removed)
                 if row_unl is not None:
                     df_unlearned_total.append(row_unl)
                 if row_orig is not None:

@@ -5,13 +5,12 @@ from error_propagation import Complex
 class OPT:
     run_name = "test"
     dataset = 'cifar10'
-    seed = [0]#,2,3,4,5,6,7,8,42]
+    seed = [0]#,1,2,3,4,5,6,7,8,42]
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     class_to_be_removed = [0,1] ##,6,7,8
-
+    save_model = True
     if class_to_be_removed is None:
         mode = "HR"
-
     else:
         mode = "CR"
 
