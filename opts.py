@@ -7,15 +7,18 @@ class OPT:
     dataset = 'cifar10'
     seed = [0]#,2,3,4,5,6,7,8,42]
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
-    mode = "CR"
     class_to_be_removed = [0,1] ##,6,7,8
-
+    if class_to_be_removed is None:
+        mode = "CR"
+    else:
+        mode = "HR"
+            
     # gets current folder path
     root_folder = os.path.dirname(os.path.abspath(__file__)) + "/"
 
     # Model
     model = 'resnet18'#'AllCNN'
-    
+
     ### RUN model type
     run_original = False
     run_unlearn = True
