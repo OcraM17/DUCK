@@ -53,7 +53,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         timestamp1 = time.time()
         if opt.mode == "HR":
             opt.target_accuracy = accuracy(original_pretr_model, test_loader)
-            approach = choose_competitor(opt.name_competitor)(pretr_model,train_retain_loader, train_fgt_loader,test_loader)
+            approach = choose_competitor(opt.name_competitor)(pretr_model,train_retain_loader, train_fgt_loader,test_loader, class_to_remove=None)
 
         elif opt.mode == "CR":
             opt.target_accuracy = 0.01
@@ -74,7 +74,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         if opt.mode == "HR":
             df_un_model = get_MIA_MLP(train_fgt_loader, test_loader, unlearned_model, opt)
         elif opt.mode == "CR":
-            df_un_model = get_MIA_MLP(train_fgt_loader, test_fgt_loader, unlearned_model, opt)
+            df_un_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
 
     
         df_un_model["unlearn_time"] = time.time() - timestamp1
@@ -111,16 +111,17 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         v_rt = pd.DataFrame(v_rt).T
        
     #save dfs
-    if opt.mode == "HR":
-        v_unlearn.to_csv(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/dfs/{opt.name_competitor}_seed_{seed}.csv")
-    elif opt.mode == "CR":
-        v_unlearn.to_csv(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/dfs/{opt.name_competitor}_seed_{seed}_class_{class_to_remove}.csv")
+    if opt.run_unlearn:
+        if opt.mode == "HR":
+            v_unlearn.to_csv(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/dfs/{opt.name_competitor}_seed_{seed}.csv")
+        elif opt.mode == "CR":
+            v_unlearn.to_csv(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/dfs/{opt.name_competitor}_seed_{seed}_class_{class_to_remove}.csv")
 
     return v_orig, v_unlearn, v_rt
 
 if __name__ == "__main__":
     df_unlearned_total=[]
-    df_retained_total=[]
+    df_retrained_total=[]
     df_orig_total=[]
   
     if not os.path.exists(opt.root_folder+"out/"+opt.mode+"/"+opt.dataset+"/models"):
@@ -146,18 +147,18 @@ if __name__ == "__main__":
             row_orig, row_unl, row_ret=main(train_fgt_loader, train_retain_loader, test_loader=test_loader, seed=i)
 
             if row_unl is not None:
-                df_unlearned_total.append(row_unl.values)
+                df_unlearned_total.append(row_unl)
             if row_orig is not None:
-                df_orig_total.append(row_orig.values)
+                df_orig_total.append(row_orig)
             if row_ret is not None:
-                df_retained_total.append(row_ret.values)
+                df_retrained_total.append(row_ret)
 
         elif opt.mode == "CR":
             for class_to_be_removed in opt.class_to_be_removed:
                 print(f'------------class {class_to_be_removed}-----------')
                 _, _, train_fgt_loader, train_retain_loader, test_fgt_loader, test_retain_loader = get_dsets_remove_class(class_to_be_removed)
 
-                opt.RT_model_weights_path = opt.root_folder+f'chks_{opt.dataset if opt.dataset!="tinyImagenet" else "tiny"}/chks_{opt.dataset if opt.dataset!="tinyImagenet" else "tiny"}_seed_{i}.pth'
+                opt.RT_model_weights_path = opt.root_folder+f'weights/chks_{opt.dataset if opt.dataset!="tinyImagenet" else "tiny"}/best_checkpoint_without_{class_to_be_removed}.pth'
                 print(opt.RT_model_weights_path)
 
                 row_orig, row_unl, row_ret=main(train_fgt_loader, train_retain_loader, test_fgt_loader=test_fgt_loader, seed=i, test_retain_loader=test_retain_loader, class_to_remove=class_to_be_removed)
@@ -166,7 +167,7 @@ if __name__ == "__main__":
                 if row_orig is not None:
                     df_orig_total.append(row_orig)
                 if row_ret is not None:
-                    df_retained_total.append(row_ret)
+                    df_retrained_total.append(row_ret)
         
     print(opt.dataset)
     #create results folder if doesn't exist
@@ -203,12 +204,12 @@ if __name__ == "__main__":
         aus = AUS(a_t, a_or, a_f)
         print(f"AUS: {aus.value:.4f} \pm {aus.error:.4f}")
 
-    if df_retained_total:
-        print("RETAINED \n")
-        df_retained_total = pd.concat(df_retained_total)
+    if df_retrained_total:
+        print("RETRAINED \n")
+        df_retrained_total = pd.concat(df_retrained_total)
 
-        means = df_retained_total.mean()
-        std_devs = df_retained_total.std()
+        means = df_retrained_total.mean()
+        std_devs = df_retrained_total.std()
         output = "\n".join([f"{col}: {100*mean:.2f} \\pm {100*std:.2f}" for col, mean, std in zip(means.index, means, std_devs)])
         print(output)
 

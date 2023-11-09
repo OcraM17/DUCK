@@ -119,7 +119,7 @@ class NegativeGradient(BaseMethod):
         return loss
 
 class CBCR(BaseMethod):
-    def __init__(self, net, retain, forget, test, class_to_remove=0):
+    def __init__(self, net, retain, forget, test, class_to_remove=None):
         super().__init__(net, retain, forget, test)
         self.loader = None
         self.class_to_remove = class_to_remove
