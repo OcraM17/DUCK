@@ -4,11 +4,11 @@ from error_propagation import Complex
 
 class OPT:
     run_name = "test"
-    dataset = 'tinyImagenet'
+    dataset = 'cifar100'
     seed = [0,1,2,3,4,5,6,7,8,42]
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
-    class_to_be_removed = None#[0,1] ##,6,7,8
-    save_model = True
+    class_to_be_removed = [i*10 for i in range(10)] #[0,1] ##,6,7,8
+    save_model = False
     if class_to_be_removed is None:
         mode = "HR"
     else:
@@ -29,10 +29,10 @@ class OPT:
     data_path = '~/data'
     if dataset == 'cifar10':
         num_classes = 10
-        batch_fgt_ret_ratio = 6
+        batch_fgt_ret_ratio = 1
     elif dataset == 'cifar100':
         num_classes = 100
-        batch_fgt_ret_ratio = 1
+        batch_fgt_ret_ratio = 5
     elif dataset == 'tinyImagenet':
         num_classes = 200
         batch_fgt_ret_ratio = 30
@@ -43,24 +43,25 @@ class OPT:
     num_workers = 8
 
     competitor = True
-    name_competitor = "NegativeGradient"#'CBCR' #NegativeGradient, RandomLabels,         # Amnesiac, Hiding...
+    name_competitor = "CBCR"#'CBCR' #NegativeGradient, RandomLabels,         # Amnesiac, Hiding...
     
     # unlearning params
     #set class to be remove to None if you want to unlearn a set of samples that belong to different classes
-    batch_size = 256
-    epochs_unlearn = 10 #best 5
-    lr_unlearn = 0.000025#cifar100 #0.0001#0.0000005 #best 0.001
+    batch_size = 1024
+    epochs_unlearn = 200 #best 5
+    lr_unlearn = 0.001#cifar100 #0.0001#0.0000005 #best 0.001
     wd_unlearn = 0
     momentum_unlearn = 0.9
+    temperature = 2
 
     #CBCR specific
-    lambda_1 = 1.5#1#.5#cifar100 .1#vgg subj
-    lambda_2 = 1.5#1.5 #0.5#cifar100 1#vgg subj
+    lambda_1 = 1.#1#.5#cifar100 .1#vgg subj
+    lambda_2 = 1.4#1.5 #0.5#cifar100 1#vgg subj
     target_accuracy = 0.01 #0.76 cifar100 
     
 
     ###MLP
-    iter_MIA = 2 #numo f iterations
+    iter_MIA = 3 #numo f iterations
     verboseMIA = False
 
    
