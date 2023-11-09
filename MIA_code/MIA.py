@@ -151,7 +151,7 @@ def training_SVC(model,X_train, X_test, z_train, z_test,opt):
         #print accuracy for test set with targets equal to 0 or 1   
         print(f'Test accuracy for case test examples: {round(accuracy_test_ex,3)}')
         print(f'Test accuracy for case training examples: {round(accuracy_train_ex,3)}')
-        print(f'Test F1: {round(F1,3)}')
+    print(f'Test F1: {round(F1,3)}')
     return accuracy,chance,accuracy_test_ex,accuracy_train_ex, precision, recall,F1, mutual
 
 
@@ -200,25 +200,30 @@ def get_membership_attack_data(train_loader, test_loader, model,opt):
     xtest = torch.cat([X_tr[int(0.8*N_tr):],X_te[int(0.8*N_te):]],dim=0) 
     ytest = torch.cat([Y_tr[int(0.8*N_tr):],Y_te[int(0.8*N_te):]],dim=0)
 
-    for data in [train_prob, test_prob]:
-        entropy=torch.sum(-data*torch.log(torch.clamp(data,min=1e-5)),dim=1)
-        print(torch.mean(data), torch.std(data))
-
+    # Compute entropy
+    entropy = torch.sum(-train_prob*torch.log(torch.clamp(train_prob,min=1e-5)),dim=1)
+    train_entropy = torch.mean(entropy).item()
+    train_entropy_std = torch.std(entropy).item()
+    print(f"train entropy: {train_entropy} +- {train_entropy_std}")
+    entropy=torch.sum(-test_prob*torch.log(torch.clamp(test_prob,min=1e-5)),dim=1)
+    test_entropy = torch.mean(entropy).item()
+    test_entropy_std = torch.std(entropy).item()
+    print(f"test entropy: {test_entropy} +- {test_entropy_std}")
 
     if opt.verboseMIA: 
         print(f'Train and test classification chance, train: {ytrain.sum()/ytrain.shape[0]}, chance test {ytest.sum()/ytest.shape[0]}')
         print('check input vectors: ',torch.unique(ytrain),torch.unique(ytest),torch.max(xtrain),torch.max(xtest))
-    return xtrain,ytrain,xtest,ytest
+    return xtrain,ytrain,xtest,ytest,train_entropy, test_entropy
 
 def get_MIA_MLP(train_loader, test_loader, model, opt):
     results = []
     for i in range(opt.iter_MIA):
-        train_data, train_labels, test_data, test_labels = get_membership_attack_data(train_loader, test_loader, model, opt)
+        train_data, train_labels, test_data, test_labels, train_entropy, test_entropy = get_membership_attack_data(train_loader, test_loader, model, opt)
         
         model_SVC = SVC( tol = 1e-4, max_iter=4000, class_weight='balanced', random_state=i) 
         accuracy, chance,accuracy_test_ex,accuracy_train_ex, P,R,F1, mutual = training_SVC(model_SVC, train_data, test_data, train_labels, test_labels, opt)
-
-        results.append(np.asarray([accuracy, chance,accuracy_test_ex,accuracy_train_ex,P,R,F1, mutual]))
+        results.append(np.asarray([accuracy, chance,accuracy_test_ex,accuracy_train_ex,P,R,F1, mutual,train_entropy, test_entropy]))
+    
     results = np.asarray(results)
-    df = pd.DataFrame(results,columns=['accuracy','chance','acc | test ex','acc | train ex','precision','recall','F1', 'Mutual'])
+    df = pd.DataFrame(results,columns=['accuracy','chance','acc | test ex','acc | train ex','precision','recall','F1', 'Mutual', "Train Entropy", "Test Entropy"])
     return df

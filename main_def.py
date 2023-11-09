@@ -45,6 +45,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
     #print(df_or_model)
 
     if opt.run_unlearn:
+        print('\n----BEGIN UNLEARNING----')
         pretr_model = deepcopy(original_pretr_model)
         #pretr_model.fc = nn.Sequential(nn.Dropout(0.4),pretr_model.fc) 
         pretr_model.to(opt.device)
@@ -62,8 +63,19 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
             else:
                 approach = choose_competitor(opt.name_competitor)(pretr_model,train_retain_loader, train_fgt_loader,test_fgt_loader)
 
-       
-        unlearned_model = approach.run()
+        if opt.load_unlearned_model:
+            print("LOADING UNLEARNED MODEL")
+            if opt.mode == "HR":
+                unlearned_model_dict = torch.load(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/models/unlearned_model_{opt.name_competitor}_seed_{seed}.pth") 
+            elif opt.mode == "CR":
+                unlearned_model_dict = torch.load(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/models/unlearned_model_{opt.name_competitor}_seed_{seed}_class_{class_to_remove}.pth")
+
+            unlearned_model = get_resnet18_trained().to(opt.device)
+            unlearned_model.load_state_dict(unlearned_model_dict)
+            print("UNLEARNED MODEL LOADED")
+        else:
+            unlearned_model = approach.run()
+        unlearned_model.eval()
         #save model
         if opt.save_model:
             if opt.mode == "HR":
@@ -71,15 +83,18 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
             elif opt.mode == "CR":
                 torch.save(unlearned_model.state_dict(), f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/models/unlearned_model_{opt.name_competitor}_seed_{seed}_class_{class_to_remove}.pth")
 
+        unlearn_time = time.time() - timestamp1
+        #print(accuracy(unlearned_model, train_fgt_loader))
+        print("BEGIN SVC FIT")
         if opt.mode == "HR":
             df_un_model = get_MIA_MLP(train_fgt_loader, test_loader, unlearned_model, opt)
         elif opt.mode == "CR":
             df_un_model = get_MIA_MLP(train_fgt_loader, test_fgt_loader, unlearned_model, opt)
 
     
-        df_un_model["unlearn_time"] = time.time() - timestamp1
+        df_un_model["unlearn_time"] = unlearn_time
 
-        
+        print("UNLEARNING COMPLETED, COMPUTING ACCURACIES...")      
         if opt.mode == "HR":
             df_un_model["test_accuracy"] = accuracy(unlearned_model, test_loader)
         elif opt.mode == "CR":
@@ -88,8 +103,10 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
 
         df_un_model["forget_accuracy"] = accuracy(unlearned_model, train_fgt_loader)
         df_un_model["retain_accuracy"] = accuracy(unlearned_model, train_retain_loader)
+
         v_unlearn=df_un_model.mean(0)
         v_unlearn = pd.DataFrame(v_unlearn).T
+        print("UNLEARN COMPLETED")
 
     if opt.run_rt_model:
         rt_model = get_retrained_model()
@@ -111,11 +128,11 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         v_rt = pd.DataFrame(v_rt).T
        
     #save dfs
-    if opt.mode == "HR":
-        v_unlearn.to_csv(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/dfs/{opt.name_competitor}_seed_{seed}.csv")
-    elif opt.mode == "CR":
-        v_unlearn.to_csv(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/dfs/{opt.name_competitor}_seed_{seed}_class_{class_to_remove}.csv")
-
+    if opt.save_df:
+        if opt.mode == "HR":
+            v_unlearn.to_csv(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/dfs/{opt.name_competitor}_seed_{seed}.csv")
+        elif opt.mode == "CR":
+            v_unlearn.to_csv(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/dfs/{opt.name_competitor}_seed_{seed}_class_{class_to_remove}.csv")
     return v_orig, v_unlearn, v_rt
 
 if __name__ == "__main__":
@@ -144,13 +161,14 @@ if __name__ == "__main__":
             print(opt.RT_model_weights_path)
 
             row_orig, row_unl, row_ret=main(train_fgt_loader, train_retain_loader, test_loader=test_loader, seed=i)
+            print(f"Unlearned: {row_unl}")
 
             if row_unl is not None:
-                df_unlearned_total.append(row_unl.values)
+                df_unlearned_total.append(row_unl)
             if row_orig is not None:
-                df_orig_total.append(row_orig.values)
+                df_orig_total.append(row_orig)
             if row_ret is not None:
-                df_retained_total.append(row_ret.values)
+                df_retained_total.append(row_ret)
 
         elif opt.mode == "CR":
             for class_to_be_removed in opt.class_to_be_removed:
@@ -161,6 +179,10 @@ if __name__ == "__main__":
                 print(opt.RT_model_weights_path)
 
                 row_orig, row_unl, row_ret=main(train_fgt_loader, train_retain_loader, test_fgt_loader=test_fgt_loader, seed=i, test_retain_loader=test_retain_loader, class_to_remove=class_to_be_removed)
+
+                #print results
+                print(f"Unlearned: {row_unl}")
+
                 if row_unl is not None:
                     df_unlearned_total.append(row_unl)
                 if row_orig is not None:
