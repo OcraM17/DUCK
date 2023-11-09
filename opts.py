@@ -4,11 +4,13 @@ from error_propagation import Complex
 
 class OPT:
     run_name = "test"
-    dataset = 'cifar100'
-    seed = [0,1,2,3,4,5,6,7,8,42]
+    dataset = 'cifar10'
+    seed = [0]#,2,3,4,5,6,7,8,42]
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
-    class_to_be_removed = [i*10 for i in range(10)] #[0,1] ##,6,7,8
-    save_model = False
+    class_to_be_removed = None#[i*10 for i in range(10)] #[0,1] ##,6,7,8
+    save_model = True
+    save_df = True
+    load_unlearned_model = False
     if class_to_be_removed is None:
         mode = "HR"
     else:
@@ -43,13 +45,13 @@ class OPT:
     num_workers = 8
 
     competitor = True
-    name_competitor = "CBCR"#'CBCR' #NegativeGradient, RandomLabels,         # Amnesiac, Hiding...
+    name_competitor = "NegativeGradient"#'CBCR' #NegativeGradient, RandomLabels,         # Amnesiac, Hiding...
     
     # unlearning params
     #set class to be remove to None if you want to unlearn a set of samples that belong to different classes
-    batch_size = 1024
-    epochs_unlearn = 200 #best 5
-    lr_unlearn = 0.001#cifar100 #0.0001#0.0000005 #best 0.001
+    batch_size = 256
+    epochs_unlearn = 10 #best 5
+    lr_unlearn = 0.000025#cifar100 #0.0001#0.0000005 #best 0.001
     wd_unlearn = 0
     momentum_unlearn = 0.9
     temperature = 2
@@ -61,7 +63,7 @@ class OPT:
     
 
     ###MLP
-    iter_MIA = 3 #numo f iterations
+    iter_MIA = 1 #numo f iterations
     verboseMIA = False
 
    
