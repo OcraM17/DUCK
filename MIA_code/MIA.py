@@ -8,6 +8,11 @@ from sklearn.metrics import precision_recall_fscore_support
 from sklearn.metrics import adjusted_mutual_info_score
 from sklearn.svm import SVC
 from sklearn.model_selection import GridSearchCV
+import warnings
+import os
+
+warnings.filterwarnings('ignore')
+os.environ['PYTHONWARNINGS'] = 'ignore'
 
 import pandas as pd
 
@@ -127,9 +132,9 @@ def compute_accuracy_SVC(predicted, labels, targ_val = None):
         return correct / total
 
 def training_SVC(model,X_train, X_test, z_train, z_test,opt):
-    param_grid = {'C': [0.001, 0.01, 0.0001],
-              'gamma': [10,25,50], 
-              'kernel': ['poly']}
+    param_grid = {'C': [1,5,10,100],
+              'gamma': [1, 0.1, 0.01], 
+              'kernel': ['rbf']}
     grid = GridSearchCV(model, param_grid, refit = True, verbose=3 if opt.verboseMIA else 0, cv=3, n_jobs=4) 
     grid.fit(X_train, z_train)
     best_model = grid.best_estimator_

@@ -176,7 +176,8 @@ class CBCR(BaseMethod):
 
         #optimizer = optim.SGD(net.parameters(), lr=opt.lr_unlearn, momentum=opt.momentum_unlearn, weight_decay=opt.wd_unlearn)
         optimizer = optim.Adam(self.net.parameters(), lr=opt.lr_unlearn, weight_decay=opt.wd_unlearn)
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=opt.epochs_unlearn)
+        #scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=opt.epochs_unlearn)
+        scheduler=torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[3,12], gamma=0.5)
 
         init = True
         flag_exit = False
@@ -221,7 +222,7 @@ class CBCR(BaseMethod):
                     logits_ret = bbone(img_ret)
                     outputs_ret = fc(logits_ret)
 
-                    loss_ret = torch.nn.functional.cross_entropy(outputs_ret, lab_ret) * opt.lambda_2
+                    loss_ret = torch.nn.functional.cross_entropy(outputs_ret/opt.temperature, lab_ret) * opt.lambda_2
                     #print(torch.nn.functional.cross_entropy(outputs_ret, lab_ret))
                     #loss_fgt = 0
                     loss = loss_ret+ loss_fgt
@@ -239,10 +240,10 @@ class CBCR(BaseMethod):
             with torch.no_grad():
                 self.net.eval()
                 curr_acc = accuracy(self.net, self.forget)
-                tr_acc = accuracy(self.net, self.retain)
+                #tr_acc = accuracy(self.net, self.retain)
                 self.net.train()
                 print(f"ACCURACY FORGET SET: {curr_acc:.3f}, target is {opt.target_accuracy:.3f}")
-                print(f"ACCURACY retain SET: {tr_acc:.3f}")
+                #print(f"ACCURACY retain SET: {tr_acc:.3f}")
                 if curr_acc < opt.target_accuracy:
                     flag_exit = True
 
@@ -250,7 +251,7 @@ class CBCR(BaseMethod):
                 break
 
             init = False
-            #scheduler.step()
+            scheduler.step()
 
 
         self.net.eval()
