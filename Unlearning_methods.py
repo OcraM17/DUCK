@@ -7,7 +7,7 @@ import pickle
 from tqdm import tqdm
 from utils import accuracy
 
-def choose_competitor(name):
+def choose_method(name):
     if name=='FineTuning':
         return FineTuning
     elif name=='NegativeGradient':

@@ -12,7 +12,7 @@ import torch.nn as nn
 from tqdm import tqdm
 #from publisher import push_results
 import time
-from Unlearning_methods import choose_competitor
+from Unlearning_methods import choose_method
 from error_propagation import Complex
 import os
 import torch
@@ -54,21 +54,21 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         timestamp1 = time.time()
         if opt.mode == "HR":
             opt.target_accuracy = accuracy(original_pretr_model, test_loader)
-            approach = choose_competitor(opt.name_competitor)(pretr_model,train_retain_loader, train_fgt_loader,test_loader, class_to_remove=None)
+            approach = choose_method(opt.name_method)(pretr_model,train_retain_loader, train_fgt_loader,test_loader, class_to_remove=None)
 
         elif opt.mode == "CR":
             opt.target_accuracy = 0.01
-            if opt.name_competitor == "CBCR":
-                approach = choose_competitor(opt.name_competitor)(pretr_model,train_retain_loader, train_fgt_loader,test_fgt_loader, class_to_remove=class_to_remove)
+            if opt.name_method == "CBCR":
+                approach = choose_method(opt.name_method)(pretr_model,train_retain_loader, train_fgt_loader,test_fgt_loader, class_to_remove=class_to_remove)
             else:
-                approach = choose_competitor(opt.name_competitor)(pretr_model,train_retain_loader, train_fgt_loader,test_fgt_loader)
+                approach = choose_method(opt.name_method)(pretr_model,train_retain_loader, train_fgt_loader,test_fgt_loader)
 
         if opt.load_unlearned_model:
             print("LOADING UNLEARNED MODEL")
             if opt.mode == "HR":
-                unlearned_model_dict = torch.load(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/models/unlearned_model_{opt.name_competitor}_seed_{seed}.pth") 
+                unlearned_model_dict = torch.load(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/models/unlearned_model_{opt.name_method}_seed_{seed}.pth") 
             elif opt.mode == "CR":
-                unlearned_model_dict = torch.load(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/models/unlearned_model_{opt.name_competitor}_seed_{seed}_class_{class_to_remove}.pth")
+                unlearned_model_dict = torch.load(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/models/unlearned_model_{opt.name_method}_seed_{seed}_class_{class_to_remove}.pth")
 
             unlearned_model = get_resnet18_trained().to(opt.device)
             unlearned_model.load_state_dict(unlearned_model_dict)
@@ -79,9 +79,9 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         #save model
         if opt.save_model:
             if opt.mode == "HR":
-                torch.save(unlearned_model.state_dict(), f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/models/unlearned_model_{opt.name_competitor}_seed_{seed}.pth")
+                torch.save(unlearned_model.state_dict(), f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/models/unlearned_model_{opt.name_method}_seed_{seed}.pth")
             elif opt.mode == "CR":
-                torch.save(unlearned_model.state_dict(), f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/models/unlearned_model_{opt.name_competitor}_seed_{seed}_class_{class_to_remove}.pth")
+                torch.save(unlearned_model.state_dict(), f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/models/unlearned_model_{opt.name_method}_seed_{seed}_class_{class_to_remove}.pth")
 
         unlearn_time = time.time() - timestamp1
         #print(accuracy(unlearned_model, train_fgt_loader))
@@ -131,9 +131,9 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
     if opt.run_unlearn:
         if opt.save_df:
             if opt.mode == "HR":
-                v_unlearn.to_csv(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/dfs/{opt.name_competitor}_seed_{seed}.csv")
+                v_unlearn.to_csv(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/dfs/{opt.name_method}_seed_{seed}.csv")
             elif opt.mode == "CR":
-                v_unlearn.to_csv(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/dfs/{opt.name_competitor}_seed_{seed}_class_{class_to_remove}.csv")
+                v_unlearn.to_csv(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/dfs/{opt.name_method}_seed_{seed}_class_{class_to_remove}.csv")
     return v_orig, v_unlearn, v_rt
 
 if __name__ == "__main__":

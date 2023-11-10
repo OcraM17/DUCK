@@ -89,8 +89,7 @@ class OPT:
     
     num_workers = args.num_workers
 
-    competitor = True
-    name_competitor = args.name_competitor#'CBCR' #NegativeGradient, RandomLabels,         # Amnesiac, Hiding...
+    name_method = args.name_competitor#'CBCR' #NegativeGradient, RandomLabels,         # Amnesiac, Hiding...
     
     # unlearning params
         
