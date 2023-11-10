@@ -21,15 +21,15 @@ def get_args():
 
     parser.add_argument("--num_workers", type=int, default=4)
 
-    parser.add_argument("--name_method", type=str, default="FineTuning")
+    parser.add_argument("--method", type=str, default="NegativeGradient")
 
     parser.add_argument("--model", type=str, default='resnet18')
     parser.add_argument("--bsize", type=int, default=256)
     parser.add_argument("--wd", type=float, default=0.0)
     parser.add_argument("--momentum", type=float, default=0.9)
-    parser.add_argument("--lr", type=float, default=0.01)
+    parser.add_argument("--lr", type=float, default=0.0004)
     parser.add_argument("--epochs", type=int, default=200, help='Num of epochs, for unlearning algorithms it is the max num of epochs') # <------- epochs train
-    parser.add_argument("--scheduler", type=int, nargs='+', default=[8,12])
+    parser.add_argument("--scheduler", type=int, nargs='+', default=[3,9])
     parser.add_argument("--temperature", type=float, default=2)
     parser.add_argument("--lambda_1", type=float, default=1)
     parser.add_argument("--lambda_2", type=float, default=1.4)
@@ -90,7 +90,7 @@ class OPT:
     
     num_workers = args.num_workers
 
-    name_method = args.name_method#'CBCR' #NegativeGradient, RandomLabels,         # Amnesiac, Hiding...
+    method = args.method#'CBCR' #NegativeGradient, RandomLabels,         # Amnesiac, Hiding...
     
     # unlearning params
         
