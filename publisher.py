@@ -82,9 +82,9 @@ def publish(data, range_name):
         print(err)
 
 def push_results(args, df_or_model=None, df_un_model=None, df_rt_model=None):
-    blacklist = ["__module__", "__dict__", "__weakref__", "__doc__", "cuda","device", "n_classes", "classes_per_exp", "details", "num_workers", "root_folder", "verboseMLP", "data_path", "save_model", "save_df", "load_unlearned_model", "run_original", "run_unlearn", "run_rt_model", "verboseMIA","args", "or_model_weights_path", "weight_file_id", "weight_file_id_RT", "RT_model_weights_path"]
+    blacklist = ["__module__", "__dict__", "__weakref__", "__doc__", "cuda","device", "n_classes", "classes_per_exp", "details", "num_workers", "root_folder", "verboseMLP", "data_path", "save_model", "save_df", "load_unlearned_model", "run_original", "run_unlearn", "run_rt_model", "verboseMIA","args", "or_model_weights_path", "weight_file_id", "weight_file_id_RT", "RT_model_weights_path", "Mutual_information"]
     
-    repo = Repository(".")
+    repo = Repository(".")  
     branch_name = repo.head.name.split("/")[-1]
     last_commit_id = repo[repo.head.target].hex
     date_time = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
@@ -99,7 +99,7 @@ def push_results(args, df_or_model=None, df_un_model=None, df_rt_model=None):
 
     elif str(vars(args)["mode"]) == "HR":
         range_name = 'ResultsHR!A:P'
-        n_df_params = 14
+        n_df_params = 13
 
     results = [str(vars(args)["run_name"])]
     
@@ -107,21 +107,21 @@ def push_results(args, df_or_model=None, df_un_model=None, df_rt_model=None):
     if isinstance(df_or_model, pd.DataFrame):
         keys = df_or_model.keys()
         means = df_or_model.mean(axis=0)
-        results.extend([means[k] for k in keys if k!="PLACEHOLDER"])
+        results.extend([means[k] for k in keys if k not in["PLACEHOLDER", "Mutual"]])
     else:
         results.extend([None]*n_df_params)
 
     if isinstance(df_un_model, pd.DataFrame):
         keys = df_un_model.keys()
         means = df_un_model.mean(axis=0)
-        results.extend([means[k] for k in keys if k!="PLACEHOLDER"])
+        results.extend([means[k] for k in keys if k not in["PLACEHOLDER", "Mutual"]])
     else:
         results.extend([None]*(n_df_params+1))
 
     if isinstance(df_rt_model, pd.DataFrame):
         keys = df_rt_model.keys()
         means = df_rt_model.mean(axis=0)
-        results.extend([means[k] for k in keys if k!="PLACEHOLDER"])
+        results.extend([means[k] for k in keys if k not in["PLACEHOLDER", "Mutual"]])
     else:
         results.extend([None]*n_df_params)
     results = [str(r) for r in results]

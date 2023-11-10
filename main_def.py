@@ -200,72 +200,34 @@ if __name__ == "__main__":
     print(opt.dataset)
     #create results folder if doesn't exist
     
+    dfs = {"orig":[], "unlearned":[], "retrained":[]}
+    for name, df in zip(dfs.keys(),[df_orig_total, df_unlearned_total, df_retrained_total]):
+        if df:
+            print("ORIGINAL \n")
+            #merge list of pd dataframes
+            dfs[name] = pd.concat(df)
 
-    if df_orig_total:
-        print("ORIGINAL \n")
-        #merge list of pd dataframes
-        df_orig_total = pd.concat(df_orig_total)
+            means = dfs[name].mean()
+            std_devs = dfs[name].std()
+            output = "\n".join([f"{col}: {100*mean:.2f} \\pm {100*std:.2f}" if col != 'unlearning_time' else f"{col}: {mean:.2f} \\pm {std:.2f}" for col, mean, std in zip(means.index, means, std_devs)])
+            print(output)
 
-        means = df_orig_total.mean()
-        std_devs = df_orig_total.std()
-        output = "\n".join([f"{col}: {mean*100:.4f} \\pm {std*100:.4f}" for col, mean, std in zip(means.index, means, std_devs)])
-        print(output)
-        if opt.mode == "HR":
-            a_t = Complex(means["test_accuracy"], std_devs["test_accuracy"])
-            a_f = Complex(means["forget_accuracy"], std_devs["forget_accuracy"])
-            a_or = opt.a_or[opt.dataset][0]
+            if opt.mode == "HR":
+                a_t = Complex(means["test_accuracy"], std_devs["test_accuracy"])
+                a_f = Complex(means["forget_accuracy"], std_devs["forget_accuracy"])
+                a_or = opt.a_or[opt.dataset][0]
 
-        elif opt.mode == "CR":
-            a_t = Complex(means["retain_test_accuracy"], std_devs["retain_test_accuracy"])
-            a_f = Complex(means["forget_test_accuracy"], std_devs["forget_test_accuracy"])
-            a_or = opt.a_or[opt.dataset][1]
-        aus = AUS(a_t, a_or, a_f)
-        df_orig_total["AUS"] = aus.value
-        print(f"AUS: {aus.value:.4f} \pm {aus.error:.4f}")
+            elif opt.mode == "CR":
+                a_t = Complex(means["retain_test_accuracy"], std_devs["retain_test_accuracy"])
+                a_f = Complex(means["forget_test_accuracy"], std_devs["forget_test_accuracy"])
+                a_or = opt.a_or[opt.dataset][1]
+            aus = AUS(a_t, a_or, a_f)
+            dfs[name]["AUS"] = aus.value
+            print(f"AUS: {aus.value:.4f} \pm {aus.error:.4f}")
+            deltaF1 = abs(dfs[name]["F1"]*100-50).mean()
+            deltaF1_std = abs(dfs[name]["F1"]*100-50).std()
+            print(f"deltaF1: {deltaF1:.4f} \pm {deltaF1_std:.4f}")
 
-    if df_unlearned_total:
-        print("UNLEARNED \n")
-        df_unlearned_total = pd.concat(df_unlearned_total)
 
-        means = df_unlearned_total.mean()
-        std_devs = df_unlearned_total.std()
-        output = "\n".join([f"{col}: {100*mean:.2f} \\pm {100*std:.2f}" if col != 'unlearning_time' else f"{col}: {mean:.2f} \\pm {std:.2f}" for col, mean, std in zip(means.index, means, std_devs)])
-        
-        print(output)
-        if opt.mode == "HR":
-            a_t = Complex(means["test_accuracy"], std_devs["test_accuracy"])
-            a_f = Complex(means["forget_accuracy"], std_devs["forget_accuracy"])
-            a_or = opt.a_or[opt.dataset][0]
-
-        elif opt.mode == "CR":
-            a_t = Complex(means["retain_test_accuracy"], std_devs["retain_test_accuracy"])
-            a_f = Complex(means["forget_test_accuracy"], std_devs["forget_test_accuracy"])
-            a_or = opt.a_or[opt.dataset][1]
-        aus = AUS(a_t, a_or, a_f)
-        df_unlearned_total["AUS"] = aus.value
-
-        print(f"AUS: {aus.value:.4f} \pm {aus.error:.4f}")
-
-    if df_retrained_total:
-        print("RETRAINED \n")
-        df_retrained_total = pd.concat(df_retrained_total)
-
-        means = df_retrained_total.mean()
-        std_devs = df_retrained_total.std()
-        output = "\n".join([f"{col}: {100*mean:.2f} \\pm {100*std:.2f}" for col, mean, std in zip(means.index, means, std_devs)])
-        print(output)
-        if opt.mode == "HR":
-            a_t = Complex(means["test_accuracy"], std_devs["test_accuracy"])
-            a_f = Complex(means["forget_accuracy"], std_devs["forget_accuracy"])
-            a_or = opt.a_or[opt.dataset][0]
-
-        elif opt.mode == "CR":
-            a_t = Complex(means["retain_test_accuracy"], std_devs["retain_test_accuracy"])
-            a_f = Complex(means["forget_test_accuracy"], std_devs["forget_test_accuracy"])
-            a_or = opt.a_or[opt.dataset][1]
-        aus = AUS(a_t, a_or, a_f)
-        df_retrained_total["AUS"] = aus.value
-        print(f"AUS: {aus.value:.4f} \pm {aus.error:.4f}")
-
-    push_results(opt, df_orig_total, df_unlearned_total, df_retrained_total)
+    push_results(opt, dfs["orig"], dfs["unlearned"], dfs["retrained"])
 
