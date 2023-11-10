@@ -56,10 +56,10 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         if opt.mode == "HR":
             opt.target_accuracy = accuracy(original_pretr_model, test_loader)
 
-            if opt.name_competitor == "CBCR":
-                approach = choose_competitor(opt.name_competitor)(pretr_model,train_retain_loader, train_fgt_loader,test_loader, class_to_remove=None)
+            if opt.name_method == "CBCR":
+                approach = choose_method(opt.name_method)(pretr_model,train_retain_loader, train_fgt_loader,test_loader, class_to_remove=None)
             else:
-                approach = choose_competitor(opt.name_competitor)(pretr_model,train_retain_loader, train_fgt_loader,test_loader)
+                approach = choose_method(opt.name_method)(pretr_model,train_retain_loader, train_fgt_loader,test_loader)
 
 
         elif opt.mode == "CR":

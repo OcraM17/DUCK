@@ -20,7 +20,7 @@ def get_args():
 
     parser.add_argument("--num_workers", type=int, default=4)
 
-    parser.add_argument("--name_competitor", type=str, default="FineTuning")
+    parser.add_argument("--name_method", type=str, default="FineTuning")
 
     parser.add_argument("--model", type=str, default='resnet18')
     parser.add_argument("--bsize", type=int, default=256)
@@ -89,7 +89,7 @@ class OPT:
     
     num_workers = args.num_workers
 
-    name_method = args.name_competitor#'CBCR' #NegativeGradient, RandomLabels,         # Amnesiac, Hiding...
+    name_method = args.name_method#'CBCR' #NegativeGradient, RandomLabels,         # Amnesiac, Hiding...
     
     # unlearning params
         
