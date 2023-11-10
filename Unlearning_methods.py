@@ -25,6 +25,7 @@ class BaseMethod:
         self.criterion = nn.CrossEntropyLoss()
         self.optimizer = optim.SGD(self.net.parameters(), lr=opt.lr_unlearn, momentum=opt.momentum_unlearn, weight_decay=opt.wd_unlearn)
         self.epochs = opt.epochs_unlearn
+        self.target_accuracy = opt.target_accuracy
         self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=opt.scheduler, gamma=0.5)
         #torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=self.epochs)
         if test is None:
@@ -48,8 +49,8 @@ class BaseMethod:
                 self.net.eval()
                 curr_acc = accuracy(self.net, self.forget)
                 self.net.train()
-                print(f"ACCURACY FORGET SET: {curr_acc:.3f}, target is {opt.target_accuracy:.3f}")
-                if curr_acc < opt.target_accuracy:
+                print(f"ACCURACY FORGET SET: {curr_acc:.3f}, target is {self.target_accuracy:.3f}")
+                if curr_acc < self.target_accuracy:
                     break
 
             self.scheduler.step()
@@ -99,6 +100,7 @@ class FineTuning(BaseMethod):
     def __init__(self, net, retain, forget,test=None,class_to_remove=None):
         super().__init__(net, retain, forget,test=test)
         self.loader = self.retain
+        self.target_accuracy=0.0
     
     def loss_f(self, inputs, targets,test=None):
         outputs = self.net(inputs)
