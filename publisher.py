@@ -8,7 +8,7 @@ from datetime import datetime
 from pygit2 import Repository
 import time
 from opts import OPT as opt
-
+import pandas as pd
 # If modifying these scopes, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
@@ -82,7 +82,7 @@ def publish(data, range_name):
         print(err)
 
 def push_results(args, df_or_model=None, df_un_model=None, df_rt_model=None):
-    blacklist = ["__module__", "__dict__", "__weakref__", "__doc__", "cuda","device", "n_classes", "classes_per_exp", "details", "num_workers", "root_folder", "verboseMLP", "data_path"]
+    blacklist = ["__module__", "__dict__", "__weakref__", "__doc__", "cuda","device", "n_classes", "classes_per_exp", "details", "num_workers", "root_folder", "verboseMLP", "data_path", "save_model", "save_df", "load_unlearned_model", "run_original", "run_unlearn", "run_rt_model", "verboseMIA"]
     
     repo = Repository(".")
     branch_name = repo.head.name.split("/")[-1]
@@ -93,20 +93,35 @@ def push_results(args, df_or_model=None, df_un_model=None, df_rt_model=None):
     range_name = 'Params!A:P'
     
     publish_with_retries([params], range_name)
-    
-    range_name = 'Results!A:P'
+    if str(vars(args)["mode"]) == "CR":
+        range_name = 'ResultsCR!A:P'
+        n_df_params = 5
+
+    elif str(vars(args)["mode"]) == "HR":
+        range_name = 'ResultsHR!A:P'
+        n_df_params = 14
+
     results = [str(vars(args)["run_name"])]
-    n_df_params = 11
-    if df_or_model is not None:
-        results.extend([val for val in df_or_model.mean(axis=0)])
+    
+
+    if isinstance(df_or_model, pd.DataFrame):
+        keys = df_or_model.keys()
+        means = df_or_model.mean(axis=0)
+        results.extend([means[k] for k in keys if k!="PLACEHOLDER"])
     else:
         results.extend([None]*n_df_params)
-    if df_un_model is not None:
-        results.extend([val for val in df_un_model.mean(axis=0)])
+
+    if isinstance(df_un_model, pd.DataFrame):
+        keys = df_un_model.keys()
+        means = df_un_model.mean(axis=0)
+        results.extend([means[k] for k in keys if k!="PLACEHOLDER"])
     else:
         results.extend([None]*(n_df_params+1))
-    if df_rt_model is not None:
-        results.extend([val for val in df_rt_model.mean(axis=0)])
+
+    if isinstance(df_rt_model, pd.DataFrame):
+        keys = df_rt_model.keys()
+        means = df_rt_model.mean(axis=0)
+        results.extend([means[k] for k in keys if k!="PLACEHOLDER"])
     else:
         results.extend([None]*n_df_params)
     results = [str(r) for r in results]
