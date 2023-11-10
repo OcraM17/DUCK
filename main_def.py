@@ -16,6 +16,7 @@ from Unlearning_methods import choose_method
 from error_propagation import Complex
 import os
 import torch
+from publisher import push_results
 def AUS(a_t, a_or, a_f):
     if opt.mode == "HR":
         aus=(Complex(1, 0)-(a_or-a_t))/(Complex(1, 0)+abs(a_f-a_t))
@@ -54,7 +55,12 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         timestamp1 = time.time()
         if opt.mode == "HR":
             opt.target_accuracy = accuracy(original_pretr_model, test_loader)
-            approach = choose_method(opt.name_method)(pretr_model,train_retain_loader, train_fgt_loader,test_loader, class_to_remove=None)
+
+            if opt.name_competitor == "CBCR":
+                approach = choose_competitor(opt.name_competitor)(pretr_model,train_retain_loader, train_fgt_loader,test_loader, class_to_remove=None)
+            else:
+                approach = choose_competitor(opt.name_competitor)(pretr_model,train_retain_loader, train_fgt_loader,test_loader)
+
 
         elif opt.mode == "CR":
             opt.target_accuracy = 0.01
@@ -204,6 +210,18 @@ if __name__ == "__main__":
         std_devs = df_orig_total.std()
         output = "\n".join([f"{col}: {mean*100:.4f} \\pm {std*100:.4f}" for col, mean, std in zip(means.index, means, std_devs)])
         print(output)
+        if opt.mode == "HR":
+            a_t = Complex(means["test_accuracy"], std_devs["test_accuracy"])
+            a_f = Complex(means["forget_accuracy"], std_devs["forget_accuracy"])
+            a_or = opt.a_or[opt.dataset][0]
+
+        elif opt.mode == "CR":
+            a_t = Complex(means["retain_test_accuracy"], std_devs["retain_test_accuracy"])
+            a_f = Complex(means["forget_test_accuracy"], std_devs["forget_test_accuracy"])
+            a_or = opt.a_or[opt.dataset][1]
+        aus = AUS(a_t, a_or, a_f)
+        df_orig_total["AUS"] = aus.value
+        print(f"AUS: {aus.value:.4f} \pm {aus.error:.4f}")
 
     if df_unlearned_total:
         print("UNLEARNED \n")
@@ -224,6 +242,8 @@ if __name__ == "__main__":
             a_f = Complex(means["forget_test_accuracy"], std_devs["forget_test_accuracy"])
             a_or = opt.a_or[opt.dataset][1]
         aus = AUS(a_t, a_or, a_f)
+        df_unlearned_total["AUS"] = aus.value
+
         print(f"AUS: {aus.value:.4f} \pm {aus.error:.4f}")
 
     if df_retrained_total:
@@ -234,6 +254,18 @@ if __name__ == "__main__":
         std_devs = df_retrained_total.std()
         output = "\n".join([f"{col}: {100*mean:.2f} \\pm {100*std:.2f}" for col, mean, std in zip(means.index, means, std_devs)])
         print(output)
+        if opt.mode == "HR":
+            a_t = Complex(means["test_accuracy"], std_devs["test_accuracy"])
+            a_f = Complex(means["forget_accuracy"], std_devs["forget_accuracy"])
+            a_or = opt.a_or[opt.dataset][0]
 
-    #push_results(opt, df_orig_total, df_unlearned_total, df_retained_total)
+        elif opt.mode == "CR":
+            a_t = Complex(means["retain_test_accuracy"], std_devs["retain_test_accuracy"])
+            a_f = Complex(means["forget_test_accuracy"], std_devs["forget_test_accuracy"])
+            a_or = opt.a_or[opt.dataset][1]
+        aus = AUS(a_t, a_or, a_f)
+        df_retrained_total["AUS"] = aus.value
+        print(f"AUS: {aus.value:.4f} \pm {aus.error:.4f}")
+
+    push_results(opt, df_orig_total, df_unlearned_total, df_retrained_total)
 

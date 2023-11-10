@@ -43,7 +43,15 @@ class BaseMethod:
                 loss = self.loss_f(inputs, targets)
                 loss.backward()
                 self.optimizer.step()
-            
+
+            with torch.no_grad():
+                self.net.eval()
+                curr_acc = accuracy(self.net, self.forget)
+                self.net.train()
+                print(f"ACCURACY FORGET SET: {curr_acc:.3f}, target is {opt.target_accuracy:.3f}")
+                if curr_acc < opt.target_accuracy:
+                    break
+
             self.scheduler.step()
             #print('Accuracy: ',self.evalNet())
         self.net.eval()
