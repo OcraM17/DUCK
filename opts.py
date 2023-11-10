@@ -1,31 +1,76 @@
 import torch 
 import os
+import argparse
 from error_propagation import Complex
 
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--run_name", type=str, default="test")
+    parser.add_argument("--dataset", type=str, default="cifar100")
+    parser.add_argument("--mode", type=str, default="HR")
+    parser.add_argument("--cuda", type=int, default=0, help="Select zero-indexed cuda device. -1 to use CPU.")
+    
+    parser.add_argument("--load_unlearned_model",action='store_true')
+    
+    parser.add_argument("--save_model", action='store_false')
+    parser.add_argument("--save_df", action='store_false')
+    parser.add_argument("--run_original", action='store_true')
+    parser.add_argument("--run_unlearn", action='store_false')
+    parser.add_argument("--run_rt_model", action='store_true')
+
+    parser.add_argument("--num_workers", type=int, default=4)
+
+    parser.add_argument("--name_competitor", type=str, default="FineTuning")
+
+    parser.add_argument("--model", type=str, default='resnet18')
+    parser.add_argument("--bsize", type=int, default=256)
+    parser.add_argument("--wd", type=float, default=0.0)
+    parser.add_argument("--momentum", type=float, default=0.9)
+    parser.add_argument("--lr", type=float, default=0.01)
+    parser.add_argument("--epochs", type=int, default=200) # <------- epochs train
+    parser.add_argument("--scheduler", type=int, nargs='+', default=[8,12])
+    parser.add_argument("--temperature", type=float, default=2)
+    parser.add_argument("--lambda_1", type=float, default=1)
+    parser.add_argument("--lambda_2", type=float, default=1.4)
+
+    options = parser.parse_args()
+    return options
+
+
 class OPT:
-    run_name = "test"
-    dataset = 'cifar10'
-    seed = [0]#,2,3,4,5,6,7,8,42]
-    device = "cuda:0" if torch.cuda.is_available() else "cpu"
-    class_to_be_removed = None#[i*10 for i in range(10)] #[0,1] ##,6,7,8
-    save_model = True
-    save_df = True
-    load_unlearned_model = False
-    if class_to_be_removed is None:
-        mode = "HR"
+    args = get_args()
+    print(args)
+    run_name = args.run_name
+    dataset = args.dataset
+
+    
+    mode = args.mode
+    
+    if args.mode == 'HR':
+        seed = [0,1,2,3,4,5,6,7,8,42]
+        class_to_be_removed = None
     else:
-        mode = "CR"
+        seed = [42]
+        class_to_be_removed = [i*10 for i in range(10)]
+
+    device = f"cuda:{args.cuda}" if torch.cuda.is_available() else "cpu"
+    
+    
+    save_model = args.save_model
+    save_df = args.save_df
+    load_unlearned_model = args.load_unlearned_model
+    
+
 
     # gets current folder path
     root_folder = os.path.dirname(os.path.abspath(__file__)) + "/"
 
     # Model
-    model = 'resnet18'#'AllCNN'
-
+    model = args.model
     ### RUN model type
-    run_original = False
-    run_unlearn = True
-    run_rt_model = False
+    run_original = args.run_original
+    run_unlearn = args.run_unlearn
+    run_rt_model = args.run_rt_model
     
     # Data
     data_path = '~/data'
@@ -42,28 +87,29 @@ class OPT:
         num_classes = 10
     
     
-    num_workers = 8
+    num_workers = args.num_workers
 
     competitor = True
-    name_competitor = "NegativeGradient"#'CBCR' #NegativeGradient, RandomLabels,         # Amnesiac, Hiding...
+    name_competitor = args.name_competitor#'CBCR' #NegativeGradient, RandomLabels,         # Amnesiac, Hiding...
     
     # unlearning params
-    #set class to be remove to None if you want to unlearn a set of samples that belong to different classes
-    batch_size = 256
-    epochs_unlearn = 10 #best 5
-    lr_unlearn = 0.000025#cifar100 #0.0001#0.0000005 #best 0.001
-    wd_unlearn = 0
-    momentum_unlearn = 0.9
-    temperature = 2
+        
+    batch_size = args.bsize
+    epochs_unlearn = args.epochs
+    lr_unlearn = args.lr
+    wd_unlearn = args.wd
+    momentum_unlearn = args.momentum
+    temperature = args.temperature
+    scheduler = args.scheduler
 
     #CBCR specific
-    lambda_1 = 1.#1#.5#cifar100 .1#vgg subj
-    lambda_2 = 1.4#1.5 #0.5#cifar100 1#vgg subj
-    target_accuracy = 0.01 #0.76 cifar100 
+    lambda_1 = args.lambda_1
+    lambda_2 = args.lambda_2
+    target_accuracy = 0.01 
     
 
     ###MLP
-    iter_MIA = 1 #numo f iterations
+    iter_MIA = 3 #numo f iterations
     verboseMIA = False
 
    
@@ -109,21 +155,7 @@ class OPT:
         "tinyImagenet" : [Complex(68.22, 0.54)/100.,Complex(68.40, 0.07)/100.]
 
     }
-    #class rem
-    #                    cifar10   cifar100
-    # lr_unlearn =       0.0001    0.0001       #0.0000005 #best 0.001
-    #wd_unlearn =        0.
-    #momentum_unlearn =  0.
-    #lambda_1 =          1         1            #cifar100 .1#vgg subj
-    #lambda_2 =          0.5       0.5          #cifar100 1#vgg subj
-    #target_accuracy =   0.01      0.01  
 
 
-    # random elements rem
-    #                    cifar10   cifar100     TinyImagenet
-    # lr_unlearn =       0.0001    0.0001       0.0001  #best 0.001
-    #wd_unlearn =        0.        0
-    #momentum_unlearn =  0.        0
-    #lambda_1 =          1         1            1       .1#vgg subj
-    #lambda_2 =          0.5       0.7          0.7      1#vgg subj
-    #target_accuracy =   0.87      0.76         0.67
+
+    

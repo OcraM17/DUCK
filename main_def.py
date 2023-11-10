@@ -169,7 +169,7 @@ if __name__ == "__main__":
             if row_orig is not None:
                 df_orig_total.append(row_orig)
             if row_ret is not None:
-                df_retained_total.append(row_ret)
+                df_retrained_total.append(row_ret)
 
         elif opt.mode == "CR":
             for class_to_be_removed in opt.class_to_be_removed:

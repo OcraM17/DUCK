@@ -25,7 +25,7 @@ class BaseMethod:
         self.criterion = nn.CrossEntropyLoss()
         self.optimizer = optim.SGD(self.net.parameters(), lr=opt.lr_unlearn, momentum=opt.momentum_unlearn, weight_decay=opt.wd_unlearn)
         self.epochs = opt.epochs_unlearn
-        self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[8,12], gamma=0.5)
+        self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=opt.scheduler, gamma=0.5)
         #torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=self.epochs)
         if test is None:
             pass 
@@ -88,7 +88,7 @@ class BaseMethod:
             return correct/total,correct2/total2,correct3/total3
     
 class FineTuning(BaseMethod):
-    def __init__(self, net, retain, forget,test=None):
+    def __init__(self, net, retain, forget,test=None,class_to_remove=None):
         super().__init__(net, retain, forget,test=test)
         self.loader = self.retain
     
@@ -98,7 +98,7 @@ class FineTuning(BaseMethod):
         return loss
 
 class RandomLabels(BaseMethod):
-    def __init__(self, net, retain, forget,test=None):
+    def __init__(self, net, retain, forget,test=None,class_to_remove=None):
         super().__init__(net, retain, forget,test=test)
         self.loader = self.forget
     
@@ -177,7 +177,7 @@ class CBCR(BaseMethod):
         #optimizer = optim.SGD(net.parameters(), lr=opt.lr_unlearn, momentum=opt.momentum_unlearn, weight_decay=opt.wd_unlearn)
         optimizer = optim.Adam(self.net.parameters(), lr=opt.lr_unlearn, weight_decay=opt.wd_unlearn)
         #scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=opt.epochs_unlearn)
-        scheduler=torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[3,12], gamma=0.5)
+        scheduler=torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=opt.scheduler, gamma=0.5)
 
         init = True
         flag_exit = False
