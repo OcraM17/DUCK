@@ -12,10 +12,11 @@ def get_args():
     
     parser.add_argument("--load_unlearned_model",action='store_true')
     
-    parser.add_argument("--save_model", action='store_false')
-    parser.add_argument("--save_df", action='store_false')
+    parser.add_argument("--save_model", action='store_true')
+    parser.add_argument("--save_df", action='store_true')
+
     parser.add_argument("--run_original", action='store_true')
-    parser.add_argument("--run_unlearn", action='store_false')
+    parser.add_argument("--run_unlearn", action='store_true')
     parser.add_argument("--run_rt_model", action='store_true')
 
     parser.add_argument("--num_workers", type=int, default=4)
@@ -27,7 +28,7 @@ def get_args():
     parser.add_argument("--wd", type=float, default=0.0)
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--lr", type=float, default=0.01)
-    parser.add_argument("--epochs", type=int, default=200) # <------- epochs train
+    parser.add_argument("--epochs", type=int, default=200, help='Num of epochs, for unlearning algorithms it is the max num of epochs') # <------- epochs train
     parser.add_argument("--scheduler", type=int, nargs='+', default=[8,12])
     parser.add_argument("--temperature", type=float, default=2)
     parser.add_argument("--lambda_1", type=float, default=1)
