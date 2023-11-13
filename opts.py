@@ -29,7 +29,7 @@ def get_args():
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--lr", type=float, default=0.0004)
     parser.add_argument("--epochs", type=int, default=200, help='Num of epochs, for unlearning algorithms it is the max num of epochs') # <------- epochs train
-    parser.add_argument("--scheduler", type=int, nargs='+', default=[3,9])
+    parser.add_argument("--scheduler", type=int, nargs='+', default=[4,9])
     parser.add_argument("--temperature", type=float, default=2)
     parser.add_argument("--lambda_1", type=float, default=1)
     parser.add_argument("--lambda_2", type=float, default=1.4)
@@ -52,7 +52,8 @@ class OPT:
         class_to_be_removed = None
     else:
         seed = [42]
-        class_to_be_removed = [i*10 for i in range(10)]
+        #class_to_be_removed = [i*10 for i in range(10)]
+        class_to_be_removed = [i for i in range(10)]
 
     device = f"cuda:{args.cuda}" if torch.cuda.is_available() else "cpu"
     

@@ -111,10 +111,16 @@ class RandomLabels(BaseMethod):
     def __init__(self, net, retain, forget,test=None,class_to_remove=None):
         super().__init__(net, retain, forget,test=test)
         self.loader = self.forget
-    
+        self.class_to_remove = class_to_remove
+
+        if opt.mode == "CR":
+            self.random_possible = torch.tensor([i for i in range(opt.num_classes) if i != self.class_to_remove]).to(opt.device).to(torch.float32)
+        else:
+            self.random_possible = torch.tensor([i for i in range(opt.num_classes)]).to(opt.device).to(torch.float32)
     def loss_f(self, inputs, targets):
         outputs = self.net(inputs)
-        random_labels = torch.randint(0, 10, (targets.shape[0],)).to(opt.device)
+        #create a random label tensor of the same shape as the outputs chosing values from self.possible_labels
+        random_labels = self.random_possible[torch.randint(low=0, high=self.random_possible.shape[0], size=targets.shape)].to(torch.int64).to(opt.device)
         loss = self.criterion(outputs, random_labels)
         return loss
 

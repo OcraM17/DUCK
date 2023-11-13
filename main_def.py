@@ -64,7 +64,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
 
         elif opt.mode == "CR":
             opt.target_accuracy = 0.01
-            if opt.method == "CBCR":
+            if opt.method == "CBCR" or opt.method == "RandomLabels":
                 approach = choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_fgt_loader, class_to_remove=class_to_remove)
             else:
                 approach = choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_fgt_loader)
@@ -170,8 +170,8 @@ if __name__ == "__main__":
             print(opt.RT_model_weights_path)
 
             row_orig, row_unl, row_ret=main(train_fgt_loader, train_retain_loader, test_loader=test_loader, seed=i)
+            #print all the row_unl dataframe
             print(f"Unlearned: {row_unl}")
-
             if row_unl is not None:
                 df_unlearned_total.append(row_unl)
             if row_orig is not None:
@@ -191,6 +191,7 @@ if __name__ == "__main__":
 
                 #print results
                 print(f"Unlearned: {row_unl}")
+                print(f"Unlearned row_unl retain test acc: {row_unl['retain_test_accuracy']}")
 
                 if row_unl is not None:
                     df_unlearned_total.append(row_unl)
@@ -205,7 +206,7 @@ if __name__ == "__main__":
     dfs = {"orig":[], "unlearned":[], "retrained":[]}
     for name, df in zip(dfs.keys(),[df_orig_total, df_unlearned_total, df_retrained_total]):
         if df:
-            print("ORIGINAL \n")
+            print("{name} \n")
             #merge list of pd dataframes
             dfs[name] = pd.concat(df)
 
