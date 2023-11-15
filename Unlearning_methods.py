@@ -115,7 +115,7 @@ class RandomLabels(BaseMethod):
         self.class_to_remove = class_to_remove
 
         if opt.mode == "CR":
-            self.random_possible = torch.tensor([i for i in range(opt.num_classes) if i != self.class_to_remove]).to(opt.device).to(torch.float32)
+            self.random_possible = torch.tensor([i for i in range(opt.num_classes) if i not in self.class_to_remove]).to(opt.device).to(torch.float32)
         else:
             self.random_possible = torch.tensor([i for i in range(opt.num_classes)]).to(opt.device).to(torch.float32)
     def loss_f(self, inputs, targets):
@@ -185,11 +185,10 @@ class CBCR(BaseMethod):
         # compute centroids from embeddings
         centroids=[]
         for i in range(opt.num_classes):
-            # if type(opt.class_to_be_removed) is tuple:
-            #     if not i in opt.class_to_be_removed:
-            #         centroids.append(ret_embs[labs==i].mean(0))
-            # else:
-            if i!=self.class_to_remove:
+            if type(self.class_to_remove) is list:
+                if i not in self.class_to_remove:
+                    centroids.append(ret_embs[labs==i].mean(0))
+            else:
                 centroids.append(ret_embs[labs==i].mean(0))
         centroids=torch.stack(centroids)
   

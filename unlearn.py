@@ -45,11 +45,11 @@ def unlearning(net, retain, forget,target_accuracy=0.76, opt=opt):
     # compute centroids from embeddings
     centroids=[]
     for i in range(opt.num_classes):
-        if type(opt.class_to_be_removed) is tuple:
-            if not i in opt.class_to_be_removed:
+        if type(opt.class_to_remove) is tuple:
+            if not i in opt.class_to_remove:
                 centroids.append(ret_embs[labs==i].mean(0))
         else:
-            if i!=opt.class_to_be_removed:
+            if i!=opt.class_to_remove:
                 centroids.append(ret_embs[labs==i].mean(0))
     centroids=torch.stack(centroids)
 

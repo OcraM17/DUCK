@@ -17,10 +17,10 @@ def main():
     
 
     ##### GET DATA #####
-    if opt.class_to_be_removed is None:
+    if opt.class_to_remove is None:
         train_loader, test_loader, train_fgt_loader, train_retain_loader = get_dsets()
     else:
-        all_train_loader,all_test_loader, train_fgt_loader, train_retain_loader, test_fgt_loader, test_retain_loader = get_dsets_remove_class(opt.class_to_be_removed)
+        all_train_loader,all_test_loader, train_fgt_loader, train_retain_loader, test_fgt_loader, test_retain_loader = get_dsets_remove_class(opt.class_to_remove)
 
     ##### GET MODEL ##### 
     # function to be fixed
@@ -39,7 +39,7 @@ def main():
     original_pretr_model.eval()
     if opt.run_original:
         print('\n----ORIGINAL MODEL----')
-        if not(opt.class_to_be_removed is None):
+        if not(opt.class_to_remove is None):
 
             get_outputs(test_retain_loader, test_fgt_loader,original_pretr_model,'cifar10_original_model.pkl')
 
@@ -64,7 +64,7 @@ def main():
             unlearned_model = approach.run()
         opt.unlearning_time = time.time() - timestamp1
 
-        if not(opt.class_to_be_removed is None):
+        if not(opt.class_to_remove is None):
             get_outputs(test_retain_loader, test_fgt_loader,unlearned_model,'cifar10_unlearned.pkl')
         else:
             get_outputs(test_loader, train_fgt_loader,unlearned_model,'cifar10_unlearned.pkl')

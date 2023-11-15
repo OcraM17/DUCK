@@ -25,10 +25,10 @@ if __name__ == "__main__":
     set_seed(opt.seed)
 
     ##### GET DATA #####
-    #if opt.class_to_be_removed is None:
+    #if opt.class_to_remove is None:
     #    train_loader, test_loader, train_fgt_loader, train_retain_loader = get_dsets()
     #else:
-    all_train_loader,all_test_loader, train_fgt_loader, train_retain_loader, test_fgt_loader, test_retain_loader = get_dsets_remove_class(opt.class_to_be_removed)
+    all_train_loader,all_test_loader, train_fgt_loader, train_retain_loader, test_fgt_loader, test_retain_loader = get_dsets_remove_class(opt.class_to_remove)
 
     print(f'training dataloader batches: {len(train_retain_loader)}')
     print(f'test dataloader batches: {len(test_retain_loader)}')

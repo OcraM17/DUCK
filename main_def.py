@@ -80,7 +80,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
             if opt.mode == "HR":
                 unlearned_model_dict = torch.load(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/models/unlearned_model_{opt.method}_seed_{seed}.pth") 
             elif opt.mode == "CR":
-                unlearned_model_dict = torch.load(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/models/unlearned_model_{opt.method}_seed_{seed}_class_{class_to_remove}.pth")
+                unlearned_model_dict = torch.load(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/models/unlearned_model_{opt.method}_seed_{seed}_class_{'_'.join(map(str, class_to_remove))}.pth")
 
             unlearned_model = get_trained_model().to(opt.device)
             unlearned_model.load_state_dict(unlearned_model_dict)
@@ -94,13 +94,13 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
             if opt.mode == "HR":
                 torch.save(unlearned_model.state_dict(), f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/models/unlearned_model_{opt.method}_seed_{seed}.pth")
             elif opt.mode == "CR":
-                torch.save(unlearned_model.state_dict(), f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/models/unlearned_model_{opt.method}_seed_{seed}_class_{class_to_remove}.pth")
+                torch.save(unlearned_model.state_dict(), f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/models/unlearned_model_{opt.method}_seed_{seed}_class_{'_'.join(map(str, class_to_remove))}.pth")
 
         unlearn_time = time.time() - timestamp1
         #print(accuracy(unlearned_model, train_fgt_loader))
         print("BEGIN SVC FIT")
         if opt.mode == "HR":
-            #df_un_model = get_MIA_MLP(train_fgt_loader, test_loader, unlearned_model, opt)
+            df_un_model = get_MIA_MLP(train_fgt_loader, test_loader, unlearned_model, opt)
             df_un_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
         elif opt.mode == "CR":
             df_un_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
@@ -125,6 +125,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
 
     if opt.run_rt_model:
         print('\n----MODEL RETRAINED----')
+
         rt_model = get_retrained_model()
         rt_model.to(opt.device)
         rt_model.eval()
@@ -133,7 +134,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
             df_rt_model["test_accuracy"] = accuracy(rt_model, test_loader)
 
         elif opt.mode == "CR":
-            df_rt_model = get_MIA_MLP(train_fgt_loader, test_fgt_loader, rt_model, opt)
+            df_or_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
             df_rt_model["forget_test_accuracy"] = accuracy(rt_model, test_fgt_loader)
             df_rt_model["retain_test_accuracy"] = accuracy(rt_model, test_retain_loader)
 
@@ -149,7 +150,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
             if opt.mode == "HR":
                 v_unlearn.to_csv(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/dfs/{opt.method}_seed_{seed}.csv")
             elif opt.mode == "CR":
-                v_unlearn.to_csv(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/dfs/{opt.method}_seed_{seed}_class_{class_to_remove}.csv")
+                v_unlearn.to_csv(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/dfs/{opt.method}_seed_{seed}_class_{'_'.join(map(str, class_to_remove))}.csv")
     return v_orig, v_unlearn, v_rt
 
 if __name__ == "__main__":
@@ -190,26 +191,27 @@ if __name__ == "__main__":
                 df_retrained_total.append(row_ret)
 
         elif opt.mode == "CR":
-            for class_to_be_removed in opt.class_to_be_removed:
-                #to do for multiple classes, generate a list with the classes to remove
-                Classes_to_rem_list = [class_to_be_removed,]
-                print(f'------------class {class_to_be_removed}-----------')
-                _, _, train_fgt_loader, train_retain_loader, test_fgt_loader, test_retain_loader = get_dsets_remove_class(Classes_to_rem_list)
+            for class_to_remove in opt.class_to_remove:
+                print(f'------------class {class_to_remove}-----------')
+                _, _, train_fgt_loader, train_retain_loader, test_fgt_loader, test_retain_loader = get_dsets_remove_class(class_to_remove)
 
-                opt.RT_model_weights_path = opt.root_folder+f'weights/chks_{opt.dataset if opt.dataset!="tinyImagenet" else "tiny"}/best_checkpoint_without_{class_to_be_removed}.pth'
+                opt.RT_model_weights_path = opt.root_folder+f'weights/chks_{opt.dataset if opt.dataset!="tinyImagenet" else "tiny"}/best_checkpoint_without_{class_to_remove}.pth'
                 print(opt.RT_model_weights_path)
 
-                row_orig, row_unl, row_ret=main(train_fgt_loader, train_retain_loader, test_fgt_loader=test_fgt_loader, seed=i, test_retain_loader=test_retain_loader, class_to_remove=class_to_be_removed)
+                row_orig, row_unl, row_ret=main(train_fgt_loader, train_retain_loader, test_fgt_loader=test_fgt_loader, seed=i, test_retain_loader=test_retain_loader, class_to_remove=class_to_remove)
 
                 #print results
-                print(f"Unlearned: {row_unl}")
-                print(f"Unlearned row_unl retain test acc: {row_unl['retain_test_accuracy']}")
+                
 
-                if row_unl is not None:
-                    df_unlearned_total.append(row_unl)
+                
                 if row_orig is not None:
+                    print(f"Original retain test acc: {row_orig['retain_test_accuracy']}")
                     df_orig_total.append(row_orig)
+                if row_unl is not None:
+                    print(f"Unlearned retain test acc: {row_unl['retain_test_accuracy']}")
+                    df_unlearned_total.append(row_unl)
                 if row_ret is not None:
+                    print(f"Retrained retain test acc: {row_ret['retain_test_accuracy']}")
                     df_retrained_total.append(row_ret)
         
     print(opt.dataset)

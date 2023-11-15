@@ -23,7 +23,7 @@ def get_args():
 
     parser.add_argument("--method", type=str, default="CBCR")
 
-    parser.add_argument("--model", type=str, default='resnet34')
+    parser.add_argument("--model", type=str, default='resnet18')
     parser.add_argument("--bsize", type=int, default=256)
     parser.add_argument("--wd", type=float, default=0.0)
     parser.add_argument("--momentum", type=float, default=0.9)
@@ -46,15 +46,20 @@ class OPT:
 
     
     mode = args.mode
-    
     if args.mode == 'HR':
         seed = [0,1,2,3,4,5,6,7,8,42]
-        class_to_be_removed = None
+        class_to_remove = None
     else:
         seed = [42]
-        #class_to_be_removed = [i*10 for i in range(10)]
-        class_to_be_removed = [i for i in range(10)]
-        print('Class to remove iter. : ', class_to_be_removed)
+        if dataset == 'cifar10' or dataset=="VGG":
+            class_to_remove = [i*1 for i in range(10)]
+        elif dataset == 'cifar100':
+            class_to_remove = [i*10 for i in range(10)]
+        elif dataset == 'tinyImagenet':
+            class_to_remove = [i*20 for i in range(10)] 
+   
+        #class_to_remove = [[i for i in range(100)][:j] for j in [1]+[z*10 for z in range(1,10)]+[98]]
+        #print('Class to remove iter. : ', class_to_remove)
 
     device = f"cuda:{args.cuda}" if torch.cuda.is_available() else "cpu"
     
@@ -124,7 +129,7 @@ class OPT:
             if mode == "HR":
                 RT_model_weights_path = root_folder+'weights/chks_cifar100/best_checkpoint_without_5000.pth'
             else:
-                RT_model_weights_path = root_folder+f'weights/chks_cifar100/best_checkpoint_without_{class_to_be_removed}.pth'
+                RT_model_weights_path = root_folder+f'weights/chks_cifar100/best_checkpoint_without_{class_to_remove}.pth'
         
         elif dataset== 'cifar10':
             or_model_weights_path = root_folder+'weights/Final_CIFAR10_Resnet18.pth'
@@ -134,7 +139,7 @@ class OPT:
             if mode == "HR":
                 RT_model_weights_path = root_folder+'weights/chks_cifar10/best_checkpoint_without_5000.pth'
             else:
-                RT_model_weights_path = root_folder+f'weights/chks_cifar10/best_checkpoint_without_{class_to_be_removed}.pth'
+                RT_model_weights_path = root_folder+f'weights/chks_cifar10/best_checkpoint_without_{class_to_remove}.pth'
 
         elif dataset== 'tinyImagenet':
             or_model_weights_path = root_folder+'weights/best_model_tiny.pth'
@@ -146,7 +151,7 @@ class OPT:
             weight_file_id = '1juieMSI1mEe_SzgDfxL6lzZ-XpD6ZMGF'
             weight_file_id_RT = '101_zAZBLxOp9hn3QkTQwWkvrnO7FPSYy'
 
-            if class_to_be_removed is None:
+            if class_to_remove is None:
                 RT_model_weights_path = root_folder+'weights/chks_vgg/chk_VGG_10perc.pth'
             else:
                 RT_model_weights_path = root_folder+'weights/chks_vgg/best_model_00.pth'
