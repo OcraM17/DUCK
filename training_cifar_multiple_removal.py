@@ -6,6 +6,7 @@ import torchvision
 import torchvision.transforms as transforms
 import numpy as np
 from torch.utils.data import Subset
+import argparse
 
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -83,8 +84,10 @@ def trainer(class_to_be_r,seed):
     np.random.shuffle(class_range)
     forget_set, retain_set = split_retain_forget(trainset, class_range[:class_to_be_r])
 
-    trainloader = torch.utils.data.DataLoader(retain_set, batch_size=256, shuffle=True, num_workers=8)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=256, shuffle=False, num_workers=8)
+    forget_set_test, retain_set_test = split_retain_forget(testset, class_range[:class_to_be_r])
+
+    trainloader = torch.utils.data.DataLoader(retain_set, batch_size=256, shuffle=True, num_workers=4)
+    testloader = torch.utils.data.DataLoader(retain_set_test, batch_size=256, shuffle=False, num_workers=4)
     epochs=200
 
     # Initialize the model, loss function, and optimizer
@@ -132,16 +135,21 @@ def trainer(class_to_be_r,seed):
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
         val_acc = 100 * correct / total
-        if val_acc > best_acc:
-            best_acc = val_acc
-            torch.save(net.state_dict(), f'weights/chks_cifar100/chks_cifar100_without_0_to_{class_to_be_r}_{seed}.pth')
-
-        print('Epoch: %d, Train Loss: %.3f, Train Acc: %.3f, Val Acc: %.3f, Best Acc: %.3f' % (epoch, train_loss, train_acc, val_acc, best_acc))
+        
+        if epochs>195:
+            print('Epoch: %d, Train Loss: %.3f, Train Acc: %.3f, Val Acc: %.3f, Best Acc: %.3f' % (epoch, train_loss, train_acc, val_acc, best_acc))
+            if val_acc > best_acc:
+                best_acc = val_acc
+                torch.save(net.state_dict(), f'weights/chks_cifar100/chks_cifar100_without_0_to_{class_to_be_r}_seed_{seed}.pth')
     return best_acc
 
 if __name__ == '__main__':
-    seed = 0
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--seed", type=int, default=42)
+    options = parser.parse_args()
+    print('strated with seed: ', options.seed)
     acc_in = []
     for i in [1]+[i*10 for i in range(1,10)]+[98]:
-        acc_in.append(trainer(i, seed))
-    print(acc_in)
+        acc_in.append(trainer(i, options.seed))
+    print('ACC:',acc_in)
