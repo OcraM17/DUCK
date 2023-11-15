@@ -27,7 +27,7 @@ def get_args():
     parser.add_argument("--bsize", type=int, default=256)
     parser.add_argument("--wd", type=float, default=0.0)
     parser.add_argument("--momentum", type=float, default=0.9)
-    parser.add_argument("--lr", type=float, default=0.01)
+    parser.add_argument("--lr", type=float, default=0.0004)
     parser.add_argument("--epochs", type=int, default=200, help='Num of epochs, for unlearning algorithms it is the max num of epochs') # <------- epochs train
     parser.add_argument("--scheduler", type=int, nargs='+', default=[25,40])
     parser.add_argument("--temperature", type=float, default=2)
@@ -52,7 +52,8 @@ class OPT:
         class_to_be_removed = None
     else:
         seed = [42]
-        class_to_be_removed = [i*20 for i in range(10)]
+        #class_to_be_removed = [i*10 for i in range(10)]
+        class_to_be_removed = [i for i in range(10)]
 
     device = f"cuda:{args.cuda}" if torch.cuda.is_available() else "cpu"
     
@@ -90,7 +91,7 @@ class OPT:
     
     num_workers = args.num_workers
 
-    name_method = args.name_method#'CBCR' #NegativeGradient, RandomLabels,         # Amnesiac, Hiding...
+    method = args.method#'CBCR' #NegativeGradient, RandomLabels,         # Amnesiac, Hiding...
     
     # unlearning params
         

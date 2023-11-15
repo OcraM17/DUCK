@@ -26,6 +26,7 @@ class BaseMethod:
         self.criterion = nn.CrossEntropyLoss()
         self.optimizer = optim.SGD(self.net.parameters(), lr=opt.lr_unlearn, momentum=opt.momentum_unlearn, weight_decay=opt.wd_unlearn)
         self.epochs = opt.epochs_unlearn
+        self.target_accuracy = opt.target_accuracy
         self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=opt.scheduler, gamma=0.5)
         #torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=self.epochs)
         if test is None:
@@ -49,9 +50,9 @@ class BaseMethod:
                 self.net.eval()
                 curr_acc = accuracy(self.net, self.forget)
                 self.net.train()
-                print(f"ACCURACY FORGET SET: {curr_acc:.3f}, target is {opt.target_accuracy:.3f}")
-                # if curr_acc < opt.target_accuracy:
-                #     break
+                print(f"ACCURACY FORGET SET: {curr_acc:.3f}, target is {self.target_accuracy:.3f}")
+                if curr_acc < self.target_accuracy:
+                    break
 
             self.scheduler.step()
             #print('Accuracy: ',self.evalNet())
@@ -100,6 +101,7 @@ class FineTuning(BaseMethod):
     def __init__(self, net, retain, forget,test=None,class_to_remove=None):
         super().__init__(net, retain, forget,test=test)
         self.loader = self.retain
+        self.target_accuracy=0.0
     
     def loss_f(self, inputs, targets,test=None):
         outputs = self.net(inputs)
@@ -110,10 +112,16 @@ class RandomLabels(BaseMethod):
     def __init__(self, net, retain, forget,test=None,class_to_remove=None):
         super().__init__(net, retain, forget,test=test)
         self.loader = self.forget
-    
+        self.class_to_remove = class_to_remove
+
+        if opt.mode == "CR":
+            self.random_possible = torch.tensor([i for i in range(opt.num_classes) if i != self.class_to_remove]).to(opt.device).to(torch.float32)
+        else:
+            self.random_possible = torch.tensor([i for i in range(opt.num_classes)]).to(opt.device).to(torch.float32)
     def loss_f(self, inputs, targets):
         outputs = self.net(inputs)
-        random_labels = torch.randint(0, 10, (targets.shape[0],)).to(opt.device)
+        #create a random label tensor of the same shape as the outputs chosing values from self.possible_labels
+        random_labels = self.random_possible[torch.randint(low=0, high=self.random_possible.shape[0], size=targets.shape)].to(torch.int64).to(opt.device)
         loss = self.criterion(outputs, random_labels)
         return loss
 
