@@ -21,7 +21,7 @@ def get_args():
 
     parser.add_argument("--num_workers", type=int, default=4)
 
-    parser.add_argument("--name_method", type=str, default="CBCR")
+    parser.add_argument("--method", type=str, default="CBCR")
 
     parser.add_argument("--model", type=str, default='resnet34')
     parser.add_argument("--bsize", type=int, default=256)
@@ -54,6 +54,7 @@ class OPT:
         seed = [42]
         #class_to_be_removed = [i*10 for i in range(10)]
         class_to_be_removed = [i for i in range(10)]
+        print('Class to remove iter. : ', class_to_be_removed)
 
     device = f"cuda:{args.cuda}" if torch.cuda.is_available() else "cpu"
     
@@ -75,7 +76,7 @@ class OPT:
     run_rt_model = args.run_rt_model
     
     # Data
-    data_path = '~/data'
+    data_path = os.path.expanduser('~/data')
     if dataset == 'cifar10':
         num_classes = 10
         batch_fgt_ret_ratio = 5
@@ -141,11 +142,14 @@ class OPT:
             
         elif dataset== 'VGG':
             #to fix
-            or_model_weights_path = '/home/node002/Documents/MachineUnlearning/chks_vgg/best_model_VGG.pth'
+            or_model_weights_path = root_folder+'weights/best_model_VGG.pth'
+            weight_file_id = '1juieMSI1mEe_SzgDfxL6lzZ-XpD6ZMGF'
+            weight_file_id_RT = '101_zAZBLxOp9hn3QkTQwWkvrnO7FPSYy'
+
             if class_to_be_removed is None:
-                RT_model_weights_path = '/home/node002/Documents/MachineUnlearning/chks_vgg/chk_VGG_10perc.pth'
+                RT_model_weights_path = root_folder+'weights/chks_vgg/chk_VGG_10perc.pth'
             else:
-                RT_model_weights_path = "/home/node002/Documents/MachineUnlearning/chks_vgg/best_model_00.pth"
+                RT_model_weights_path = root_folder+'weights/chks_vgg/best_model_00.pth'
     
     elif model == 'resnet50':
         if dataset== 'cifar100':
@@ -169,7 +173,8 @@ class OPT:
     a_or = {
         "cifar10" : [Complex(88.72, 0.28)/100.,Complex(88.64, 0.63)/100.], #[0] HR, [1] CR 
         "cifar100" : [Complex(77.56, 0.29)/100., Complex(77.55, 0.11)/100.],
-        "tinyImagenet" : [Complex(68.22, 0.54)/100.,Complex(68.40, 0.07)/100.]
+        "tinyImagenet" : [Complex(68.22, 0.54)/100.,Complex(68.40, 0.07)/100.],
+        "VGG" : [Complex(91.18, 2.92)/100.,Complex(91.18, 2.92)/100.]
 
     }
 

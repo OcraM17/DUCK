@@ -104,6 +104,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
             df_un_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
         elif opt.mode == "CR":
             df_un_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
+            df_un_model = get_MIA_MLP(train_fgt_loader, test_fgt_loader, unlearned_model, opt)
 
     
         df_un_model["unlearn_time"] = unlearn_time
@@ -123,6 +124,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         print("UNLEARN COMPLETED")
 
     if opt.run_rt_model:
+        print('\n----MODEL RETRAINED----')
         rt_model = get_retrained_model()
         rt_model.to(opt.device)
         rt_model.eval()
@@ -189,8 +191,10 @@ if __name__ == "__main__":
 
         elif opt.mode == "CR":
             for class_to_be_removed in opt.class_to_be_removed:
+                #to do for multiple classes, generate a list with the classes to remove
+                Classes_to_rem_list = [class_to_be_removed,]
                 print(f'------------class {class_to_be_removed}-----------')
-                _, _, train_fgt_loader, train_retain_loader, test_fgt_loader, test_retain_loader = get_dsets_remove_class(class_to_be_removed)
+                _, _, train_fgt_loader, train_retain_loader, test_fgt_loader, test_retain_loader = get_dsets_remove_class(Classes_to_rem_list)
 
                 opt.RT_model_weights_path = opt.root_folder+f'weights/chks_{opt.dataset if opt.dataset!="tinyImagenet" else "tiny"}/best_checkpoint_without_{class_to_be_removed}.pth'
                 print(opt.RT_model_weights_path)
