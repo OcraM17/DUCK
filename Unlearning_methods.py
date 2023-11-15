@@ -6,6 +6,7 @@ from opts import OPT as opt
 import pickle
 from tqdm import tqdm
 from utils import accuracy
+import time
 
 def choose_method(name):
     if name=='FineTuning':
@@ -49,8 +50,8 @@ class BaseMethod:
                 curr_acc = accuracy(self.net, self.forget)
                 self.net.train()
                 print(f"ACCURACY FORGET SET: {curr_acc:.3f}, target is {opt.target_accuracy:.3f}")
-                if curr_acc < opt.target_accuracy:
-                    break
+                # if curr_acc < opt.target_accuracy:
+                #     break
 
             self.scheduler.step()
             #print('Accuracy: ',self.evalNet())
@@ -155,15 +156,20 @@ class CBCR(BaseMethod):
         
         bbone.eval()
 
+ 
         # embeddings of retain set
         with torch.no_grad():
             ret_embs=[]
             labs=[]
+            cnt=0
             for img_ret, lab_ret in self.retain:
                 img_ret, lab_ret = img_ret.to(opt.device), lab_ret.to(opt.device)
                 logits_ret = bbone(img_ret)
                 ret_embs.append(logits_ret)
                 labs.append(lab_ret)
+                cnt+=1
+                if cnt>=10:
+                    break
             ret_embs=torch.cat(ret_embs)
             labs=torch.cat(labs)
         
@@ -178,7 +184,7 @@ class CBCR(BaseMethod):
             if i!=self.class_to_remove:
                 centroids.append(ret_embs[labs==i].mean(0))
         centroids=torch.stack(centroids)
-
+  
 
         bbone.train(), fc.train()
 
@@ -190,20 +196,22 @@ class CBCR(BaseMethod):
         init = True
         flag_exit = False
         all_closest_centroids = []
-        with torch.no_grad():
-            self.net.eval()
-            curr_acc = accuracy(self.net, self.forget)
-            tr_acc = accuracy(self.net, self.retain)
-            self.net.train()
-            print(f"ACCURACY FORGET SET: {curr_acc:.3f}, target is {opt.target_accuracy:.3f}")
-            print(f"ACCURACY retain SET: {tr_acc:.3f}")
+        criterion = nn.CrossEntropyLoss(label_smoothing=0.2)#0.2 tiny
+        # with torch.no_grad():
+        #     self.net.eval()
+        #     curr_acc = accuracy(self.net, self.forget)
+        #     tr_acc = accuracy(self.net, self.retain)
+        #     self.net.train()
+        #     print(f"ACCURACY FORGET SET: {curr_acc:.3f}, target is {opt.target_accuracy:.3f}")
+        #     print(f"ACCURACY retain SET: {tr_acc:.3f}")
+
+        print('Num batch forget: ',len(self.forget), 'Num batch retain: ',len(self.retain))
         for _ in tqdm(range(opt.epochs_unlearn)):
             #for n_batch, ((img_ret, lab_ret), (img_fgt, lab_fgt)) in enumerate(zip(retain, forget)):
             #modified to account for high number of classes in tinyimagenet
             for n_batch, (img_fgt, lab_fgt) in enumerate(self.forget):
                 for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain):
-
-                    img_ret, lab_ret, img_fgt, lab_fgt = img_ret.to(opt.device), lab_ret.to(opt.device), img_fgt.to(opt.device), lab_fgt.to(opt.device)
+                    img_ret, lab_ret,img_fgt, lab_fgt  = img_ret.to(opt.device), lab_ret.to(opt.device),img_fgt.to(opt.device), lab_fgt.to(opt.device)
                     
                     optimizer.zero_grad()
 
@@ -223,6 +231,7 @@ class CBCR(BaseMethod):
                     else:
                         closest_centroids = all_closest_centroids[n_batch]
 
+
                     dists = dists[torch.arange(dists.shape[0]), closest_centroids[:dists.shape[0]]]
                     loss_fgt = torch.mean(dists) * opt.lambda_1
                     # outputs_fgt = fc(logits_fgt)
@@ -230,7 +239,8 @@ class CBCR(BaseMethod):
                     logits_ret = bbone(img_ret)
                     outputs_ret = fc(logits_ret)
 
-                    loss_ret = torch.nn.functional.cross_entropy(outputs_ret/opt.temperature, lab_ret) * opt.lambda_2
+                    #loss_ret = torch.nn.functional.cross_entropy(outputs_ret/opt.temperature, lab_ret) * opt.lambda_2
+                    loss_ret = criterion(outputs_ret/opt.temperature, lab_ret)*opt.lambda_2
                     #print(torch.nn.functional.cross_entropy(outputs_ret, lab_ret))
                     #loss_fgt = 0
                     loss = loss_ret+ loss_fgt
@@ -238,6 +248,7 @@ class CBCR(BaseMethod):
                     #print(f"LOSS FGT: {loss_fgt.item():.4f}  -  LOSS RET: {loss_ret.item():.4f}")#
 
                     if n_batch_ret>opt.batch_fgt_ret_ratio:
+                        del loss,loss_ret,loss_fgt, logits_fgt, logits_ret, outputs_ret,dists
                         break
                     
                     loss.backward()

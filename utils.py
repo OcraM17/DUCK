@@ -2,13 +2,14 @@ import os
 import numpy as np
 import requests
 import torch
-from torchvision.models.resnet import resnet18,ResNet18_Weights
+from torchvision.models.resnet import resnet18,ResNet18_Weights,resnet34,ResNet34_Weights,resnet50,ResNet50_Weights
+from models import ViT
 #from resnet import resnet18 
 from sklearn import linear_model, model_selection
 import torch.nn as nn
 from opts import OPT as opt
 import torchvision
-from allcnn import AllCNN
+from models.allcnn import AllCNN
 import pickle as pk
 import tqdm
 import torch.nn.functional as F
@@ -144,25 +145,66 @@ def get_retrained_model():
     return model
 
 
-def get_resnet18_trained():
+def get_resnet_trained():
 
     local_path = opt.or_model_weights_path
     if not os.path.exists(local_path):
         download_weights_drive(local_path,opt.weight_file_id,opt.root_folder)
 
     weights_pretrained = torch.load(local_path)
-    model = torchvision.models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
+    if opt.model=='resnet18':
+        model = torchvision.models.resnet18(weights=None)
+    elif opt.model=='resnet34':
+        model = torchvision.models.resnet34(weights=None)
+    elif opt.model=='resnet50':
+        model = torchvision.models.resnet50(weights=None)
+
     if opt.dataset != 'cifar10':
         model.conv1 = nn.Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
         model.maxpool = nn.Identity()
-        model.fc = nn.Sequential(nn.Dropout(0), nn.Linear(512, opt.num_classes)) 
+        model.fc = nn.Sequential(nn.Dropout(0), nn.Linear(model.fc.in_features, opt.num_classes)) 
     else:
         model.fc = nn.Linear(512, opt.num_classes)
+    
+    #print(weights_pretrained)
+    model.load_state_dict(weights_pretrained)
+
+    return model
+
+def get_ViT_trained():
+    local_path = opt.or_model_weights_path
+    if not os.path.exists(local_path):
+        download_weights_drive(local_path,opt.weight_file_id,opt.root_folder)
+    
+    weights_pretrained = torch.load(local_path)
+    if opt.dataset == 'cifar10' or opt.dataset == 'cifar100':
+        image_size=32
+    elif opt.dataset == 'tinyImagenet':
+        image_size = 64
+
+    model = ViT.ViT(image_size=image_size, patch_size=4, num_classes=opt.num_classes, dim=512, depth=8, heads=12, mlp_dim=512, pool = 'cls', channels = 3, dim_head = 128, dropout = 0, emb_dropout = 0)
 
     model.load_state_dict(weights_pretrained)
 
     return model
 
+def get_AllCNN_trained():
+    local_path = opt.or_model_weights_path
+    if not os.path.exists(local_path):
+        download_weights_drive(local_path,opt.weight_file_id,opt.root_folder)
+    
+    weights_pretrained = torch.load(local_path)
+    model = AllCNN()
+
+
+def get_trained_model():
+    if 'resnet' in opt.model:
+        model = get_resnet_trained()
+    elif 'ViT' in opt.model:
+        model = get_ViT_trained()
+    elif opt.model == 'AllCNN':
+        model = get_AllCNN_trained()
+    return model
 ##############################################################################################################
 
 

@@ -3,7 +3,7 @@ from dsets import get_dsets_remove_class, get_dsets
 import pandas as pd
 from error_propagation import Complex
 #to clean up
-from utils import accuracy, set_seed, get_retrained_model,get_resnet50_trained_on_VGGFace_10_subjects,get_resnet18_trained
+from utils import accuracy, set_seed, get_retrained_model,get_trained_model
 
 from unlearn import unlearning
 from MIA_code.MIA import get_MIA_MLP
@@ -17,29 +17,34 @@ from error_propagation import Complex
 import os
 import torch
 from publisher import push_results
+
 def AUS(a_t, a_or, a_f):
     if opt.mode == "HR":
         aus=(Complex(1, 0)-(a_or-a_t))/(Complex(1, 0)+abs(a_f-a_t))
     else:
         aus=(Complex(1, 0)-(a_or-a_t))/(Complex(1, 0)+abs(a_f))
     return aus
+
 def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_fgt_loader=None, test_retain_loader=None, class_to_remove=0):
     v_orig, v_unlearn, v_rt = None, None, None
-    original_pretr_model = get_resnet18_trained()
+    original_pretr_model = get_trained_model()
     original_pretr_model.to(opt.device)
     original_pretr_model.eval()
 
     if opt.run_original:
-        df_or_model = get_MIA_MLP(train_fgt_loader, test_loader, original_pretr_model, opt)
+        
         
         if opt.mode =="HR":
+            df_or_model = get_MIA_MLP(train_fgt_loader, test_loader, original_pretr_model, opt)
             df_or_model["test_accuracy"] = accuracy(original_pretr_model, test_loader)
         elif opt.mode =="CR":
+            df_or_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
             df_or_model["forget_test_accuracy"] = accuracy(original_pretr_model, test_fgt_loader)
             df_or_model["retain_test_accuracy"] = accuracy(original_pretr_model, test_retain_loader)
 
         df_or_model["forget_accuracy"] = accuracy(original_pretr_model, train_fgt_loader)
         df_or_model["retain_accuracy"] = accuracy(original_pretr_model, train_retain_loader)
+        print(df_or_model)
         v_orig= df_or_model.mean(0)
         #convert v_orig back to df
         v_orig = pd.DataFrame(v_orig).T
@@ -53,6 +58,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         pretr_model.eval()
 
         timestamp1 = time.time()
+
         if opt.mode == "HR":
             opt.target_accuracy = accuracy(original_pretr_model, test_loader)
 
@@ -76,11 +82,12 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
             elif opt.mode == "CR":
                 unlearned_model_dict = torch.load(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/models/unlearned_model_{opt.name_method}_seed_{seed}_class_{class_to_remove}.pth")
 
-            unlearned_model = get_resnet18_trained().to(opt.device)
+            unlearned_model = get_trained_model().to(opt.device)
             unlearned_model.load_state_dict(unlearned_model_dict)
             print("UNLEARNED MODEL LOADED")
         else:
             unlearned_model = approach.run()
+
         unlearned_model.eval()
         #save model
         if opt.save_model:
@@ -93,7 +100,8 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         #print(accuracy(unlearned_model, train_fgt_loader))
         print("BEGIN SVC FIT")
         if opt.mode == "HR":
-            df_un_model = get_MIA_MLP(train_fgt_loader, test_loader, unlearned_model, opt)
+            #df_un_model = get_MIA_MLP(train_fgt_loader, test_loader, unlearned_model, opt)
+            df_un_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
         elif opt.mode == "CR":
             df_un_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
 
@@ -109,7 +117,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
 
         df_un_model["forget_accuracy"] = accuracy(unlearned_model, train_fgt_loader)
         df_un_model["retain_accuracy"] = accuracy(unlearned_model, train_retain_loader)
-
+        #print(df_un_model)
         v_unlearn=df_un_model.mean(0)
         v_unlearn = pd.DataFrame(v_unlearn).T
         print("UNLEARN COMPLETED")
@@ -216,6 +224,9 @@ if __name__ == "__main__":
                 a_t = Complex(means["test_accuracy"], std_devs["test_accuracy"])
                 a_f = Complex(means["forget_accuracy"], std_devs["forget_accuracy"])
                 a_or = opt.a_or[opt.dataset][0]
+                deltaF1 = abs(dfs[name]["F1"]*100-50).mean()
+                deltaF1_std = abs(dfs[name]["F1"]*100-50).std()
+                print(f"deltaF1: {deltaF1:.4f} \pm {deltaF1_std:.4f}")
 
             elif opt.mode == "CR":
                 a_t = Complex(means["retain_test_accuracy"], std_devs["retain_test_accuracy"])
@@ -224,9 +235,7 @@ if __name__ == "__main__":
             aus = AUS(a_t, a_or, a_f)
             dfs[name]["AUS"] = aus.value
             print(f"AUS: {aus.value:.4f} \pm {aus.error:.4f}")
-            deltaF1 = abs(dfs[name]["F1"]*100-50).mean()
-            deltaF1_std = abs(dfs[name]["F1"]*100-50).std()
-            print(f"deltaF1: {deltaF1:.4f} \pm {deltaF1_std:.4f}")
+   
 
 
     push_results(opt, dfs["orig"], dfs["unlearned"], dfs["retrained"])

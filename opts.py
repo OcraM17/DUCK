@@ -7,7 +7,7 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--run_name", type=str, default="test")
     parser.add_argument("--dataset", type=str, default="cifar100")
-    parser.add_argument("--mode", type=str, default="HR")
+    parser.add_argument("--mode", type=str, default="CR")
     parser.add_argument("--cuda", type=int, default=0, help="Select zero-indexed cuda device. -1 to use CPU.")
     
     parser.add_argument("--load_unlearned_model",action='store_true')
@@ -21,15 +21,15 @@ def get_args():
 
     parser.add_argument("--num_workers", type=int, default=4)
 
-    parser.add_argument("--name_method", type=str, default="FineTuning")
+    parser.add_argument("--name_method", type=str, default="CBCR")
 
-    parser.add_argument("--model", type=str, default='resnet18')
+    parser.add_argument("--model", type=str, default='resnet34')
     parser.add_argument("--bsize", type=int, default=256)
     parser.add_argument("--wd", type=float, default=0.0)
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--lr", type=float, default=0.01)
     parser.add_argument("--epochs", type=int, default=200, help='Num of epochs, for unlearning algorithms it is the max num of epochs') # <------- epochs train
-    parser.add_argument("--scheduler", type=int, nargs='+', default=[8,12])
+    parser.add_argument("--scheduler", type=int, nargs='+', default=[25,40])
     parser.add_argument("--temperature", type=float, default=2)
     parser.add_argument("--lambda_1", type=float, default=1)
     parser.add_argument("--lambda_2", type=float, default=1.4)
@@ -52,7 +52,7 @@ class OPT:
         class_to_be_removed = None
     else:
         seed = [42]
-        class_to_be_removed = [i*10 for i in range(10)]
+        class_to_be_removed = [i*20 for i in range(10)]
 
     device = f"cuda:{args.cuda}" if torch.cuda.is_available() else "cpu"
     
@@ -77,13 +77,13 @@ class OPT:
     data_path = '~/data'
     if dataset == 'cifar10':
         num_classes = 10
-        batch_fgt_ret_ratio = 1
+        batch_fgt_ret_ratio = 5
     elif dataset == 'cifar100':
         num_classes = 100
         batch_fgt_ret_ratio = 5
     elif dataset == 'tinyImagenet':
         num_classes = 200
-        batch_fgt_ret_ratio = 30
+        batch_fgt_ret_ratio = 5
     elif dataset == 'VGG':
         num_classes = 10
     
@@ -145,6 +145,22 @@ class OPT:
                 RT_model_weights_path = '/home/node002/Documents/MachineUnlearning/chks_vgg/chk_VGG_10perc.pth'
             else:
                 RT_model_weights_path = "/home/node002/Documents/MachineUnlearning/chks_vgg/best_model_00.pth"
+    
+    elif model == 'resnet50':
+        if dataset== 'cifar100':
+            or_model_weights_path = root_folder+'/chks_cifar100/best_checkpoint_Resnet50.pth'
+    
+    elif model == 'resnet34':
+        if dataset== 'cifar100':
+            or_model_weights_path = root_folder+'/chks_cifar100/best_checkpoint_Resnet34.pth'
+    
+    elif model == 'ViT':
+        #raise error not implemented
+        raise NotImplementedError
+        
+    elif model == 'AllCNN':
+        if dataset== 'cifar100':
+            or_model_weights_path = root_folder+'/chks_cifar100/best_checkpoint_AllCNN.pth'
     else:
         raise NotImplementedError
     
