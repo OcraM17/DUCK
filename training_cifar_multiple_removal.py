@@ -68,8 +68,8 @@ transform_test = transforms.Compose([
     transforms.Normalize(mean=mean["cifar100"], std=std["cifar100"])
 ])
 
-def trainer(class_to_be_r):
-    set_seed(42)
+def trainer(class_to_be_r,seed):
+    set_seed(seed)
 
     # Load CIFAR-10 data
     #trainset = torchvision.datasets.CIFAR10(root='~/data', train=True, download=False, transform=transform_train)
@@ -78,7 +78,7 @@ def trainer(class_to_be_r):
     testset = torchvision.datasets.CIFAR100(root='~/data', train=False, download=True, transform=transform_test)
 
     #val_forget_set, val_retain_set = split_retain_forget_idx(testset, "/home/node002/Documents/MachineUnlearning/forget_idx_5000_cifar100.txt")
-    forget_set, retain_set = split_retain_forget(trainset, [i for i in range(100)][:class_to_be_r])
+    forget_set, retain_set = split_retain_forget(trainset, np.random.shuffle(np.arange(100))[:class_to_be_r])
 
     trainloader = torch.utils.data.DataLoader(retain_set, batch_size=256, shuffle=True, num_workers=8)
     testloader = torch.utils.data.DataLoader(testset, batch_size=256, shuffle=False, num_workers=8)
@@ -131,12 +131,14 @@ def trainer(class_to_be_r):
         val_acc = 100 * correct / total
         if val_acc > best_acc:
             best_acc = val_acc
-            torch.save(net.state_dict(), f'weights/chks_cifar100/chks_cifar100_without_0_to_{class_to_be_r}.pth')
+            torch.save(net.state_dict(), f'weights/chks_cifar100/chks_cifar100_without_0_to_{class_to_be_r}_{seed}.pth')
 
         print('Epoch: %d, Train Loss: %.3f, Train Acc: %.3f, Val Acc: %.3f, Best Acc: %.3f' % (epoch, train_loss, train_acc, val_acc, best_acc))
     return best_acc
+
 if __name__ == '__main__':
+    seed=0
     acc_in = []
     for i in [1]+[i*10 for i in range(1,10)]+[98]:
-        acc_in.append(trainer(i))
+        acc_in.append(trainer(i, seed))
     print(acc_in)
