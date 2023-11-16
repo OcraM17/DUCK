@@ -136,7 +136,7 @@ def trainer(class_to_be_r,seed):
                 correct += (predicted == labels).sum().item()
         val_acc = 100 * correct / total
         
-        if epochs>195:
+        if epoch>195:
             print('Epoch: %d, Train Loss: %.3f, Train Acc: %.3f, Val Acc: %.3f, Best Acc: %.3f' % (epoch, train_loss, train_acc, val_acc, best_acc))
             if val_acc > best_acc:
                 best_acc = val_acc
