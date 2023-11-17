@@ -136,10 +136,10 @@ class NegativeGradient(BaseMethod):
         return loss
 
 class CBCR(BaseMethod):
-    def __init__(self, net, retain, forget, test, class_to_remove=None):
+    def __init__(self, net, retain, forget,test):
         super().__init__(net, retain, forget, test)
         self.loader = None
-        self.class_to_remove = class_to_remove
+        self.class_to_remove = opt.class_to_be_removed
 
     def pairwise_cos_dist(self, x, y):
         """Compute pairwise cosine distance between two tensors"""

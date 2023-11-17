@@ -3,11 +3,11 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 
-file = open('/home/jb/Documents/MachineUnlearning/res_original_model.pkl','rb')
+file = open('/home/jb/Documents/MachineUnlearning/cifar10_original_model.pkl','rb')
 lst_orig = pkl.load(file)
 out_all_fgt,out_all_ret,logits_all_fgt,logits_all_ret,cls_fgt,cls_ret = lst_orig[0],lst_orig[1],lst_orig[2],lst_orig[3],lst_orig[4],lst_orig[5]
 
-file = open('/home/jb/Documents/MachineUnlearning/res_unlr_model.pkl','rb')
+file = open('/home/jb/Documents/MachineUnlearning/cifar10_unlearned.pkl','rb')
 lst_unlr = pkl.load(file)
 
 out_all_unlr_fgt,out_all_unlr_ret,logits_all_unlr_fgt,logits_all_unlr_ret,cls_unlr_fgt,cls_unlr_ret = lst_unlr[0],lst_unlr[1],lst_unlr[2],lst_unlr[3],lst_unlr[4],lst_unlr[5]
