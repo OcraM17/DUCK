@@ -203,7 +203,12 @@ class DUCK(BaseMethod):
         init = True
         flag_exit = False
         all_closest_centroids = []
-        criterion = nn.CrossEntropyLoss(label_smoothing=0.2)#0.2 tiny
+        if opt.dataset == 'tinyImagenet':
+            ls = 0.2
+        else:
+            ls = 0
+        criterion = nn.CrossEntropyLoss(label_smoothing=ls)
+        
         # with torch.no_grad():
         #     self.net.eval()
         #     curr_acc = accuracy(self.net, self.forget)
