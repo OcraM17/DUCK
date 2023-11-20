@@ -6,7 +6,7 @@ from error_propagation import Complex
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--run_name", type=str, default="test")
-    parser.add_argument("--dataset", type=str, default="cifar100")
+    parser.add_argument("--dataset", type=str, default="cifar10")
     parser.add_argument("--mode", type=str, default="CR")
     parser.add_argument("--cuda", type=int, default=0, help="Select zero-indexed cuda device. -1 to use CPU.")
     
@@ -21,7 +21,7 @@ def get_args():
 
     parser.add_argument("--num_workers", type=int, default=4)
 
-    parser.add_argument("--method", type=str, default="CBCR")
+    parser.add_argument("--method", type=str, default="DUCK")
 
     parser.add_argument("--model", type=str, default='resnet18')
     parser.add_argument("--bsize", type=int, default=256)
@@ -97,7 +97,7 @@ class OPT:
     
     num_workers = args.num_workers
 
-    method = args.method#'CBCR' #NegativeGradient, RandomLabels,         # Amnesiac, Hiding...
+    method = args.method#'DUCK' #NegativeGradient, RandomLabels,         # Amnesiac, Hiding...
     
     # unlearning params
         
@@ -109,7 +109,7 @@ class OPT:
     temperature = args.temperature
     scheduler = args.scheduler
 
-    #CBCR specific
+    #DUCK specific
     lambda_1 = args.lambda_1
     lambda_2 = args.lambda_2
     target_accuracy = 0.01 
@@ -122,7 +122,7 @@ class OPT:
    
     if model== 'resnet18':
         if dataset== 'cifar100':
-            or_model_weights_path = root_folder+'weights/Final_CIFAR100_Resnet18.pth'
+            or_model_weights_path = root_folder+'weights/chks_cifar100/best_checkpoint_resnet18.pth'
             weight_file_id = '1pksj54mSsaDdkwSh1V9KA_SP7ZkafkVI'
             weight_file_id_RT = '1QizS5_YTNmsfgvVw0a2H9HSU8xuzBG8N'
 
@@ -132,7 +132,7 @@ class OPT:
                 RT_model_weights_path = root_folder+f'weights/chks_cifar100/best_checkpoint_without_{class_to_remove}.pth'
         
         elif dataset== 'cifar10':
-            or_model_weights_path = root_folder+'weights/Final_CIFAR10_Resnet18.pth'
+            or_model_weights_path = root_folder+'weights/chks_cifar10/best_checkpoint_resnet18.pth'
             weight_file_id = '198mmeueWTdH66eTlE0vJu0lLd72nQBbr'
             weight_file_id_RT = '1URa2nH_IyAUzIUgv_ICEdm-5b1w-Zrf0'
 
@@ -142,7 +142,7 @@ class OPT:
                 RT_model_weights_path = root_folder+f'weights/chks_cifar10/best_checkpoint_without_{class_to_remove}.pth'
 
         elif dataset== 'tinyImagenet':
-            or_model_weights_path = root_folder+'weights/best_model_tiny.pth'
+            or_model_weights_path = root_folder+'weights/chks_tiny/best_checkpoint_resnet18.pth'
             weight_file_id = '11wMtPzADDxBsRKBctK0BSJa3jhg48jK4'
             
         elif dataset== 'VGG':
@@ -158,11 +158,11 @@ class OPT:
     
     elif model == 'resnet50':
         if dataset== 'cifar100':
-            or_model_weights_path = root_folder+'/chks_cifar100/best_checkpoint_Resnet50.pth'
+            or_model_weights_path = root_folder+'weights/chks_cifar100/best_checkpoint_resnet50.pth'
     
     elif model == 'resnet34':
         if dataset== 'cifar100':
-            or_model_weights_path = root_folder+'/chks_cifar100/best_checkpoint_Resnet34.pth'
+            or_model_weights_path = root_folder+'weights/chks_cifar100/best_checkpoint_resnet34.pth'
     
     elif model == 'ViT':
         #raise error not implemented
@@ -170,7 +170,7 @@ class OPT:
         
     elif model == 'AllCNN':
         if dataset== 'cifar100':
-            or_model_weights_path = root_folder+'/chks_cifar100/best_checkpoint_AllCNN.pth'
+            or_model_weights_path = root_folder+'weights/chks_cifar100/best_checkpoint_AllCNN.pth'
     else:
         raise NotImplementedError
     
