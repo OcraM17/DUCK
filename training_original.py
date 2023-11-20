@@ -65,26 +65,30 @@ def trainer(removed=None):
         model = AllCNN(n_channels=3, num_classes=opt.num_classes).to('cuda')
     
     if opt.dataset == 'cifar10':
-        os.makedirs('./chks_cifar10', exist_ok=True)
+        os.makedirs('./weights/chks_cifar10', exist_ok=True)
         # Load CIFAR-10 data
         trainset = torchvision.datasets.CIFAR10(root=opt.data_path, train=True, download=True, transform=transform_train)
         testset = torchvision.datasets.CIFAR10(root=opt.data_path, train=False, download=True, transform=transform_test)
-        
+        model.fc = nn.Linear(512, opt.num_classes).to('cuda')
+
     elif opt.dataset == 'cifar100':
-        os.makedirs('./chks_cifar100', exist_ok=True)
+        os.makedirs('./weights/chks_cifar100', exist_ok=True)
         trainset = torchvision.datasets.CIFAR100(root=opt.data_path, train=True, download=True, transform=transform_train)
         testset = torchvision.datasets.CIFAR100(root=opt.data_path, train=False, download=True, transform=transform_test)
         if 'resnet' in opt.model:    
             model.conv1 = nn.Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False).to('cuda')
             model.maxpool = nn.Identity()
+            model.fc = nn.Sequential(nn.Dropout(0.4), nn.Linear(model.fc.in_features, opt.num_classes)).to('cuda')
+
     elif opt.dataset == 'tinyImagenet':
         #dataloader
-        os.makedirs('./chks_tiny', exist_ok=True)
+        os.makedirs('./weights/chks_tiny', exist_ok=True)
         trainset = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/train',transform=transform_train_tiny)
         testset = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/val/images',transform=transform_test_tiny)
         if 'resnet' in opt.model:
+            model.conv1 = nn.Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False).to('cuda')
+            model.maxpool = nn.Identity()
             model.fc = nn.Sequential(nn.Dropout(0.4), nn.Linear(model.fc.in_features, opt.num_classes)).to('cuda')
-
     #dataloader
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=256, shuffle=True, num_workers=opt.num_workers)
     testloader = torch.utils.data.DataLoader(testset, batch_size=256, shuffle=False, num_workers=opt.num_workers)
@@ -119,7 +123,7 @@ def trainer(removed=None):
         train_acc = 100 * correct / total
         train_loss = running_loss / len(trainloader)
         train_scheduler.step()
-        torch.save(model.state_dict(), f'chks_{opt.dataset}/best_checkpoint_{opt.model}.pth')
+        torch.save(model.state_dict(), f'weights/chks_{opt.dataset}/best_checkpoint_{opt.model}.pth')
 
         if epoch % 5 == 0:        
             model.eval()

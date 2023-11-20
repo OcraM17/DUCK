@@ -148,6 +148,7 @@ def get_retrained_model():
 def get_resnet_trained():
 
     local_path = opt.or_model_weights_path
+    print('LOAD weights: ', local_path)
     if not os.path.exists(local_path):
         download_weights_drive(local_path,opt.weight_file_id,opt.root_folder)
 

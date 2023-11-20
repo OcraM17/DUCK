@@ -15,8 +15,8 @@ def choose_method(name):
         return NegativeGradient
     elif name=='RandomLabels':
         return RandomLabels
-    elif name=='CBCR':
-        return CBCR
+    elif name=='DUCK':
+        return DUCK
 
 class BaseMethod:
     def __init__(self, net, retain, forget,test=None):
@@ -135,11 +135,11 @@ class NegativeGradient(BaseMethod):
         loss = self.criterion(outputs, targets) * (-1)
         return loss
 
-class CBCR(BaseMethod):
-    def __init__(self, net, retain, forget,test):
+class DUCK(BaseMethod):
+    def __init__(self, net, retain, forget,test,class_to_remove=None):
         super().__init__(net, retain, forget, test)
         self.loader = None
-        self.class_to_remove = opt.class_to_be_removed
+        self.class_to_remove = class_to_remove
 
     def pairwise_cos_dist(self, x, y):
         """Compute pairwise cosine distance between two tensors"""

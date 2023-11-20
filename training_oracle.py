@@ -81,13 +81,14 @@ def trainer(class_to_remove, seed):
         test_loader = test_retain_loader
 
     if opt.dataset == 'cifar10':
-        os.makedirs('./chks_cifar10', exist_ok=True)
+        os.makedirs('./weights/chks_cifar10', exist_ok=True)
     elif opt.dataset == 'cifar100':
-        os.makedirs('./chks_cifar100', exist_ok=True)
+        os.makedirs('./weights/chks_cifar100', exist_ok=True)
         if 'resnet' in opt.model:    
             model.conv1 = nn.Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False).to('cuda')
             model.maxpool = nn.Identity()
     elif opt.dataset == 'tinyImagenet':
+        os.makedirs('./weights/chks_tiny', exist_ok=True)
         #dataloader
         if 'resnet' in opt.model:
             model.fc = nn.Sequential(nn.Dropout(0.4), nn.Linear(model.fc.in_features, opt.num_classes)).to('cuda')
@@ -125,9 +126,9 @@ def trainer(class_to_remove, seed):
         train_loss = running_loss / len(train_retain_loader)
         train_scheduler.step()
         if opt.mode == 'CR':
-            torch.save(model.state_dict(), f'chks_{opt.dataset}/best_checkpoint_without_{class_to_remove}.pth')
+            torch.save(model.state_dict(), f'weights/chks_{opt.dataset}/best_checkpoint_without_{class_to_remove}.pth')
         elif opt.mode == 'HR':
-            torch.save(model.state_dict(), f'chks_{opt.dataset}/chks_{opt.dataset}_seed_{seed}.pth')
+            torch.save(model.state_dict(), f'weights/chks_{opt.dataset}/chks_{opt.dataset}_seed_{seed}.pth')
 
         if epoch % 5 == 0:        
             model.eval()
@@ -142,7 +143,7 @@ def trainer(class_to_remove, seed):
                     total += labels.size(0)
                     correct += (predicted == labels).sum().item()
             val_acc = 100 * correct / total
-            print('Epoch: %d, Train Loss: %.3f, Train Acc: %.3f, Val Acc: %.3f, Best Acc: %.3f' % (epoch, train_loss, train_acc, val_acc, best_acc))
+            print('Epoch: %d, Train Loss: %.3f, Train Acc: %.3f, Val Acc: %.3f, Best Acc: %.3f' % (epoch, train_loss, train_acc, val_acc))
     return best_acc
 
 

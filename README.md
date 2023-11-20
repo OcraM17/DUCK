@@ -3,7 +3,7 @@
 ## Overview
 
 DUCK is a cutting-edge machine unlearning algorithm designed to enhance privacy in modern artificial intelligence models. Leveraging the power of metric learning, DUCK efficiently removes residual influences of specific data subsets from a neural model's acquired knowledge during training.
-
+![Time](imgs/Schema.png)
 ## Features
 
 - **Distance-based Unlearning**: DUCK employs distance metrics to guide the removal of samples matching the nearest incorrect centroid in the embedding space.
@@ -52,8 +52,9 @@ If you already have trained and retrained model you can skip the above steps.
 
 Experiments:
 ```bash
-python your_script.py --run_name <run_name> --dataset <dataset> --mode <mode> --cuda <cuda> --load_unlearned_model --save_model --save_df --run_original --run_unlearn --run_rt_model --num_workers <num_workers> --method <method> --model <model> --bsize <bsize> --wd <wd> --momentum <momentum> --lr <lr> --epochs <epochs> --scheduler <scheduler> --temperature <temperature> --lambda_1 <lambda_1> --lambda_2 <lambda_2>```
-
+python main_def.py --run_name <run_name> --dataset <dataset> --mode <mode> --cuda <cuda> --load_unlearned_model --save_model --save_df --run_original --run_unlearn --run_rt_model --num_workers <num_workers> --method <method> --model <model> --bsize <bsize> --wd <wd> --momentum <momentum> --lr <lr> --epochs <epochs> --scheduler <scheduler> --temperature <temperature> --lambda_1 <lambda_1> --lambda_2 <lambda_2>
+```
+Configuration Options:
  
     --run_name: Name of the run (default: "test").
     --dataset: Dataset for the experiment (default: "cifar100").
@@ -66,7 +67,7 @@ python your_script.py --run_name <run_name> --dataset <dataset> --mode <mode> --
     --run_unlearn: Run the unlearned model.
     --run_rt_model: Run the real-time model.
     --num_workers: Number of workers for data loading (default: 4).
-    --method: Method for unlearning (default: "CBCR").
+    --method: Method for unlearning (default: "DUCK").
     --model: Model architecture (default: 'resnet18').
     --bsize: Batch size (default: 256).
     --wd: Weight decay (default: 0.0).
@@ -78,20 +79,13 @@ python your_script.py --run_name <run_name> --dataset <dataset> --mode <mode> --
     --lambda_1: Lambda 1 hyperparameter (default: 1).
     --lambda_2: Lambda 2 hyperparameter (default: 1.4).
 
-- HR for cifar100:  'pyhton3 
+All the hyperparameters are reported in the Supplementary Material of the paper
 
+Example CIFAR 10 in HR scenario
+```bash
+pyhton3 main_def.py --run_name cifar10_HR --dataset cifar10 --mode HR --cuda 0 --save_model --save_df --run_unlearn  --num_workers 4 --method DUCK --model resnet18 --bsize 1024 --lr 0.001 --epochs 10  --temperature 2 --lambda_1 1 --lambda_2 1.4
+```
 ## Results
 ![Time](imgs/plot_time.png)
-## Citation
 
-```
-@misc{2023Duck,
-      title={DUCK: Distance-based Unlearning via Centroid Kinematics}, 
-      author={Marco Cotogni and Jacopo Bonato and Luigi Sabetta and Francesco Pelosin and Alessandro Nicolosi},
-      year={2023},
-      eprint={xxx-xxx},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV}
-}
-```
 
