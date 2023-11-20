@@ -65,13 +65,13 @@ def trainer(removed=None):
         model = AllCNN(n_channels=3, num_classes=opt.num_classes).to('cuda')
     
     if opt.dataset == 'cifar10':
-        os.mkdir('./chks_cifar10', exist_ok=True)
+        os.makedirs('./chks_cifar10', exist_ok=True)
         # Load CIFAR-10 data
         trainset = torchvision.datasets.CIFAR10(root=opt.data_path, train=True, download=True, transform=transform_train)
         testset = torchvision.datasets.CIFAR10(root=opt.data_path, train=False, download=True, transform=transform_test)
         
     elif opt.dataset == 'cifar100':
-        os.mkdir('./chks_cifar100', exist_ok=True)
+        os.makedirs('./chks_cifar100', exist_ok=True)
         trainset = torchvision.datasets.CIFAR100(root=opt.data_path, train=True, download=True, transform=transform_train)
         testset = torchvision.datasets.CIFAR100(root=opt.data_path, train=False, download=True, transform=transform_test)
         if 'resnet' in opt.model:    
@@ -79,6 +79,7 @@ def trainer(removed=None):
             model.maxpool = nn.Identity()
     elif opt.dataset == 'tinyImagenet':
         #dataloader
+        os.makedirs('./chks_tiny', exist_ok=True)
         trainset = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/train',transform=transform_train_tiny)
         testset = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/val/images',transform=transform_test_tiny)
         if 'resnet' in opt.model:
@@ -88,13 +89,13 @@ def trainer(removed=None):
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=256, shuffle=True, num_workers=opt.num_workers)
     testloader = torch.utils.data.DataLoader(testset, batch_size=256, shuffle=False, num_workers=opt.num_workers)
 
-    epochs=300
+    epochs=50
     criterion = nn.CrossEntropyLoss(label_smoothing=0.4)
     optimizer = optim.SGD(model.parameters(), lr=0.1, weight_decay=5e-5)
     if opt.dataset == 'tinyImagenet':
         train_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=25, gamma=0.1) #learning rate decay
     else:
-        train_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=300)
+        train_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=50)
 
 
     # Train the network

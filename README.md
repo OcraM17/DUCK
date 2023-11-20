@@ -1,9 +1,5 @@
 # DUCK: Distance-based Unlearning via Centroid Kinematics
 
-![Schema](imgs/Schema.png)
-[Marco Cotogni](https://scholar.google.com/citations?user=8PUz5lAAAAAJ&hl=it) ,[Jacopo Bonato](https://scholar.google.com/citations?hl=it&user=tC1GFkUAAAAJ), [Luigi Sabetta](), [Francesco Pelosin](https://scholar.google.com/citations?user=XJ9QvI4AAAAJ&hl=it&authuser=1&oi=ao), [Alessandro Nicolosi]() 
-
-[![arxiv](https://img.shields.io/badge/arXiv-red)]() [![Paper](https://img.shields.io/badge/Journal-brightgreen)]()
 ## Overview
 
 DUCK is a cutting-edge machine unlearning algorithm designed to enhance privacy in modern artificial intelligence models. Leveraging the power of metric learning, DUCK efficiently removes residual influences of specific data subsets from a neural model's acquired knowledge during training.
@@ -20,9 +16,6 @@ DUCK is a cutting-edge machine unlearning algorithm designed to enhance privacy 
 
 ## Getting Started
 
-### Prerequisites
-
-- [List any prerequisites or dependencies here]
 
 ### Installation
 
@@ -33,11 +26,59 @@ git clone https://github.com/your-username/your-repo.git
 # Navigate to the project directory
 cd your-repo
 
-# Install dependencies
-[Include any installation commands or requirements]
+# Installation WITH DOCKER
+
+- Step 1:
+
+    Build the docker image from the Dockerfile : `docker build -f Dockerfile -t duck:1.0 . `
+
+- Step 2:
+
+    Run your image : `docker run -it --gpus all -v "/path_to_dataset_folder":/root/data -v "/path_to_duck_folder":/duck duck:1.0 /bin/bash`
+
+# Install LOCALLY 
+pip install -r requirements.txt
 ```
 
 ## Code Execution
+- Step 1:
+      Run 'pyhton3 training_original.py' to train the original model. Choose the dataset in opts
+-Step 2:
+      Run 'sample_fgt_samples.py' to sample the forget sample for HR scenario
+- Step 3:
+      Run 'pyhton3 training_oracle.py' to train the retrained model. Choose the dataset in opts. Use --mode CR for class removal and --mode HR for homogeneus removal
+
+If you already have trained and retrained model you can skip the above steps.
+
+Experiments:
+```bash
+python your_script.py --run_name <run_name> --dataset <dataset> --mode <mode> --cuda <cuda> --load_unlearned_model --save_model --save_df --run_original --run_unlearn --run_rt_model --num_workers <num_workers> --method <method> --model <model> --bsize <bsize> --wd <wd> --momentum <momentum> --lr <lr> --epochs <epochs> --scheduler <scheduler> --temperature <temperature> --lambda_1 <lambda_1> --lambda_2 <lambda_2>```
+
+ 
+    --run_name: Name of the run (default: "test").
+    --dataset: Dataset for the experiment (default: "cifar100").
+    --mode: Mode for the experiment (default: "CR").
+    --cuda: Select zero-indexed CUDA device. Use -1 to run on CPU (default: 0).
+    --load_unlearned_model: Load a pre-trained unlearned model.
+    --save_model: Save the trained model.
+    --save_df: Save the experiment results as a DataFrame.
+    --run_original: Run the original model.
+    --run_unlearn: Run the unlearned model.
+    --run_rt_model: Run the real-time model.
+    --num_workers: Number of workers for data loading (default: 4).
+    --method: Method for unlearning (default: "CBCR").
+    --model: Model architecture (default: 'resnet18').
+    --bsize: Batch size (default: 256).
+    --wd: Weight decay (default: 0.0).
+    --momentum: Momentum for SGD optimizer (default: 0.9).
+    --lr: Learning rate (default: 0.0004).
+    --epochs: Number of epochs (default: 200).
+    --scheduler: Learning rate scheduler milestones (default: [25, 40]).
+    --temperature: Temperature for unlearning algorithm (default: 2).
+    --lambda_1: Lambda 1 hyperparameter (default: 1).
+    --lambda_2: Lambda 2 hyperparameter (default: 1.4).
+
+- HR for cifar100:  'pyhton3 
 
 ## Results
 ![Time](imgs/plot_time.png)
