@@ -5,7 +5,6 @@ from error_propagation import Complex
 #to clean up
 from utils import accuracy, set_seed, get_retrained_model,get_trained_model
 
-from unlearn import unlearning
 from MIA_code.MIA import get_MIA_MLP
 from opts import OPT as opt
 import torch.nn as nn
@@ -16,7 +15,7 @@ from Unlearning_methods import choose_method
 from error_propagation import Complex
 import os
 import torch
-from publisher import push_results
+#from publisher import push_results
 
 def AUS(a_t, a_or, a_f):
     if opt.mode == "HR":
@@ -62,7 +61,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         if opt.mode == "HR":
             opt.target_accuracy = accuracy(original_pretr_model, test_loader)
 
-            if opt.method == "CBCR":
+            if opt.method == "DUCK":
                 approach = choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_loader, class_to_remove=None)
             else:
                 approach = choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_loader)
@@ -70,7 +69,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
 
         elif opt.mode == "CR":
             opt.target_accuracy = 0.01
-            if opt.method == "CBCR" or opt.method == "RandomLabels":
+            if opt.method == "DUCK" or opt.method == "RandomLabels":
                 approach = choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_fgt_loader, class_to_remove=class_to_remove)
             else:
                 approach = choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_fgt_loader)

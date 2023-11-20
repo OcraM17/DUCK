@@ -77,33 +77,31 @@ def trainer(class_to_remove, seed):
         _, test_loader, _, train_retain_loader = get_dsets(file_fgt=file_fgt)
     if opt.mode == 'CR':
         _, _, _, train_retain_loader, _, test_retain_loader = get_dsets_remove_class(class_to_remove)
+        #use test_loader the one with forget classes removed
+        test_loader = test_retain_loader
 
     if opt.dataset == 'cifar10':
-        os.mkdir('./chks_cifar10', exist_ok=True)
+        os.makedirs('./weights/chks_cifar10', exist_ok=True)
     elif opt.dataset == 'cifar100':
-        os.mkdir('./chks_cifar100', exist_ok=True)
+        os.makedirs('./weights/chks_cifar100', exist_ok=True)
         if 'resnet' in opt.model:    
             model.conv1 = nn.Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False).to('cuda')
             model.maxpool = nn.Identity()
     elif opt.dataset == 'tinyImagenet':
+        os.makedirs('./weights/chks_tiny', exist_ok=True)
         #dataloader
         if 'resnet' in opt.model:
             model.fc = nn.Sequential(nn.Dropout(0.4), nn.Linear(model.fc.in_features, opt.num_classes)).to('cuda')
 
-    #dataloader
-    trainloader = torch.utils.data.DataLoader(train_retain_loader, batch_size=256, shuffle=True, num_workers=opt.num_workers)
-    if opt.mode == 'HR':
-        testloader = torch.utils.data.DataLoader(test_loader, batch_size=256, shuffle=False, num_workers=opt.num_workers)
-    elif opt.mode == 'CR':
-        testloader = torch.utils.data.DataLoader(test_retain_loader, batch_size=256, shuffle=False, num_workers=opt.num_workers)
 
-    epochs=300
+
+    epochs=30
     criterion = nn.CrossEntropyLoss(label_smoothing=0.4)
     optimizer = optim.SGD(model.parameters(), lr=0.1, weight_decay=5e-5)
     if opt.dataset == 'tinyImagenet':
         train_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=25, gamma=0.1) #learning rate decay
     else:
-        train_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=300)
+        train_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=30)
 
 
     # Train the network
@@ -112,7 +110,7 @@ def trainer(class_to_remove, seed):
         running_loss = 0.0
         model.train()
         correct, total = 0, 0
-        for i, data in enumerate(trainloader, 0):
+        for i, data in enumerate(train_retain_loader, 0):
             inputs, labels = data
             inputs, labels = inputs.to('cuda'), labels.to('cuda')
             optimizer.zero_grad()
@@ -125,19 +123,19 @@ def trainer(class_to_remove, seed):
             optimizer.step()
             running_loss += loss.item()
         train_acc = 100 * correct / total
-        train_loss = running_loss / len(trainloader)
+        train_loss = running_loss / len(train_retain_loader)
         train_scheduler.step()
-        if opt.mode == 'HR':
-            torch.save(model.state_dict(), f'chks_{opt.dataset}/best_checkpoint_without_{class_to_remove}.pth')
-        elif opt.mode == 'CR':
-            torch.save(model.state_dict(), f'chks_{opt.dataset}/chks_{opt.dataset}_seed_{seed}.pth')
+        if opt.mode == 'CR':
+            torch.save(model.state_dict(), f'weights/chks_{opt.dataset}/best_checkpoint_without_{class_to_remove}.pth')
+        elif opt.mode == 'HR':
+            torch.save(model.state_dict(), f'weights/chks_{opt.dataset}/chks_{opt.dataset}_seed_{seed}.pth')
 
         if epoch % 5 == 0:        
             model.eval()
             correct = 0
             total = 0
             with torch.no_grad():
-                for data in testloader:
+                for data in test_loader:
                     inputs, labels = data
                     inputs, labels = inputs.to('cuda'), labels.to('cuda')
                     outputs = model(inputs)
@@ -145,7 +143,7 @@ def trainer(class_to_remove, seed):
                     total += labels.size(0)
                     correct += (predicted == labels).sum().item()
             val_acc = 100 * correct / total
-            print('Epoch: %d, Train Loss: %.3f, Train Acc: %.3f, Val Acc: %.3f, Best Acc: %.3f' % (epoch, train_loss, train_acc, val_acc, best_acc))
+            print('Epoch: %d, Train Loss: %.3f, Train Acc: %.3f, Val Acc: %.3f, Best Acc: %.3f' % (epoch, train_loss, train_acc, val_acc))
     return best_acc
 
 
