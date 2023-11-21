@@ -215,37 +215,6 @@ def get_trained_model():
     elif opt.model == 'AllCNN':
         model = get_AllCNN_trained()
     return model
-##############################################################################################################
-
-
-
-
-def get_resnet50_trained_on_VGGFace():
-    local_path = "/home/jb/Documents/MachineUnlearning/weights/net_weights_resnet50_VGG.pth"
-    weights_pretrained = torch.load(local_path, map_location=opt.device)
-
-    # load model with pre-trained weights
-    model =torchvision.models.resnet50(weights=None)
-    # Change the final layer
-    model.fc = nn.Sequential(nn.Dropout(p=0.0),nn.Linear(model.fc.in_features, 9))
-
-    model.load_state_dict(weights_pretrained)
-    return model
-
-def get_resnet50_trained_on_VGGFace_10_subjects():
-    #merge with the function above
-    local_path = "/home/jb/Documents/MachineUnlearning/weights/net_weights_resnet50_VGG_10sub.pth"
-    weights_pretrained = torch.load(local_path, map_location=opt.device)
-
-    # load model with pre-trained weights
-    model =torchvision.models.resnet50(weights=None)
-    # Change the final layer
-    model.fc = nn.Sequential(nn.Dropout(p=0.0),nn.Linear(model.fc.in_features, 10))
-
-    model.load_state_dict(weights_pretrained)
-    return model
-
-
 
 def compute_metrics(model, train_loader, forget_loader, retain_loader, all_val_loader, val_fgt_loader, val_retain_loader):
 
