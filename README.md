@@ -86,7 +86,7 @@ All the hyperparameters are reported in the Supplementary Material of the paper
 
 Example CIFAR 10 in HR scenario
 ```bash
-pyhton3 main_def.py --run_name cifar10_HR --dataset cifar10 --mode HR --cuda 0 --save_model --save_df --run_unlearn  --num_workers 4 --method DUCK --model resnet18 --bsize 1024 --lr 0.001 --epochs 10  --temperature 2 --lambda_1 1 --lambda_2 1.4
+python3 main_def.py --run_name cifar10_HR --dataset cifar10 --mode HR --cuda 0 --save_model --save_df --run_unlearn  --num_workers 4 --method DUCK --model resnet18 --bsize 1024 --lr 0.001 --epochs 10  --temperature 2 --lambda_1 1 --lambda_2 1.4
 ```
 ## Results
 ![Time](imgs/plot_time.png)

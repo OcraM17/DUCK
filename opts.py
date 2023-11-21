@@ -175,7 +175,7 @@ class OPT:
     else:
         raise NotImplementedError
     
-
+    push_results = args.push_results
     a_or = {
         "cifar10" : [Complex(88.72, 0.28)/100.,Complex(88.64, 0.63)/100.], #[0] HR, [1] CR 
         "cifar100" : [Complex(77.56, 0.29)/100., Complex(77.55, 0.11)/100.],
