@@ -120,42 +120,29 @@ class OPT:
     iter_MIA = 3 #numo f iterations
     verboseMIA = False
 
-   
+    weight_file_id = '1tTdpVS3was0RTZszQfLt2tGdixwd3Oy6'
     if model== 'resnet18':
         if dataset== 'cifar100':
             or_model_weights_path = root_folder+'weights/chks_cifar100/best_checkpoint_resnet18.pth'
-            weight_file_id = '1pksj54mSsaDdkwSh1V9KA_SP7ZkafkVI'
-            weight_file_id_RT = '1QizS5_YTNmsfgvVw0a2H9HSU8xuzBG8N'
-
-            if mode == "HR":
-                RT_model_weights_path = root_folder+'weights/chks_cifar100/best_checkpoint_without_5000.pth'
-            else:
+   
+            if mode == "CR":
                 RT_model_weights_path = root_folder+f'weights/chks_cifar100/best_checkpoint_without_{class_to_remove}.pth'
         
         elif dataset== 'cifar10':
             or_model_weights_path = root_folder+'weights/chks_cifar10/best_checkpoint_resnet18.pth'
-            weight_file_id = '198mmeueWTdH66eTlE0vJu0lLd72nQBbr'
-            weight_file_id_RT = '1URa2nH_IyAUzIUgv_ICEdm-5b1w-Zrf0'
-
-            if mode == "HR":
-                RT_model_weights_path = root_folder+'weights/chks_cifar10/best_checkpoint_without_5000.pth'
-            else:
+            if mode == "CR":
                 RT_model_weights_path = root_folder+f'weights/chks_cifar10/best_checkpoint_without_{class_to_remove}.pth'
 
         elif dataset== 'tinyImagenet':
             or_model_weights_path = root_folder+'weights/chks_tiny/best_checkpoint_resnet18.pth'
-            weight_file_id = '11wMtPzADDxBsRKBctK0BSJa3jhg48jK4'
+            if mode == "CR":
+                RT_model_weights_path = root_folder+f'weights/chks_tiny/best_checkpoint_without_{class_to_remove}.pth'
             
         elif dataset== 'VGG':
             #to fix
-            or_model_weights_path = root_folder+'weights/best_model_VGG.pth'
-            weight_file_id = '1juieMSI1mEe_SzgDfxL6lzZ-XpD6ZMGF'
-            weight_file_id_RT = '101_zAZBLxOp9hn3QkTQwWkvrnO7FPSYy'
-
-            if class_to_remove is None:
-                RT_model_weights_path = root_folder+'weights/chks_vgg/chk_VGG_10perc.pth'
-            else:
-                RT_model_weights_path = root_folder+'weights/chks_vgg/best_model_00.pth'
+            or_model_weights_path = root_folder+'weights/chks_VGG/best_checkpoint_resnet18.pth'
+            if mode == "CR":
+                RT_model_weights_path = root_folder+f'weights/chks_VGG/best_checkpoint_without_{class_to_remove}.pth'
     
     elif model == 'resnet50':
         if dataset== 'cifar100':
