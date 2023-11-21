@@ -28,13 +28,15 @@ cd your-repo
 
 # Installation WITH DOCKER
 
-- Step 1:
+#Step 1:
 
-    Build the docker image from the Dockerfile : `docker build -f Dockerfile -t duck:1.0 . `
+#Build the docker image from the Dockerfile : 
+docker build -f Dockerfile -t duck:1.0 . 
 
-- Step 2:
+#Step 2:
 
-    Run your image : `docker run -it --gpus all -v "/path_to_dataset_folder":/root/data -v "/path_to_duck_folder":/duck duck:1.0 /bin/bash`
+#Run your image : 
+docker run -it --gpus all -v "/path_to_dataset_folder":/root/data -v "/path_to_duck_folder":/duck duck:1.0 /bin/bash
 
 # Install LOCALLY 
 pip install -r requirements.txt
@@ -52,7 +54,7 @@ If you already have trained and retrained model you can skip the above steps.
 
 Experiments:
 ```bash
-python main_def.py --run_name <run_name> --dataset <dataset> --mode <mode> --cuda <cuda> --load_unlearned_model --save_model --save_df --run_original --run_unlearn --run_rt_model --num_workers <num_workers> --method <method> --model <model> --bsize <bsize> --wd <wd> --momentum <momentum> --lr <lr> --epochs <epochs> --scheduler <scheduler> --temperature <temperature> --lambda_1 <lambda_1> --lambda_2 <lambda_2>
+python main_def.py --run_name <run_name> --dataset <dataset> --mode <mode> --cuda <cuda> --load_unlearned_model --save_model --save_df --push_results --run_original --run_unlearn --run_rt_model --num_workers <num_workers> --method <method> --model <model> --bsize <bsize> --wd <wd> --momentum <momentum> --lr <lr> --epochs <epochs> --scheduler <scheduler> --temperature <temperature> --lambda_1 <lambda_1> --lambda_2 <lambda_2>
 ```
 Configuration Options:
  
@@ -63,6 +65,7 @@ Configuration Options:
     --load_unlearned_model: Load a pre-trained unlearned model.
     --save_model: Save the trained model.
     --save_df: Save the experiment results as a DataFrame.
+    --push_results: push results on google docs
     --run_original: Run the original model.
     --run_unlearn: Run the unlearned model.
     --run_rt_model: Run the real-time model.

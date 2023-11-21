@@ -14,6 +14,7 @@ def get_args():
     
     parser.add_argument("--save_model", action='store_true')
     parser.add_argument("--save_df", action='store_true')
+    parser.add_argument("--push_results", action='store_true')#set to true to push results
 
     parser.add_argument("--run_original", action='store_true')
     parser.add_argument("--run_unlearn", action='store_true')

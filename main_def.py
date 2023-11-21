@@ -15,7 +15,8 @@ from Unlearning_methods import choose_method
 from error_propagation import Complex
 import os
 import torch
-#from publisher import push_results
+if opt.push_results:
+    from publisher import push_results
 
 def AUS(a_t, a_or, a_f):
     if opt.mode == "HR":
@@ -52,7 +53,6 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
     if opt.run_unlearn:
         print('\n----BEGIN UNLEARNING----')
         pretr_model = deepcopy(original_pretr_model)
-        #pretr_model.fc = nn.Sequential(nn.Dropout(0.4),pretr_model.fc) 
         pretr_model.to(opt.device)
         pretr_model.eval()
 
@@ -100,10 +100,10 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         print("BEGIN SVC FIT")
         if opt.mode == "HR":
             df_un_model = get_MIA_MLP(train_fgt_loader, test_loader, unlearned_model, opt)
-            df_un_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
+            #df_un_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
         elif opt.mode == "CR":
             df_un_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
-            df_un_model = get_MIA_MLP(train_fgt_loader, test_fgt_loader, unlearned_model, opt)
+            #df_un_model = get_MIA_MLP(train_fgt_loader, test_fgt_loader, unlearned_model, opt)
 
     
         df_un_model["unlearn_time"] = unlearn_time
@@ -245,6 +245,7 @@ if __name__ == "__main__":
             print(f"AUS: {aus.value:.4f} \pm {aus.error:.4f}")
    
 
+    if opt.push_results:
+        push_results(opt, dfs["orig"], dfs["unlearned"], dfs["retrained"])
 
-    push_results(opt, dfs["orig"], dfs["unlearned"], dfs["retrained"])
 
