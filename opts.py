@@ -120,7 +120,7 @@ class OPT:
     iter_MIA = 3 #numo f iterations
     verboseMIA = False
 
-    weight_file_id = ''#'1tTdpVS3was0RTZszQfLt2tGdixwd3Oy6'
+    weight_file_id = '1tTdpVS3was0RTZszQfLt2tGdixwd3Oy6'
     if model== 'resnet18':
         if dataset== 'cifar100':
             or_model_weights_path = root_folder+'weights/chks_cifar100/best_checkpoint_resnet18.pth'
