@@ -36,6 +36,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         
         if opt.mode =="HR":
             df_or_model = get_MIA_MLP(train_fgt_loader, test_loader, original_pretr_model, opt)
+            #df_or_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
             df_or_model["test_accuracy"] = accuracy(original_pretr_model, test_loader)
         elif opt.mode =="CR":
             df_or_model = pd.DataFrame([0],columns=["PLACEHOLDER"])

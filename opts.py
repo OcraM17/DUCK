@@ -91,7 +91,7 @@ class OPT:
         batch_fgt_ret_ratio = 5
     elif dataset == 'tinyImagenet':
         num_classes = 200
-        batch_fgt_ret_ratio = 5
+        batch_fgt_ret_ratio = 60
     elif dataset == 'VGG':
         num_classes = 10
     
@@ -147,10 +147,14 @@ class OPT:
     elif model == 'resnet50':
         if dataset== 'cifar100':
             or_model_weights_path = root_folder+'weights/chks_cifar100/best_checkpoint_resnet50.pth'
+        if dataset== 'tinyImagenet':
+            or_model_weights_path = root_folder+'weights/chks_tiny/best_checkpoint_resnet50old.pth'
     
     elif model == 'resnet34':
         if dataset== 'cifar100':
             or_model_weights_path = root_folder+'weights/chks_cifar100/best_checkpoint_resnet34.pth'
+        if dataset== 'tinyImagenet':
+            or_model_weights_path = root_folder+'weights/chks_tiny/best_checkpoint_resnet34.pth'
     
     elif model == 'ViT':
         #raise error not implemented
@@ -159,6 +163,8 @@ class OPT:
     elif model == 'AllCNN':
         if dataset== 'cifar100':
             or_model_weights_path = root_folder+'weights/chks_cifar100/best_checkpoint_AllCNN.pth'
+        if dataset== 'tinyImagenet':
+            or_model_weights_path = root_folder+'weights/chks_tiny/best_model_tiny_AllCNN.pth'
     else:
         raise NotImplementedError
     

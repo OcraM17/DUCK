@@ -195,8 +195,9 @@ def get_AllCNN_trained():
         download_weights_drive(local_path,opt.weight_file_id,opt.root_folder)
     
     weights_pretrained = torch.load(local_path)
-    model = AllCNN()
-
+    model = AllCNN(num_classes=opt.num_classes)
+    model.load_state_dict(weights_pretrained)
+    return model
 
 def get_trained_model():
     if 'resnet' in opt.model:
