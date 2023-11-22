@@ -98,7 +98,7 @@ class OPT:
     
     num_workers = args.num_workers
 
-    method = args.method#'DUCK' #NegativeGradient, RandomLabels,         # Amnesiac, Hiding...
+    method = args.method#'DUCK' #NegativeGradient, RandomLabels,...
     
     # unlearning params
         
@@ -115,8 +115,7 @@ class OPT:
     lambda_2 = args.lambda_2
     target_accuracy = 0.01 
     
-
-    ###MLP
+    #MIA specific
     iter_MIA = 3 #numo f iterations
     verboseMIA = False
 

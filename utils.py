@@ -16,6 +16,7 @@ import torch.nn.functional as F
 from sklearn.metrics import precision_recall_fscore_support
 import os
 import zipfile
+import tarfile
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 
@@ -93,44 +94,52 @@ def simple_mia(sample_loss, members, n_splits=10, random_state=0):
 # Initialize GoogleDrive instance with the credentials
 def download_weights_drive(model_weights_path, weight_file_id, root_folder):
     # Specify the path to your JSON key file
-    json_key_file_path = root_folder+'client_secrets.json'
+    try:
+        if not(os.path.isfile(model_weights_path)):
+            json_key_file_path = root_folder+'client_secrets.json'
 
-    # Check if the JSON key file exists
-    if not os.path.isfile(json_key_file_path):
-        print(f"Error: JSON key file not found at '{json_key_file_path}'")
-        exit(1)
-    # Set the GOOGLE_DRIVE_SETTINGS environment variable to the JSON key file path
-    os.environ['GOOGLE_DRIVE_SETTINGS'] = json_key_file_path
-    # Initialize GoogleAuth instance
-    gauth = GoogleAuth()
+            # Check if the JSON key file exists
+            if not os.path.isfile(json_key_file_path):
+                print(f"Error: JSON key file not found at '{json_key_file_path}'")
+                print('If you do not have the JSON key because you are not authorized, Please run training_oracle.py and training_original.py to get original and pretrained models weights')
+                exit(1)
+            # Set the GOOGLE_DRIVE_SETTINGS environment variable to the JSON key file path
+            os.environ['GOOGLE_DRIVE_SETTINGS'] = json_key_file_path
+            # Initialize GoogleAuth instance
+            gauth = GoogleAuth()
 
-    # Perform user authentication using LocalWebserverAuth
-    gauth.LocalWebserverAuth()
+            # Perform user authentication using LocalWebserverAuth
+            gauth.LocalWebserverAuth()
 
-    # Create GoogleDrive instance
-    drive = GoogleDrive(gauth)
+            # Create GoogleDrive instance
+            print('This will take several minutes: please wait...')
+            drive = GoogleDrive(gauth)
 
-    # Set the ID of the file in your Google Drive
-    file_id = weight_file_id  # Replace with the actual file ID
+            # Set the ID of the file in your Google Drive
+            file_id = weight_file_id  # Replace with the actual file ID
 
-    # Set the path to save the downloaded file
-    download_path = model_weights_path  # Replace with your desired local file path
+            # Set the path to save the downloaded file
+            download_path = model_weights_path  # Replace with your desired local file path
 
-    # Download the file
-    file = drive.CreateFile({'id': file_id})
-    file.GetContentFile(download_path)
+            # Download the file
+            file = drive.CreateFile({'id': file_id})
+            file.GetContentFile(download_path)
 
-    print(f"File '{file['title']}' downloaded to '{download_path}'")
-
-
+            print(f"File '{file['title']}' downloaded to '{download_path}'")
+        else:
+            print('File already downloaded')
+        unzip_file(model_weights_path, opt.root_folder)
+        os.system(model_weights_path)
+    except:
+        import sys
+        sys.exit("Error downloading file, not you are not authorized for accessing weights repo.\nPlease run training_oracle.py and training_original.py to get original and pretrained models weights")
 def get_retrained_model():
 
     local_path = opt.RT_model_weights_path
     #DOWNLOAD ZIP
     if not os.path.exists(local_path):
-        download_weights_drive("rt_models.zip", opt.weight_file_id_RT, opt.root_folder)
-        unzip_file(opt.root_folder + "rt_models.zip", opt.root_folder + "weights/.")
-        os.system("rm rt_models.zip")
+        download_weights_drive(opt.root_folder + "models.tar.gz", opt.weight_file_id, opt.root_folder)
+
     weights_pretrained = torch.load(local_path)
     model = torchvision.models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
     if opt.dataset != 'cifar10':
@@ -150,7 +159,7 @@ def get_resnet_trained():
     local_path = opt.or_model_weights_path
     print('LOAD weights: ', local_path)
     if not os.path.exists(local_path):
-        download_weights_drive(local_path,opt.weight_file_id,opt.root_folder)
+        download_weights_drive(opt.root_folder + "models.tar.gz",opt.weight_file_id,opt.root_folder)
 
     weights_pretrained = torch.load(local_path)
     if opt.model=='resnet18':
@@ -195,7 +204,7 @@ def get_AllCNN_trained():
         download_weights_drive(local_path,opt.weight_file_id,opt.root_folder)
     
     weights_pretrained = torch.load(local_path)
-    model = AllCNN(num_classes=opt.num_classes)
+    model = AllCNN(num_classes=opt.num_classes,dropout_prob=0)
     model.load_state_dict(weights_pretrained)
     return model
 
@@ -207,37 +216,6 @@ def get_trained_model():
     elif opt.model == 'AllCNN':
         model = get_AllCNN_trained()
     return model
-##############################################################################################################
-
-
-
-
-def get_resnet50_trained_on_VGGFace():
-    local_path = "/home/jb/Documents/MachineUnlearning/weights/net_weights_resnet50_VGG.pth"
-    weights_pretrained = torch.load(local_path, map_location=opt.device)
-
-    # load model with pre-trained weights
-    model =torchvision.models.resnet50(weights=None)
-    # Change the final layer
-    model.fc = nn.Sequential(nn.Dropout(p=0.0),nn.Linear(model.fc.in_features, 9))
-
-    model.load_state_dict(weights_pretrained)
-    return model
-
-def get_resnet50_trained_on_VGGFace_10_subjects():
-    #merge with the function above
-    local_path = "/home/jb/Documents/MachineUnlearning/weights/net_weights_resnet50_VGG_10sub.pth"
-    weights_pretrained = torch.load(local_path, map_location=opt.device)
-
-    # load model with pre-trained weights
-    model =torchvision.models.resnet50(weights=None)
-    # Change the final layer
-    model.fc = nn.Sequential(nn.Dropout(p=0.0),nn.Linear(model.fc.in_features, 10))
-
-    model.load_state_dict(weights_pretrained)
-    return model
-
-
 
 def compute_metrics(model, train_loader, forget_loader, retain_loader, all_val_loader, val_fgt_loader, val_retain_loader):
 
@@ -329,5 +307,10 @@ def get_outputs(retain,forget,net,filename,opt=opt):
     pk.dump([out_all_fgt.detach().cpu(),out_all_ret.detach().cpu(),logits_all_fgt.detach().cpu(),logits_all_ret.detach().cpu(),torch.cat(lab_fgt_list).detach().cpu(),torch.cat(lab_ret_list).detach().cpu()],file)
 
 def unzip_file(file_path, destination_path):
-    with zipfile.ZipFile(file_path, 'r') as zip_ref:
-        zip_ref.extractall(destination_path)
+    _ , extension = os.path.splitext(file_path)
+    if extension == '.zip':
+        with zipfile.ZipFile(file_path, 'r') as zip_ref:
+            zip_ref.extractall(destination_path)
+    else:
+        with tarfile.open(file_path) as tar:
+            tar.extractall(destination_path)

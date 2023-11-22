@@ -68,8 +68,6 @@ def compute_accuracy(model, dataloader,device,targ_val = None):
     if targ_val is None:
         labels= np.asarray(labels)
         chance = labels.sum()/labels.shape[0]
-        #print('check',np.asarray(prediction_F1).astype(np.int64).sum(),np.asarray(labels).astype(np.int64).sum())
-        #print('MI:',adjusted_mutual_info_score(np.asarray(labels).astype(np.int64), np.asarray(prediction_F1).astype(np.int64)))
         P,R,F1 = precision_recall_fscore_support(np.asarray(labels).astype(np.int64), np.asarray(prediction_F1).astype(np.int64), average='binary')[:3]
         return correct / total, chance ,P,R,F1
     else:
@@ -123,8 +121,6 @@ def compute_accuracy_SVC(predicted, labels, targ_val = None):
     if targ_val is None:
         labels= np.asarray(labels)
         chance = labels.sum()/labels.shape[0]
-        #print('check',np.asarray(prediction_F1).astype(np.int64).sum(),np.asarray(labels).astype(np.int64).sum())
-        #print('MI:',adjusted_mutual_info_score(np.asarray(labels).astype(np.int64), np.asarray(prediction_F1).astype(np.int64)))
         P,R,F1 = precision_recall_fscore_support(np.asarray(labels).astype(np.int64), np.asarray(predicted).astype(np.int64), average='micro')[:3]
         mutual = compute_mutual_information(np.asarray(labels).astype(np.int64), np.asarray(predicted).astype(np.int64))
         return correct / total, chance ,P,R,F1, mutual
@@ -172,7 +168,6 @@ def collect_prob(data_loader, model,opt):
 
 def get_membership_attack_data(train_loader, test_loader, model,opt):    
     #get membership attack data, this function will return X_r, Y_r, X_f, Y_f
-    # training and test data for MLP
     
     train_prob = collect_prob(train_loader, model,opt)
     test_prob = collect_prob(test_loader, model,opt)
@@ -215,7 +210,7 @@ def get_membership_attack_data(train_loader, test_loader, model,opt):
         print('check input vectors: ',torch.unique(ytrain),torch.unique(ytest),torch.max(xtrain),torch.max(xtest))
     return xtrain,ytrain,xtest,ytest,train_entropy, test_entropy
 
-def get_MIA_MLP(train_loader, test_loader, model, opt):
+def get_MIA_SVC(train_loader, test_loader, model, opt):
     results = []
     for i in range(opt.iter_MIA):
         train_data, train_labels, test_data, test_labels, train_entropy, test_entropy = get_membership_attack_data(train_loader, test_loader, model, opt)
