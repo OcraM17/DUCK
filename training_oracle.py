@@ -42,7 +42,6 @@ transform_test = transforms.Compose([
 ])
 
 transform_train_tiny = transforms.Compose([
-        #transforms.ToPILImage(),
         transforms.RandomCrop(64, padding=4),
         transforms.RandomHorizontalFlip(),
         transforms.RandomRotation(15),

@@ -205,6 +205,7 @@ def get_AllCNN_trained():
     
     weights_pretrained = torch.load(local_path)
     model = AllCNN()
+    model.load_state_dict(weights_pretrained)
 
 
 def get_trained_model():

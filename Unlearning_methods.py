@@ -28,7 +28,6 @@ class BaseMethod:
         self.epochs = opt.epochs_unlearn
         self.target_accuracy = opt.target_accuracy
         self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=opt.scheduler, gamma=0.5)
-        #torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=self.epochs)
         if test is None:
             pass 
         else:
@@ -195,9 +194,7 @@ class DUCK(BaseMethod):
 
         bbone.train(), fc.train()
 
-        #optimizer = optim.SGD(net.parameters(), lr=opt.lr_unlearn, momentum=opt.momentum_unlearn, weight_decay=opt.wd_unlearn)
         optimizer = optim.Adam(self.net.parameters(), lr=opt.lr_unlearn, weight_decay=opt.wd_unlearn)
-        #scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=opt.epochs_unlearn)
         scheduler=torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=opt.scheduler, gamma=0.5)
 
         init = True
@@ -209,18 +206,9 @@ class DUCK(BaseMethod):
             ls = 0
         criterion = nn.CrossEntropyLoss(label_smoothing=ls)
         
-        # with torch.no_grad():
-        #     self.net.eval()
-        #     curr_acc = accuracy(self.net, self.forget)
-        #     tr_acc = accuracy(self.net, self.retain)
-        #     self.net.train()
-        #     print(f"ACCURACY FORGET SET: {curr_acc:.3f}, target is {opt.target_accuracy:.3f}")
-        #     print(f"ACCURACY retain SET: {tr_acc:.3f}")
 
         print('Num batch forget: ',len(self.forget), 'Num batch retain: ',len(self.retain))
         for _ in tqdm(range(opt.epochs_unlearn)):
-            #for n_batch, ((img_ret, lab_ret), (img_fgt, lab_fgt)) in enumerate(zip(retain, forget)):
-            #modified to account for high number of classes in tinyimagenet
             for n_batch, (img_fgt, lab_fgt) in enumerate(self.forget):
                 for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain):
                     img_ret, lab_ret,img_fgt, lab_fgt  = img_ret.to(opt.device), lab_ret.to(opt.device),img_fgt.to(opt.device), lab_fgt.to(opt.device)
@@ -233,7 +221,6 @@ class DUCK(BaseMethod):
                     dists = self.pairwise_cos_dist(logits_fgt, centroids)
 
 
-                    # pick the closest centroid that has class different from lab_fgt (only first time)
                     if init:
                         closest_centroids = torch.argsort(dists, dim=1)
                         tmp = closest_centroids[:, 0]
@@ -246,19 +233,13 @@ class DUCK(BaseMethod):
 
                     dists = dists[torch.arange(dists.shape[0]), closest_centroids[:dists.shape[0]]]
                     loss_fgt = torch.mean(dists) * opt.lambda_1
-                    # outputs_fgt = fc(logits_fgt)
 
                     logits_ret = bbone(img_ret)
                     outputs_ret = fc(logits_ret)
 
-                    #loss_ret = torch.nn.functional.cross_entropy(outputs_ret/opt.temperature, lab_ret) * opt.lambda_2
                     loss_ret = criterion(outputs_ret/opt.temperature, lab_ret)*opt.lambda_2
-                    #print(torch.nn.functional.cross_entropy(outputs_ret, lab_ret))
-                    #loss_fgt = 0
                     loss = loss_ret+ loss_fgt
                     
-                    #print(f"LOSS FGT: {loss_fgt.item():.4f}  -  LOSS RET: {loss_ret.item():.4f}")#
-
                     if n_batch_ret>opt.batch_fgt_ret_ratio:
                         del loss,loss_ret,loss_fgt, logits_fgt, logits_ret, outputs_ret,dists
                         break
@@ -271,10 +252,8 @@ class DUCK(BaseMethod):
             with torch.no_grad():
                 self.net.eval()
                 curr_acc = accuracy(self.net, self.forget)
-                #tr_acc = accuracy(self.net, self.retain)
                 self.net.train()
                 print(f"ACCURACY FORGET SET: {curr_acc:.3f}, target is {opt.target_accuracy:.3f}")
-                #print(f"ACCURACY retain SET: {tr_acc:.3f}")
                 if curr_acc < opt.target_accuracy:
                     flag_exit = True
 

@@ -82,7 +82,7 @@ def publish(data, range_name):
         print(err)
 
 def push_results(args, df_or_model=None, df_un_model=None, df_rt_model=None):
-    blacklist = ["__module__", "__dict__", "__weakref__", "__doc__", "cuda","device", "n_classes", "classes_per_exp", "details", "num_workers", "root_folder", "verboseMLP", "data_path", "save_model", "save_df", "load_unlearned_model", "run_original", "run_unlearn", "run_rt_model", "verboseMIA","args", "or_model_weights_path", "weight_file_id", "weight_file_id_RT", "RT_model_weights_path", "Mutual_information"]
+    blacklist = ["__module__", "__dict__", "__weakref__", "__doc__", "cuda","device", "n_classes", "classes_per_exp", "details", "num_workers", "root_folder", "verboseMIA", "data_path", "save_model", "save_df", "load_unlearned_model", "run_original", "run_unlearn", "run_rt_model", "verboseMIA","args", "or_model_weights_path", "weight_file_id", "weight_file_id_RT", "RT_model_weights_path", "Mutual_information"]
     
     repo = Repository(".")  
     branch_name = repo.head.name.split("/")[-1]

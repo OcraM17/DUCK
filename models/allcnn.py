@@ -103,9 +103,12 @@ class AllCNN(nn.Module):
             Flatten()
         )
         self.classifier = nn.Sequential(
-            nn.Linear(n_filter2, num_classes),
+            nn.Dropout(0.4),
+            nn.Linear(768, 384),
+            nn.ReLU(),
+            nn.Dropout(0.4),
+            nn.Linear(384,num_classes)
         )
-        # self.
 
     def forward(self, x):
         features = self.features(x)

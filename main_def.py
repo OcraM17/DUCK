@@ -2,14 +2,11 @@ from copy import deepcopy
 from dsets import get_dsets_remove_class, get_dsets
 import pandas as pd
 from error_propagation import Complex
-#to clean up
 from utils import accuracy, set_seed, get_retrained_model,get_trained_model
-
-from MIA_code.MIA import get_MIA_MLP
+from MIA_code.MIA import get_MIA_SVC
 from opts import OPT as opt
 import torch.nn as nn
 from tqdm import tqdm
-#from publisher import push_results
 import time
 from Unlearning_methods import choose_method
 from error_propagation import Complex
@@ -35,7 +32,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         
         
         if opt.mode =="HR":
-            df_or_model = get_MIA_MLP(train_fgt_loader, test_loader, original_pretr_model, opt)
+            df_or_model = get_MIA_SVC(train_fgt_loader, test_loader, original_pretr_model, opt)
             df_or_model["test_accuracy"] = accuracy(original_pretr_model, test_loader)
         elif opt.mode =="CR":
             df_or_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
@@ -96,14 +93,11 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
                 torch.save(unlearned_model.state_dict(), f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/models/unlearned_model_{opt.method}_seed_{seed}_class_{'_'.join(map(str, class_to_remove))}.pth")
 
         unlearn_time = time.time() - timestamp1
-        #print(accuracy(unlearned_model, train_fgt_loader))
         print("BEGIN SVC FIT")
         if opt.mode == "HR":
-            df_un_model = get_MIA_MLP(train_fgt_loader, test_loader, unlearned_model, opt)
-            #df_un_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
+            df_un_model = get_MIA_SVC(train_fgt_loader, test_loader, unlearned_model, opt)
         elif opt.mode == "CR":
             df_un_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
-            #df_un_model = get_MIA_MLP(train_fgt_loader, test_fgt_loader, unlearned_model, opt)
 
     
         df_un_model["unlearn_time"] = unlearn_time
@@ -129,7 +123,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         rt_model.to(opt.device)
         rt_model.eval()
         if opt.mode == "HR":
-            df_rt_model = get_MIA_MLP(train_fgt_loader, test_loader, rt_model, opt)
+            df_rt_model = get_MIA_SVC(train_fgt_loader, test_loader, rt_model, opt)
             df_rt_model["test_accuracy"] = accuracy(rt_model, test_loader)
 
         elif opt.mode == "CR":

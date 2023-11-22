@@ -71,7 +71,6 @@ def get_dsets_remove_class(class_to_remove):
     elif opt.dataset == 'tinyImagenet':
         train_set = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/train',transform=transform_dset)
         test_set = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/val/images',transform=transform_dset)
-    #val_set, test_set = torch.utils.data.random_split(held_out, [0.7, 0.3])
 
     elif opt.dataset == 'VGG':
         
@@ -103,7 +102,7 @@ def get_dsets_remove_class(class_to_remove):
         sorted_dict_subj = sorted(dict_subj.items(), key=lambda x:x[1], reverse=True)
         sorted_dict_subj = dict(sorted_dict_subj)
         best_10_subject=[]
-        skip = 100#list(sorted_dict_subj.keys())[9]
+        skip = 100
         for key in sorted_dict_subj.keys():
             if key!=skip:
                 best_10_subject.append(key)
