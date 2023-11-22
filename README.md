@@ -43,7 +43,7 @@ pip install -r requirements.txt
 ## Code Execution
 - Step 1:
       Run 'pyhton3 training_original.py' to train the original model. Choose the dataset in opts
--Step 2:
+- Step 2:
       Run 'sample_fgt_samples.py' to sample the forget sample for HR scenario
 - Step 3:
       Run 'pyhton3 training_oracle.py' to train the retrained model. Choose the dataset in opts. Use --mode CR for class removal and --mode HR for homogeneus removal
