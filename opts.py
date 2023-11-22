@@ -91,7 +91,7 @@ class OPT:
         batch_fgt_ret_ratio = 5
     elif dataset == 'tinyImagenet':
         num_classes = 200
-        batch_fgt_ret_ratio = 60
+        batch_fgt_ret_ratio = 90
     elif dataset == 'VGG':
         num_classes = 10
     
@@ -133,9 +133,9 @@ class OPT:
                 RT_model_weights_path = root_folder+f'weights/chks_cifar10/best_checkpoint_without_{class_to_remove}.pth'
 
         elif dataset== 'tinyImagenet':
-            or_model_weights_path = root_folder+'weights/chks_tiny/best_checkpoint_resnet18.pth'
+            or_model_weights_path = root_folder+'weights/chks_tinyImagenet/best_checkpoint_resnet18.pth'
             if mode == "CR":
-                RT_model_weights_path = root_folder+f'weights/chks_tiny/best_checkpoint_without_{class_to_remove}.pth'
+                RT_model_weights_path = root_folder+f'weights/chks_tinyImagenet/best_checkpoint_without_{class_to_remove}.pth'
             
         elif dataset== 'VGG':
             #to fix
@@ -147,13 +147,13 @@ class OPT:
         if dataset== 'cifar100':
             or_model_weights_path = root_folder+'weights/chks_cifar100/best_checkpoint_resnet50.pth'
         if dataset== 'tinyImagenet':
-            or_model_weights_path = root_folder+'weights/chks_tiny/best_checkpoint_resnet50old.pth'
+            or_model_weights_path = root_folder+'weights/chks_tinyImagenet/new_model_resnet50.pth'
     
     elif model == 'resnet34':
         if dataset== 'cifar100':
             or_model_weights_path = root_folder+'weights/chks_cifar100/best_checkpoint_resnet34.pth'
         if dataset== 'tinyImagenet':
-            or_model_weights_path = root_folder+'weights/chks_tiny/best_checkpoint_resnet34.pth'
+            or_model_weights_path = root_folder+'weights/chks_tinyImagenet/best_checkpoint_resnet34.pth'
     
     elif model == 'ViT':
         #raise error not implemented
@@ -163,7 +163,7 @@ class OPT:
         if dataset== 'cifar100':
             or_model_weights_path = root_folder+'weights/chks_cifar100/best_checkpoint_AllCNN.pth'
         if dataset== 'tinyImagenet':
-            or_model_weights_path = root_folder+'weights/chks_tiny/best_model_tiny_AllCNN.pth'
+            or_model_weights_path = root_folder+'weights/chks_tinyImagenet/best_model_tiny_AllCNN.pth'
     else:
         raise NotImplementedError
     
