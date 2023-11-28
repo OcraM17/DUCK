@@ -52,8 +52,35 @@ pip install -r requirements.txt
 
 If you already have trained and retrained model you can skip the above steps.
 
-Experiments:
-```bash
+If you plan to execute the HR scenario,before launching any unlearning method, you have to execute the script sample_fgt_samples.py for generating the indices of the samples to be forgotten.
+
+The organization of the project should be the followiing:
+```
+/project-root
+  ├── src
+  │   ├── models
+  │   ├── forget_id_files
+  │   ├── MIA_CODE
+  │   ├── out
+  │   │   ├── CR
+  │   │   └── HR
+  │   ├── weights
+  │   │   ├── chks_cifar10
+  │   │   ├── chks_cifar100
+  │   │   ├── chks_tiny
+  │   │   └── chks_vgg
+  │   └── *files*.py
+  ├── Dockerfile
+  ├── requirements.txt  
+  ├── README.md
+  ├── LICENSE
+  └── .gitignore
+```
+
+For reproducing the experiments:
+```
+cd src
+
 python main_def.py --run_name <run_name> --dataset <dataset> --mode <mode> --cuda <cuda> --load_unlearned_model --save_model --save_df --push_results --run_original --run_unlearn --run_rt_model --num_workers <num_workers> --method <method> --model <model> --bsize <bsize> --wd <wd> --momentum <momentum> --lr <lr> --epochs <epochs> --scheduler <scheduler> --temperature <temperature> --lambda_1 <lambda_1> --lambda_2 <lambda_2>
 ```
 Configuration Options:
