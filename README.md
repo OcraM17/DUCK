@@ -23,7 +23,7 @@ DUCK is a cutting-edge machine unlearning algorithm designed to enhance privacy 
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/your-repo.git
+git clone https://github.com/OcraM17/DUCK
 
 # Navigate to the project directory
 cd your-repo
