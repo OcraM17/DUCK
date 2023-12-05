@@ -1,5 +1,7 @@
 # DUCK: Distance-based Unlearning via Centroid Kinematics
+[Marco Cotogni](https://scholar.google.com/citations?user=8PUz5lAAAAAJ&hl=it), [Jacopo Bonato](https://scholar.google.com/citations?user=tC1GFkUAAAAJ&hl=it&authuser=1), [Luigi Sabetta](), [Francesco Pelosin](https://scholar.google.com/citations?user=XJ9QvI4AAAAJ&hl=it&authuser=1) and [Alessandro Nicolosi]()
 
+The paper is available on  [![arxiv](https://img.shields.io/badge/arXiv-red)](https://arxiv.org/abs/2312.02052)
 ## Overview
 
 DUCK is a cutting-edge machine unlearning algorithm designed to enhance privacy in modern artificial intelligence models. Leveraging the power of metric learning, DUCK efficiently removes residual influences of specific data subsets from a neural model's acquired knowledge during training.
@@ -119,3 +121,15 @@ python3 main_def.py --run_name cifar10_HR --dataset cifar10 --mode HR --cuda 0 -
 ![Time](imgs/plot_time.png)
 
 
+## Citation
+If you find our paper or our code useful for your research, please cite:
+```
+@misc{cotogni2023duck,
+      title={DUCK: Distance-based Unlearning via Centroid Kinematics}, 
+      author={Marco Cotogni and Jacopo Bonato and Luigi Sabetta and Francesco Pelosin and Alessandro Nicolosi},
+      year={2023},
+      eprint={2312.02052},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV}
+}
+```
