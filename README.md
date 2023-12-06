@@ -1,5 +1,5 @@
 # DUCK: Distance-based Unlearning via Centroid Kinematics
-[Marco Cotogni](https://scholar.google.com/citations?user=8PUz5lAAAAAJ&hl=it), [Jacopo Bonato](https://scholar.google.com/citations?user=tC1GFkUAAAAJ&hl=it&authuser=1), [Luigi Sabetta](), [Francesco Pelosin](https://scholar.google.com/citations?user=XJ9QvI4AAAAJ&hl=it&authuser=1) and [Alessandro Nicolosi]()
+[Marco Cotogni](https://scholar.google.com/citations?user=8PUz5lAAAAAJ&hl=it), [Jacopo Bonato](https://scholar.google.com/citations?user=tC1GFkUAAAAJ&hl=it&authuser=1), [Luigi Sabetta](https://scholar.google.com/citations?view_op=list_works&hl=en&user=rQBQQjMAAAAJ), [Francesco Pelosin](https://scholar.google.com/citations?user=XJ9QvI4AAAAJ&hl=it&authuser=1) and [Alessandro Nicolosi]()
 
 The paper is available on  [![arxiv](https://img.shields.io/badge/arXiv-red)](https://arxiv.org/abs/2312.02052)
 ## Overview
