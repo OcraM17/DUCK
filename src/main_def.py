@@ -111,7 +111,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
 
         df_un_model["forget_accuracy"] = accuracy(unlearned_model, train_fgt_loader)
         df_un_model["retain_accuracy"] = accuracy(unlearned_model, train_retain_loader)
-        #print(df_un_model)
+        print(df_un_model)
         v_unlearn=df_un_model.mean(0)
         v_unlearn = pd.DataFrame(v_unlearn).T
         print("UNLEARN COMPLETED")

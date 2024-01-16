@@ -17,12 +17,12 @@ def get_args():
     parser.add_argument("--push_results", action='store_true')#set to true to push results
 
     parser.add_argument("--run_original", action='store_true')
-    parser.add_argument("--run_unlearn", action='store_true')
+    parser.add_argument("--run_unlearn", action='store_true')###################
     parser.add_argument("--run_rt_model", action='store_true')
 
     parser.add_argument("--num_workers", type=int, default=4)
 
-    parser.add_argument("--method", type=str, default="DUCK")
+    parser.add_argument("--method", type=str, default="SCRUB")
 
     parser.add_argument("--model", type=str, default='resnet18')
     parser.add_argument("--bsize", type=int, default=256)
