@@ -53,12 +53,22 @@ def get_dsets_remove_class(class_to_remove):
             }
 
     # download and pre-process CIFAR10
-    transform_dset = transforms.Compose(
-        [
-            transforms.ToTensor(),
-            transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
-        ]
-    )
+    if opt.model!='ViT':
+        transform_dset = transforms.Compose(
+            [   
+                transforms.ToTensor(),
+                transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
+            ]
+        )
+    else:
+        transform_dset = transforms.Compose(
+            [   
+                # transforms.RandomHorizontalFlip(),
+                # transforms.RandomCrop(32, padding=4),
+                transforms.Resize(224,antialias=True),
+                transforms.ToTensor(),
+                transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
+            ])
 
     # we split held out - train
     if opt.dataset == 'cifar10':

@@ -95,6 +95,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         unlearn_time = time.time() - timestamp1
         print("BEGIN SVC FIT")
         if opt.mode == "HR":
+            #df_un_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
             df_un_model = get_MIA_SVC(train_fgt_loader, test_loader, unlearned_model, opt)
         elif opt.mode == "CR":
             df_un_model = pd.DataFrame([0],columns=["PLACEHOLDER"])

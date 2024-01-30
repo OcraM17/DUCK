@@ -155,20 +155,32 @@ class DistillKL(nn.Module):
 class SCRUB(BaseMethod):
     def __init__(self, net, retain, forget,test=None,class_to_remove=None):
         super().__init__(net, retain, forget,test=test)
+        
+        #exp fissare soglia al nostro res di retain acc e vedere il tempo 
 
         #definire ottimiz
         
         self.gamma = 0.99#CEweight
         self.alpha = 0.001 #KLweight
         
-        self.sgda_learning_rate = 0.01#cifar10.0005
-        self.lr_decay_epochs = [7]#[3,5,9]
+        self.sgda_learning_rate = 0.002 #0.01#cifar10.0005
+        self.lr_decay_epochs = [9]#[3,5,9]#[7]#
         self.lr_decay_rate = 0.1
         self.optimizer = optim.SGD(self.net.parameters(), lr=self.sgda_learning_rate, momentum=opt.momentum_unlearn, weight_decay=opt.wd_unlearn)
         self.kl_loss = DistillKL(T=4)
-        self.maxim_steps =3 #10cifar100 #2 per cifar10
-        self.epochs= 5 #10 per cifar100
+        self.maxim_steps =10#3 #10cifar100 #2 per cifar10
+        self.epochs= 10
+     #10 per cifar100 #3 per cifar10 
         
+        #PARAMS CR
+                    #lr     lr decay    epochs    maxim_steps   
+        #cifar10    0.0005    [3]    3         2
+        #cifar100   0.005     [9]    10         10
+        #tiny       0.0005    [9]    10         10
+
+        #PARAMS HR  
+        #cifar10    0.0005    [9]    3         2
+        #cifar100   0.005     [9]       10        8 
     def adjust_learning_rate(self,epoch, optimizer):
         """Sets the learning rate to the initial LR decayed by decay rate every steep step"""
         steps = np.sum(epoch > np.asarray(self.lr_decay_epochs))
@@ -231,6 +243,7 @@ class SCRUB(BaseMethod):
             # #self.net.train()
             # print(f'OUT epoch {ep},acc fgt {curr_acc}, acc ret {curr_acc_tr}')
         self.net.eval()
+        print('FINAL',accuracy(self.net, self.test),accuracy(self.net, self.forget))
         return self.net
     
 
@@ -254,12 +267,15 @@ class DUCK(BaseMethod):
         #lambda1 fgt
         #lambda2 retain
 
-
-        bbone = torch.nn.Sequential(*(list(self.net.children())[:-1] + [nn.Flatten()]))
-        if opt.model == 'AllCNN':
-            fc = self.net.classifier
+        if opt.model!='ViT':
+            bbone = torch.nn.Sequential(*(list(self.net.children())[:-1] + [nn.Flatten()]))
+            if opt.model == 'AllCNN':
+                fc = self.net.classifier
+            else:
+                fc = self.net.fc
         else:
-            fc = self.net.fc
+            bbone = self.net
+            fc = self.net.heads
         
         bbone.eval()
 
@@ -271,7 +287,10 @@ class DUCK(BaseMethod):
             cnt=0
             for img_ret, lab_ret in self.retain:
                 img_ret, lab_ret = img_ret.to(opt.device), lab_ret.to(opt.device)
-                logits_ret = bbone(img_ret)
+                if opt.model =='ViT':
+                    logits_ret = bbone.forward_encoder(img_ret)
+                else:
+                    logits_ret = bbone(img_ret)
                 ret_embs.append(logits_ret)
                 labs.append(lab_ret)
                 cnt+=1
@@ -314,8 +333,10 @@ class DUCK(BaseMethod):
                     img_ret, lab_ret,img_fgt, lab_fgt  = img_ret.to(opt.device), lab_ret.to(opt.device),img_fgt.to(opt.device), lab_fgt.to(opt.device)
                     
                     optimizer.zero_grad()
-
-                    logits_fgt = bbone(img_fgt)
+                    if opt.model =='ViT':
+                        logits_fgt = bbone.forward_encoder(img_fgt)
+                    else:
+                        logits_fgt = bbone(img_fgt)
 
                     # compute pairwise cosine distance between embeddings and centroids
                     dists = self.pairwise_cos_dist(logits_fgt, centroids)
@@ -333,8 +354,10 @@ class DUCK(BaseMethod):
 
                     dists = dists[torch.arange(dists.shape[0]), closest_centroids[:dists.shape[0]]]
                     loss_fgt = torch.mean(dists) * opt.lambda_1
-
-                    logits_ret = bbone(img_ret)
+                    if opt.model =='ViT':
+                        logits_ret = bbone.forward_encoder(img_ret)
+                    else:
+                        logits_ret = bbone(img_ret)
                     outputs_ret = fc(logits_ret)
 
                     loss_ret = criterion(outputs_ret/opt.temperature, lab_ret)*opt.lambda_2

@@ -6,7 +6,7 @@ from error_propagation import Complex
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--run_name", type=str, default="test")
-    parser.add_argument("--dataset", type=str, default="cifar10")
+    parser.add_argument("--dataset", type=str, default="cifar100")
     parser.add_argument("--mode", type=str, default="CR")
     parser.add_argument("--cuda", type=int, default=0, help="Select zero-indexed cuda device. -1 to use CPU.")
     
@@ -22,7 +22,7 @@ def get_args():
 
     parser.add_argument("--num_workers", type=int, default=4)
 
-    parser.add_argument("--method", type=str, default="SCRUB")
+    parser.add_argument("--method", type=str, default="DUCK")
 
     parser.add_argument("--model", type=str, default='resnet18')
     parser.add_argument("--bsize", type=int, default=256)
@@ -85,10 +85,10 @@ class OPT:
     data_path = os.path.expanduser('~/data')
     if dataset == 'cifar10':
         num_classes = 10
-        batch_fgt_ret_ratio = 5
+        batch_fgt_ret_ratio = 2
     elif dataset == 'cifar100':
         num_classes = 100
-        batch_fgt_ret_ratio = 5
+        batch_fgt_ret_ratio = 100
     elif dataset == 'tinyImagenet':
         num_classes = 200
         batch_fgt_ret_ratio = 90
@@ -156,9 +156,14 @@ class OPT:
             or_model_weights_path = root_folder+'weights/chks_tinyImagenet/best_checkpoint_resnet34.pth'
     
     elif model == 'ViT':
-        #raise error not implemented
-        raise NotImplementedError
-        
+        if dataset== 'cifar100':
+            or_model_weights_path = root_folder+'weights/chks_cifar100/best_checkpoint_ViT_def.pth'
+        elif dataset== 'cifar10':
+            or_model_weights_path = root_folder+'weights/chks_cifar10/best_checkpoint_ViT.pth'
+        else:
+            raise NotImplementedError
+
+
     elif model == 'AllCNN':
         if dataset== 'cifar100':
             or_model_weights_path = root_folder+'weights/chks_cifar100/best_checkpoint_AllCNN.pth'
