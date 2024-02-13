@@ -88,7 +88,7 @@ class OPT:
         batch_fgt_ret_ratio = 2
     elif dataset == 'cifar100':
         num_classes = 100
-        batch_fgt_ret_ratio = 100
+        batch_fgt_ret_ratio = 5
     elif dataset == 'tinyImagenet':
         num_classes = 200
         batch_fgt_ret_ratio = 90
