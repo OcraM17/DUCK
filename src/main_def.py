@@ -96,6 +96,8 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         print("BEGIN SVC FIT")
         if opt.mode == "HR":
             df_un_model = get_MIA_SVC(train_fgt_loader, test_loader, unlearned_model, opt)
+            #df_un_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
+
         elif opt.mode == "CR":
             df_un_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
 
@@ -178,6 +180,8 @@ if __name__ == "__main__":
             print(f"Unlearned: {row_unl}")
             if row_unl is not None:
                 df_unlearned_total.append(row_unl)
+                print(f"Unlearned test test acc: {row_unl['test_accuracy']}")
+                print(f"Unlearned forget test acc: {row_unl['forget_accuracy']}")
             if row_orig is not None:
                 df_orig_total.append(row_orig)
             if row_ret is not None:
@@ -202,6 +206,8 @@ if __name__ == "__main__":
                     df_orig_total.append(row_orig)
                 if row_unl is not None:
                     print(f"Unlearned retain test acc: {row_unl['retain_test_accuracy']}")
+                    print(f"Unlearned forget test acc: {row_unl['forget_test_accuracy']}")
+
                     df_unlearned_total.append(row_unl)
                 if row_ret is not None:
                     print(f"Retrained retain test acc: {row_ret['retain_test_accuracy']}")
@@ -226,9 +232,9 @@ if __name__ == "__main__":
                 a_t = Complex(means["test_accuracy"], std_devs["test_accuracy"])
                 a_f = Complex(means["forget_accuracy"], std_devs["forget_accuracy"])
                 a_or = opt.a_or[opt.dataset][0]
-                deltaF1 = abs(dfs[name]["F1"]*100-50).mean()
-                deltaF1_std = abs(dfs[name]["F1"]*100-50).std()
-                print(f"deltaF1: {deltaF1:.4f} \pm {deltaF1_std:.4f}")
+                # deltaF1 = abs(dfs[name]["F1"]*100-50).mean()
+                # deltaF1_std = abs(dfs[name]["F1"]*100-50).std()
+                # print(f"deltaF1: {deltaF1:.4f} \pm {deltaF1_std:.4f}")
 
             elif opt.mode == "CR":
                 a_t = Complex(means["retain_test_accuracy"], std_devs["retain_test_accuracy"])

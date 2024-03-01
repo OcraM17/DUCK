@@ -103,11 +103,11 @@ class AllCNN(nn.Module):
             Flatten()
         )
         self.classifier = nn.Sequential(
+            #nn.Dropout(dropout_prob),
+            #nn.Linear(768, 384),
+            #nn.ReLU(),
             nn.Dropout(dropout_prob),
-            nn.Linear(768, 384),
-            nn.ReLU(),
-            nn.Dropout(dropout_prob),
-            nn.Linear(384,num_classes)
+            nn.Linear(192,num_classes)
         )
 
     def forward(self, x):

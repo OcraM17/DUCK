@@ -6,8 +6,8 @@ from error_propagation import Complex
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--run_name", type=str, default="test")
-    parser.add_argument("--dataset", type=str, default="cifar10")
-    parser.add_argument("--mode", type=str, default="CR")
+    parser.add_argument("--dataset", type=str, default="cifar100")
+    parser.add_argument("--mode", type=str, default="HR")
     parser.add_argument("--cuda", type=int, default=0, help="Select zero-indexed cuda device. -1 to use CPU.")
     
     parser.add_argument("--load_unlearned_model",action='store_true')
@@ -25,14 +25,14 @@ def get_args():
     parser.add_argument("--method", type=str, default="DUCK")
 
     parser.add_argument("--model", type=str, default='resnet18')
-    parser.add_argument("--bsize", type=int, default=256)
+    parser.add_argument("--bsize", type=int, default=1024)
     parser.add_argument("--wd", type=float, default=0.0)
     parser.add_argument("--momentum", type=float, default=0.9)
-    parser.add_argument("--lr", type=float, default=0.0004)
+    parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--epochs", type=int, default=200, help='Num of epochs, for unlearning algorithms it is the max num of epochs') # <------- epochs train
-    parser.add_argument("--scheduler", type=int, nargs='+', default=[25,40])
+    parser.add_argument("--scheduler", type=int, nargs='+', default=[300])
     parser.add_argument("--temperature", type=float, default=2)
-    parser.add_argument("--lambda_1", type=float, default=1)
+    parser.add_argument("--lambda_1", type=float, default=1.)
     parser.add_argument("--lambda_2", type=float, default=1.4)
 
     options = parser.parse_args()
@@ -56,6 +56,7 @@ class OPT:
             class_to_remove = [[i*1] for i in range(10)]
         elif dataset == 'cifar100':
             class_to_remove = [[i*10] for i in range(10)]
+            #class_to_remove = [[i] for i in range(10)]
         elif dataset == 'tinyImagenet':
             class_to_remove = [[i*20] for i in range(10)] 
    
@@ -91,7 +92,7 @@ class OPT:
         batch_fgt_ret_ratio = 5
     elif dataset == 'tinyImagenet':
         num_classes = 200
-        batch_fgt_ret_ratio = 90
+        batch_fgt_ret_ratio = 30
     elif dataset == 'VGG':
         num_classes = 10
     
