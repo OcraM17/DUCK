@@ -164,12 +164,12 @@ class SCRUB(BaseMethod):
         self.alpha = 0.001 #KLweight
         
         self.sgda_learning_rate = 0.002 #0.01#cifar10.0005
-        self.lr_decay_epochs = [9]#[3,5,9]#[7]#
+        self.lr_decay_epochs = [1,3]#[3,5,9]#[7]#
         self.lr_decay_rate = 0.1
         self.optimizer = optim.SGD(self.net.parameters(), lr=self.sgda_learning_rate, momentum=opt.momentum_unlearn, weight_decay=opt.wd_unlearn)
         self.kl_loss = DistillKL(T=4)
-        self.maxim_steps =10#3 #10cifar100 #2 per cifar10
-        self.epochs= 10
+        self.maxim_steps =5#3 #10cifar100 #2 per cifar10
+        self.epochs= 5
      #10 per cifar100 #3 per cifar10 
         
         #PARAMS CR
@@ -181,6 +181,8 @@ class SCRUB(BaseMethod):
         #PARAMS HR  
         #cifar10    0.0005    [9]    3         2
         #cifar100   0.005     [9]       10        8 
+        #cifarv2    0.005     [5,10]       20        20 dec 0.5
+        #tiny       0.002   [1,3]       5        5
     def adjust_learning_rate(self,epoch, optimizer):
         """Sets the learning rate to the initial LR decayed by decay rate every steep step"""
         steps = np.sum(epoch > np.asarray(self.lr_decay_epochs))
@@ -237,11 +239,11 @@ class SCRUB(BaseMethod):
                 print('ACC fgt I step',curr_acc)
             #optim minimize, retain dataloader CE e kl
             self.optim_net(self.retain,alpha=self.alpha, gamma=self.gamma)
-            # #self.net.eval()
-            # curr_acc = accuracy(self.net, self.forget)
-            # curr_acc_tr = accuracy(self.net, self.retain)
-            # #self.net.train()
-            # print(f'OUT epoch {ep},acc fgt {curr_acc}, acc ret {curr_acc_tr}')
+            self.net.eval()
+            curr_acc = accuracy(self.net, self.forget)
+            curr_acc_tr = accuracy(self.net, self.test)
+            self.net.train()
+            print(f'OUT epoch {ep},acc fgt {curr_acc}, acc ret {curr_acc_tr}')
         self.net.eval()
         print('FINAL',accuracy(self.net, self.test),accuracy(self.net, self.forget))
         return self.net
@@ -377,7 +379,7 @@ class DUCK(BaseMethod):
                 curr_acc = accuracy(self.net, self.forget)
                 self.net.train()
                 print(f"ACCURACY FORGET SET: {curr_acc:.3f}, target is {opt.target_accuracy:.3f}")
-                if curr_acc < opt.target_accuracy:
+                if curr_acc < 0.005:#opt.target_accuracy:
                     flag_exit = True
 
             if flag_exit:
@@ -385,8 +387,31 @@ class DUCK(BaseMethod):
 
             init = False
             scheduler.step()
-
-
+        from torch.utils.data import DataLoader
+        self.net.train()
+        # copy self.retain dataloader changing batch size to 512
+        self.retain_copy = torch.utils.data.DataLoader(self.retain.dataset, batch_size=64, shuffle=True)
+        optimizer = optim.Adam(self.net.parameters(), lr=0.0005, weight_decay=opt.wd_unlearn)
+        epochs = 2
+        scheduler=torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs*len(self.retain_copy))
+        limit = len(self.retain_copy)//2
+        for _ in tqdm(range(2)):
+            for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain_copy):
+                img_ret, lab_ret = img_ret.to(opt.device), lab_ret.to(opt.device)
+                optimizer.zero_grad()
+                logits_ret = bbone(img_ret)
+                outputs_ret = fc(logits_ret)
+                loss = criterion(outputs_ret, lab_ret)
+                loss.backward()
+                optimizer.step()
+                scheduler.step()
+                # if n_batch_ret>limit:
+                #     break
+            with torch.no_grad():
+                self.net.eval()
+                curr_acc = accuracy(self.net, self.forget)
+                self.net.train()
+                print(f"ACCURACY forget SET: {curr_acc:.3f}")
         self.net.eval()
         return self.net
 
