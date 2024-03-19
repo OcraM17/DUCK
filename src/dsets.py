@@ -146,7 +146,7 @@ def get_dsets_remove_class(class_to_remove):
     
     # all train and its subsets
     all_train_loader = DataLoader(train_set, batch_size=opt.batch_size, shuffle=False, num_workers=opt.num_workers)
-    train_fgt_loader = DataLoader(forget_set, batch_size=opt.batch_size, shuffle=True, num_workers=opt.num_workers)
+    train_fgt_loader = DataLoader(forget_set, batch_size=opt.batch_size, shuffle=False, num_workers=opt.num_workers)
     train_retain_loader = DataLoader(retain_set, batch_size=opt.batch_size, shuffle=True, num_workers=opt.num_workers)
 
 

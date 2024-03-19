@@ -267,3 +267,128 @@ class DUCK(BaseMethod):
         self.net.eval()
         return self.net
 
+    def run_bias(self):
+        """compute embeddings"""
+        #lambda1 fgt
+        #lambda2 retain
+
+
+        bbone = torch.nn.Sequential(*(list(self.net.children())[:-1] + [nn.Flatten()]))
+        if opt.model == 'AllCNN':
+            fc = self.net.classifier
+        else:
+            fc = self.net.fc
+        
+        bbone.eval()
+
+ 
+        # embeddings of retain set
+        with torch.no_grad():
+            ret_embs=[]
+            labs=[]
+            cnt=0
+            for img_ret, lab_ret in self.retain:
+                img_ret, lab_ret = img_ret.to(opt.device), lab_ret.to(opt.device)
+                logits_ret = bbone(img_ret)
+                ret_embs.append(logits_ret)
+                labs.append(lab_ret)
+                cnt+=1
+                if cnt>=10:
+                    break
+            ret_embs=torch.cat(ret_embs)
+            labs=torch.cat(labs)
+        
+
+        # compute centroids from embeddings
+        centroids=[]
+        for i in range(opt.num_classes):
+            if type(self.class_to_remove) is list:
+                if i not in self.class_to_remove:
+                    centroids.append(ret_embs[labs==i].mean(0))
+            else:
+                centroids.append(ret_embs[labs==i].mean(0))
+        centroids=torch.stack(centroids)
+  
+
+        bbone.train(), fc.train()
+
+        optimizer = optim.Adam(self.net.parameters(), lr=opt.lr_unlearn, weight_decay=opt.wd_unlearn)
+        scheduler=torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=opt.scheduler, gamma=0.5)
+
+        init = True
+        flag_exit = False
+        all_closest_centroids = []
+        if opt.dataset == 'tinyImagenet':
+            ls = 0.2
+        else:
+            ls = 0
+        criterion = nn.CrossEntropyLoss(label_smoothing=ls)
+
+        print('Num batch forget: ',len(self.forget), 'Num batch retain: ',len(self.retain))
+        for _ in tqdm(range(opt.epochs_unlearn)):
+            for n_batch, (img_fgt, lab_fgt) in enumerate(self.forget):
+                for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain):
+                    img_ret, lab_ret,img_fgt, lab_fgt  = img_ret.to(opt.device), lab_ret.to(opt.device),img_fgt.to(opt.device), lab_fgt.to(opt.device)
+
+                    vec = torch.cat([img_fgt,img_ret])
+                    optimizer.zero_grad()
+                    tt = bbone(vec)
+
+                    logits_ret = bbone(img_ret)
+                    outputs_ret = fc(tt[200:])
+                    logits_fgt = tt[:200]
+
+                    # compute pairwise cosine distance between embeddings and centroids
+                    dists = self.pairwise_cos_dist(logits_fgt, centroids)
+
+
+                    if init and n_batch_ret==0:
+                        closest_centroids = torch.argsort(dists, dim=1)
+                        tmp = closest_centroids[:, 0]
+                        closest_centroids = torch.where(tmp == lab_fgt, closest_centroids[:, 1], tmp)
+
+                
+
+                        closest_centroids = 1*torch.ones_like(closest_centroids)
+                        all_closest_centroids.append(closest_centroids)
+                        closest_centroids = all_closest_centroids[-1]
+                    else:
+                        closest_centroids = all_closest_centroids[n_batch]
+
+
+                    dists = dists[torch.arange(dists.shape[0]), closest_centroids[:dists.shape[0]]]
+                    loss_fgt = torch.mean(dists) * opt.lambda_1
+
+
+                    loss_ret = criterion(outputs_ret/opt.temperature, lab_ret)*opt.lambda_2
+                    loss = loss_ret+ loss_fgt
+                    
+                    if n_batch_ret>opt.batch_fgt_ret_ratio:
+                        del loss,loss_ret,loss_fgt, logits_fgt, logits_ret, outputs_ret,dists
+                        break
+
+                    loss.backward()
+                    optimizer.step()
+
+
+                # evaluate accuracy on forget set every batch
+            with torch.no_grad():
+                self.net.eval()
+                print(torch.argmax(fc(bbone(img_fgt)), axis=1))
+                curr_acc = accuracy(self.net, self.forget)
+                print(f'ACCURACY Test SET: {accuracy(self.net, self.test):.3f}')
+                self.net.train()
+                print(f"ACCURACY FORGET SET: {curr_acc:.3f}, target is {opt.target_accuracy:.3f}")
+                
+                if curr_acc < opt.target_accuracy:
+                    flag_exit = True
+
+            if flag_exit:
+                break
+
+            init = False
+            scheduler.step()
+
+
+        self.net.eval()
+        return self.net

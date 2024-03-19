@@ -85,7 +85,7 @@ class OPT:
     data_path = os.path.expanduser('~/data')
     if dataset == 'cifar10':
         num_classes = 10
-        batch_fgt_ret_ratio = 5
+        batch_fgt_ret_ratio = 50
     elif dataset == 'cifar100':
         num_classes = 100
         batch_fgt_ret_ratio = 5
