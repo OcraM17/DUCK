@@ -57,7 +57,7 @@ class OPT:
         elif dataset == 'cifar100':
             class_to_remove = [[i*10] for i in range(10)]
         elif dataset == 'tinyImagenet':
-            class_to_remove = [[i*20] for i in range(10)] 
+            class_to_remove = [[80]]#[[i*20] for i in range(10)] 
    
         #class_to_remove = [[i for i in range(100)][:j] for j in [1]+[z*10 for z in range(1,10)]+[98]]
         #print('Class to remove iter. : ', class_to_remove)
@@ -116,7 +116,7 @@ class OPT:
     target_accuracy = 0.01 
     
     #MIA specific
-    iter_MIA = 3 #numo f iterations
+    iter_MIA = 50 #numo f iterations
     verboseMIA = False
 
     weight_file_id = '1tTdpVS3was0RTZszQfLt2tGdixwd3Oy6'
@@ -135,7 +135,7 @@ class OPT:
         elif dataset== 'tinyImagenet':
             or_model_weights_path = root_folder+'weights/chks_tinyImagenet/best_checkpoint_resnet18.pth'
             if mode == "CR":
-                RT_model_weights_path = root_folder+f'weights/chks_tinyImagenet/best_checkpoint_without_{class_to_remove}.pth'
+                RT_model_weights_path = root_folder+f'weights/chks_tinyImagenet/best_checkpoint_without_{class_to_remove[0]}.pth'
             
         elif dataset== 'VGG':
             #to fix

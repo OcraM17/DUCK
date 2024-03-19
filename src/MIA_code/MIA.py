@@ -4,6 +4,8 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
+from torchvision import transforms
+from opts import OPT as opt
 from sklearn.metrics import precision_recall_fscore_support
 from sklearn.metrics import adjusted_mutual_info_score
 from sklearn.svm import SVC
@@ -139,8 +141,8 @@ def training_SVC(model,X_train, X_test, z_train, z_test,opt):
     results = best_model.predict(X_test)
 
     accuracy,chance, precision, recall,F1, mutual = compute_accuracy_SVC(results, z_test)
-    accuracy_test_ex = compute_accuracy_SVC(results, z_test,0)
-    accuracy_train_ex = compute_accuracy_SVC(results, z_test,1)
+    accuracy_test_ex =0# compute_accuracy_SVC(results, z_test,0)
+    accuracy_train_ex =0# compute_accuracy_SVC(results, z_test,1)
 
     if opt.verboseMIA:
         print(f'Test accuracy: {round(accuracy,3)}')
@@ -150,8 +152,21 @@ def training_SVC(model,X_train, X_test, z_train, z_test,opt):
     print(f'Test F1: {round(F1,3)}')
     return accuracy,chance,accuracy_test_ex,accuracy_train_ex, precision, recall,F1, mutual
 
+def expand_data(data):
+    data1 = torch.zeros_like(data)
+    data2 = torch.zeros_like(data)
+    data3 = torch.zeros_like(data)
+    tranf1 = transforms.RandomCrop(64, padding=8)
+    transf2 = transforms.Compose([transforms.RandomHorizontalFlip()])
+    #transf3 = transforms.RandomRotation(degrees=(-50, 50))
+    for i in range(data.shape[0]):
+        data1[i] = tranf1(data[i])
+        data2[i] = transf2(data[i])
+        #data3[i] = transf3(data[i])
+    data = torch.cat((data,data1,data2),dim=0)
+    return data
 
-def collect_prob(data_loader, model,opt):
+def collect_prob(data_loader, model,opt,exp=False):
     
     data_loader = torch.utils.data.DataLoader(data_loader.dataset, batch_size=256, shuffle=True)
     prob = []
@@ -159,11 +174,14 @@ def collect_prob(data_loader, model,opt):
 
     with torch.no_grad():
         for idx, batch in enumerate(data_loader):
-            batch = [tensor.to(opt.device) for tensor in batch]
             data, target = batch
-            output = model(data)
+            if exp:
+                data = expand_data(data)
+            output = model(data.to(opt.device))
             prob.append(F.softmax(output, dim=1).data)
-        prob=torch.cat(prob)            
+        prob=torch.cat(prob)       
+        for i in range(prob.shape[0]):
+            prob[i] = torch.roll(prob[i],np.random.randint(0,prob.shape[1]),dims=0)         
     return prob
 
 def get_membership_attack_data(train_loader, test_loader, model,opt):    
@@ -210,14 +228,111 @@ def get_membership_attack_data(train_loader, test_loader, model,opt):
         print('check input vectors: ',torch.unique(ytrain),torch.unique(ytest),torch.max(xtrain),torch.max(xtest))
     return xtrain,ytrain,xtest,ytest,train_entropy, test_entropy
 
-def get_MIA_SVC(train_loader, test_loader, model, opt):
+# def get_MIA_SVC(train_loader, test_loader, model, opt):
+#     results = []
+#     for i in range(opt.iter_MIA):
+#         train_data, train_labels, test_data, test_labels, train_entropy, test_entropy = get_membership_attack_data(train_loader, test_loader, model, opt)
+        
+#         model_SVC = SVC( tol = 1e-4, max_iter=4000, class_weight='balanced', random_state=i) 
+#         accuracy, chance,accuracy_test_ex,accuracy_train_ex, P,R,F1, mutual = training_SVC(model_SVC, train_data, test_data, train_labels, test_labels, opt)
+#         results.append(np.asarray([accuracy, chance,accuracy_test_ex,accuracy_train_ex,P,R,F1, mutual,train_entropy, test_entropy]))
+    
+#     results = np.asarray(results)
+#     df = pd.DataFrame(results,columns=['accuracy','chance','acc | test ex','acc | train ex','precision','recall','F1', 'Mutual', "Train Entropy", "Test Entropy"])
+#     return df
+
+mean = {
+        'cifar10': (0.4914, 0.4822, 0.4465),
+        'cifar100': (0.5071, 0.4867, 0.4408),
+        'tinyImagenet': (0.485, 0.456, 0.406),
+        }
+
+std = {
+        'cifar10': (0.2023, 0.1994, 0.2010),
+        'cifar100': (0.2675, 0.2565, 0.2761),
+        'tinyImagenet': (0.229, 0.224, 0.225),
+        }
+
+list_test = [
+        transforms.ToTensor(),
+        transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
+    ]
+transform_test= transforms.Compose(list_test)
+
+
+
+# transform_dset = transforms.Compose(
+#         [   transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4),
+#             transforms.RandomHorizontalFlip(),
+#             transforms.ToTensor(),
+#             transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
+#         ]
+#     )
+def get_membership_attack_data_CR(fgt_loader,fgt_loader_t,model,opt,test_data=None):    
+    #get membership attack data, this function will return X_r, Y_r, X_f, Y_f
+
+    fgt_loader.dataset.transform = transform_test
+    #print(fgt_loader.dataset.transform)
+    #### fgt test to expand
+
+
+
+    fgt_prob = collect_prob(fgt_loader, model,opt,exp=False)
+    #set exp to True in Tiny
+    fgt_prob_t = collect_prob(fgt_loader_t, model,opt,exp=False)
+
+    X_fgt = fgt_prob.cpu()
+    Y_fgt = torch.zeros(len(fgt_prob),dtype=torch.int64)
+
+    X_fgt_t = fgt_prob_t.cpu()
+    Y_fgt_t = torch.ones(len(fgt_prob_t),dtype=torch.int64)
+
+
+    
+    N_fgt_t = X_fgt_t.shape[0]
+
+
+    np.random.shuffle(X_fgt_t)
+    np.random.shuffle(X_fgt)
+    X_fgt = X_fgt[:N_fgt_t*3,:]
+    Y_fgt = Y_fgt[:N_fgt_t*3]
+    N_fgt = X_fgt.shape[0]
+
+
+    n_samp = int(0.8*N_fgt) 
+    n_sampt = int(0.8*N_fgt_t)
+
+    xtrain = torch.cat([X_fgt_t[:n_sampt,:],X_fgt[:n_samp,:]],dim=0)
+    ytrain = torch.cat([Y_fgt_t[:n_sampt],Y_fgt[:n_samp]],dim=0)
+
+    xtest = X_fgt_t[n_sampt:,:]#torch.cat([X_fgt_t[n_sampt:,:],X_fgt[n_samp:,:]],dim=0)
+    ytest = Y_fgt_t[n_sampt:]#torch.cat([Y_fgt_t[n_sampt:],Y_fgt[n_samp:]],dim=0)
+
+
+    # Compute entropy
+    entropy=torch.sum(-fgt_prob*torch.log(torch.clamp(fgt_prob,min=1e-5)),dim=1)
+    fgt_entropy = torch.mean(entropy).item()
+    fgt_entropy_std = torch.std(entropy).item()
+    print(f"fgt entropy: {fgt_entropy} +- {fgt_entropy_std}")
+    entropy=torch.sum(-fgt_prob_t*torch.log(torch.clamp(fgt_prob_t,min=1e-5)),dim=1)
+    fgt_entropy_t = torch.mean(entropy).item()
+    fgt_entropy_std = torch.std(entropy).item()
+    print(f"fgt_t entropy: {fgt_entropy_t} +- {fgt_entropy_std}")
+
+
+    print('check input vectors: ',xtrain.shape,xtest.shape,np.unique(ytrain,return_counts=True))
+    return xtrain,ytrain,xtest,ytest
+
+def get_MIA_SVC(train_loader, test_loader, model, opt,fgt_loader=None,fgt_loader_t=None):
     results = []
     for i in range(opt.iter_MIA):
-        train_data, train_labels, test_data, test_labels, train_entropy, test_entropy = get_membership_attack_data(train_loader, test_loader, model, opt)
-        
-        model_SVC = SVC( tol = 1e-4, max_iter=4000, class_weight='balanced', random_state=i) 
+        if opt.mode == "HR":
+            train_data, train_labels, test_data, test_labels, train_entropy, test_entropy = get_membership_attack_data(train_loader, test_loader, model, opt)
+        elif opt.mode == "CR":
+            train_data, train_labels, test_data, test_labels = get_membership_attack_data_CR(fgt_loader,fgt_loader_t, model, opt, test_data=test_loader)
+        model_SVC = SVC( tol = 1e-4, max_iter=4000, random_state=i) #class_weight='balanced'
         accuracy, chance,accuracy_test_ex,accuracy_train_ex, P,R,F1, mutual = training_SVC(model_SVC, train_data, test_data, train_labels, test_labels, opt)
-        results.append(np.asarray([accuracy, chance,accuracy_test_ex,accuracy_train_ex,P,R,F1, mutual,train_entropy, test_entropy]))
+        results.append(np.asarray([accuracy, chance,accuracy_test_ex,accuracy_train_ex,P,R,F1, mutual,0, 0]))
     
     results = np.asarray(results)
     df = pd.DataFrame(results,columns=['accuracy','chance','acc | test ex','acc | train ex','precision','recall','F1', 'Mutual', "Train Entropy", "Test Entropy"])
