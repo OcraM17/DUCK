@@ -262,7 +262,27 @@ class DUCK(BaseMethod):
 
             init = False
             scheduler.step()
-
+        self.net.train()
+        # copy self.retain dataloader changing batch size to 512
+        self.retain_copy = torch.utils.data.DataLoader(self.retain.dataset, batch_size=512, shuffle=True)
+        optimizer = optim.Adam(self.net.parameters(), lr=0.00001, weight_decay=opt.wd_unlearn)
+        epochs = 2
+        scheduler=torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs*len(self.retain_copy))
+        for _ in tqdm(range(epochs)):
+            for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain_copy):
+                img_ret, lab_ret = img_ret.to(opt.device), lab_ret.to(opt.device)
+                optimizer.zero_grad()
+                logits_ret = bbone(img_ret)
+                outputs_ret = fc(logits_ret)
+                loss = criterion(outputs_ret, lab_ret)
+                loss.backward()
+                optimizer.step()
+                scheduler.step()
+            with torch.no_grad():
+                self.net.eval()
+                curr_acc = accuracy(self.net, self.forget)
+                self.net.train()
+                print(f"ACCURACY forget SET: {curr_acc:.3f}")
 
         self.net.eval()
         return self.net

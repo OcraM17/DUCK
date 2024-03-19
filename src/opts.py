@@ -25,15 +25,15 @@ def get_args():
     parser.add_argument("--method", type=str, default="DUCK")
 
     parser.add_argument("--model", type=str, default='resnet18')
-    parser.add_argument("--bsize", type=int, default=256)
+    parser.add_argument("--bsize", type=int, default=1024)
     parser.add_argument("--wd", type=float, default=0.0)
     parser.add_argument("--momentum", type=float, default=0.9)
-    parser.add_argument("--lr", type=float, default=0.0004)
-    parser.add_argument("--epochs", type=int, default=200, help='Num of epochs, for unlearning algorithms it is the max num of epochs') # <------- epochs train
+    parser.add_argument("--lr", type=float, default=0.001)
+    parser.add_argument("--epochs", type=int, default=25, help='Num of epochs, for unlearning algorithms it is the max num of epochs') # <------- epochs train
     parser.add_argument("--scheduler", type=int, nargs='+', default=[25,40])
     parser.add_argument("--temperature", type=float, default=2)
-    parser.add_argument("--lambda_1", type=float, default=1)
-    parser.add_argument("--lambda_2", type=float, default=1.4)
+    parser.add_argument("--lambda_1", type=float, default=1.5)
+    parser.add_argument("--lambda_2", type=float, default=1.5)
 
     options = parser.parse_args()
     return options
@@ -125,23 +125,23 @@ class OPT:
             or_model_weights_path = root_folder+'weights/chks_cifar100/best_checkpoint_resnet18.pth'
    
             if mode == "CR":
-                RT_model_weights_path = root_folder+f'weights/chks_cifar100/best_checkpoint_without_{class_to_remove}.pth'
+                RT_model_weights_path = root_folder+f'weights/chks_cifar100/best_checkpoint_without_{class_to_remove[0]}.pth'
         
         elif dataset== 'cifar10':
             or_model_weights_path = root_folder+'weights/chks_cifar10/best_checkpoint_resnet18.pth'
             if mode == "CR":
-                RT_model_weights_path = root_folder+f'weights/chks_cifar10/best_checkpoint_without_{class_to_remove}.pth'
+                RT_model_weights_path = root_folder+f'weights/chks_cifar10/best_checkpoint_without_{class_to_remove[0]}.pth'
 
         elif dataset== 'tinyImagenet':
             or_model_weights_path = root_folder+'weights/chks_tinyImagenet/best_checkpoint_resnet18.pth'
             if mode == "CR":
-                RT_model_weights_path = root_folder+f'weights/chks_tinyImagenet/best_checkpoint_without_{class_to_remove}.pth'
+                RT_model_weights_path = root_folder+f'weights/chks_tinyImagenet/best_checkpoint_without_{class_to_remove[0]}.pth'
             
         elif dataset== 'VGG':
             #to fix
             or_model_weights_path = root_folder+'weights/chks_VGG/best_checkpoint_resnet18.pth'
             if mode == "CR":
-                RT_model_weights_path = root_folder+f'weights/chks_VGG/best_checkpoint_without_{class_to_remove}.pth'
+                RT_model_weights_path = root_folder+f'weights/chks_VGG/best_checkpoint_without_{class_to_remove[0]}.pth'
     
     elif model == 'resnet50':
         if dataset== 'cifar100':

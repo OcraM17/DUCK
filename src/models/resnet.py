@@ -147,3 +147,75 @@ def resnet101():
 def resnet152():
     """ return a ResNet 152 object
     """
+
+class ModifiedResNet(torch.nn.Module):
+    def __init__(self, original_model):
+        super(ModifiedResNet, self).__init__()
+        self.conv1 = original_model.conv1
+        self.bn1 = original_model.bn1
+        self.relu = original_model.relu
+        self.maxpool = original_model.maxpool
+
+
+        self.layer1 = original_model.layer1
+        self.layer2 = original_model.layer2
+        self.layer3 = original_model.layer3
+        self.layer4 = original_model.layer4
+        self.avgpool = original_model.avgpool
+        self.fc = original_model.fc
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.bn1(x)
+        conv1_out = self.relu(x)  # Features after conv1
+        x = self.maxpool(conv1_out)
+
+        layer_1_out = self.layer1(x)
+        layer_2_out = self.layer2(layer_1_out)
+        layer_3_out = self.layer3(layer_2_out)
+        layer_4_out = self.layer4(layer_3_out)
+        avg_pool_out=self.avgpool(layer_4_out)
+        x=torch.flatten(avg_pool_out, 1)
+        fc_out=self.fc(x)
+
+
+        return fc_out
+
+    def mod_forward(self, x): #Extract features after conv1
+        x = self.conv1(x)
+        x = self.bn1(x)
+        conv1_out = self.relu(x)  # Features after conv1
+        x = self.maxpool(conv1_out)
+
+        layer_1_out = self.layer1(x)
+        layer_2_out = self.layer2(layer_1_out)
+        layer_3_out = self.layer3(layer_2_out)
+        layer_4_out = self.layer4(layer_3_out)
+        avg_pool_out=self.avgpool(layer_4_out)
+        x=torch.flatten(avg_pool_out, 1)
+        fc_out=self.fc(x)
+
+
+        return conv1_out, layer_2_out, avg_pool_out, fc_out
+    
+    def extract_feat(self, loader):
+        c1, l2, avg, outputs, labels_=[],[],[],[], []
+        self.eval()
+        with torch.no_grad():
+            for batch in loader:
+                images, labels = batch
+                images = images.to('cuda')
+                labels = labels.to('cuda')
+                conv1_out, layer_2_out, avg_pool_out, fc_out = self.mod_forward(images)
+                c1.append(conv1_out)
+                l2.append(layer_2_out)
+                avg.append(avg_pool_out)
+                outputs.append(fc_out)
+                labels_.append(labels)
+        c1 = torch.cat(c1)
+        l2 = torch.cat(l2)
+        avg = torch.cat(avg)
+        outputs = torch.cat(outputs)
+        labels_ = torch.cat(labels_)
+        return c1, l2, avg, outputs, labels_
+

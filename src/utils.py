@@ -3,7 +3,8 @@ import numpy as np
 import requests
 import torch
 from torchvision.models.resnet import resnet18,ResNet18_Weights,resnet34,ResNet34_Weights,resnet50,ResNet50_Weights
-from models import ViT
+from models import ViT 
+from models.resnet import ModifiedResNet
 #from resnet import resnet18 
 from sklearn import linear_model, model_selection
 import torch.nn as nn
@@ -137,11 +138,12 @@ def get_retrained_model():
 
     local_path = opt.RT_model_weights_path
     #DOWNLOAD ZIP
+    print(local_path)
     if not os.path.exists(local_path):
         download_weights_drive(opt.root_folder + "models.tar.gz", opt.weight_file_id, opt.root_folder)
 
     weights_pretrained = torch.load(local_path)
-    model = torchvision.models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
+    model = ModifiedResNet(torchvision.models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1))
     if opt.dataset != 'cifar10':
         model.conv1 = nn.Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
         model.maxpool = nn.Identity()
@@ -163,7 +165,7 @@ def get_resnet_trained():
 
     weights_pretrained = torch.load(local_path)
     if opt.model=='resnet18':
-        model = torchvision.models.resnet18(weights=None)
+        model = ModifiedResNet(torchvision.models.resnet18(weights=None))
     elif opt.model=='resnet34':
         model = torchvision.models.resnet34(weights=None)
     elif opt.model=='resnet50':

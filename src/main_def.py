@@ -12,9 +12,13 @@ from Unlearning_methods import choose_method
 from error_propagation import Complex
 import os
 import torch
+from models.resnet import ModifiedResNet
+from compute_cluster_density import density, plot_densities, mean_densities_per_percentile, plot_densities_all
 if opt.push_results:
     from publisher import push_results
-
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy
 def AUS(a_t, a_or, a_f):
     if opt.mode == "HR":
         aus=(Complex(1, 0)-(a_or-a_t))/(Complex(1, 0)+abs(a_f-a_t))
@@ -22,11 +26,14 @@ def AUS(a_t, a_or, a_f):
         aus=(Complex(1, 0)-(a_or-a_t))/(Complex(1, 0)+abs(a_f))
     return aus
 
-def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_fgt_loader=None, test_retain_loader=None, class_to_remove=0):
+def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_fgt_loader=None, test_retain_loader=None, class_to_remove=0, all_test_loader=None):
+    ps = range(70, 96, 5)
     v_orig, v_unlearn, v_rt = None, None, None
     original_pretr_model = get_trained_model()
+    original_pretr_model = ModifiedResNet(original_pretr_model)
     original_pretr_model.to(opt.device)
     original_pretr_model.eval()
+
 
     if opt.run_original:
         
@@ -45,11 +52,16 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         v_orig= df_or_model.mean(0)
         #convert v_orig back to df
         v_orig = pd.DataFrame(v_orig).T
-    #print(df_or_model)
+
+    # original model densities computation
+    densities_original = {}
+    for p in ps:
+        d, _ = density(original_pretr_model, all_test_loader, p, class_to_remove[0], mode="original")
+        densities_original[p]= d
 
     if opt.run_unlearn:
         print('\n----BEGIN UNLEARNING----')
-        pretr_model = deepcopy(original_pretr_model)
+        pretr_model = ModifiedResNet(deepcopy(original_pretr_model))
         pretr_model.to(opt.device)
         pretr_model.eval()
 
@@ -102,6 +114,13 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
     
         df_un_model["unlearn_time"] = unlearn_time
 
+        #densities computation
+        densities_unlearned = {}
+        for p in ps:
+            d, _ = density(unlearned_model, all_test_loader, p, class_to_remove[0], mode="unlearned")
+            densities_unlearned[p]= d
+        
+
         print("UNLEARNING COMPLETED, COMPUTING ACCURACIES...")      
         if opt.mode == "HR":
             df_un_model["test_accuracy"] = accuracy(unlearned_model, test_loader)
@@ -127,7 +146,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
             df_rt_model["test_accuracy"] = accuracy(rt_model, test_loader)
 
         elif opt.mode == "CR":
-            df_or_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
+            df_rt_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
             df_rt_model["forget_test_accuracy"] = accuracy(rt_model, test_fgt_loader)
             df_rt_model["retain_test_accuracy"] = accuracy(rt_model, test_retain_loader)
 
@@ -136,7 +155,10 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
 
         v_rt = df_rt_model.mean(0)
         v_rt = pd.DataFrame(v_rt).T
-       
+        densities_retrained = {}
+        for p in ps:
+            d, _ = density(rt_model, all_test_loader, p, class_to_remove[0], mode="retrained")
+            densities_retrained[p]= d
     #save dfs
     if opt.run_unlearn:
         if opt.save_df:
@@ -144,7 +166,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
                 v_unlearn.to_csv(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/dfs/{opt.method}_seed_{seed}.csv")
             elif opt.mode == "CR":
                 v_unlearn.to_csv(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/dfs/{opt.method}_seed_{seed}_class_{'_'.join(map(str, class_to_remove))}.csv")
-    return v_orig, v_unlearn, v_rt
+    return v_orig, v_unlearn, v_rt, densities_original, densities_unlearned, densities_retrained
 
 if __name__ == "__main__":
     df_unlearned_total=[]
@@ -184,15 +206,21 @@ if __name__ == "__main__":
                 df_retrained_total.append(row_ret)
 
         elif opt.mode == "CR":
+            densities_per_class_original = []
+            densities_per_class_unlearned = []
+            densities_per_class_retrained = []
             for class_to_remove in opt.class_to_remove:
                 print(f'------------class {class_to_remove}-----------')
-                _, _, train_fgt_loader, train_retain_loader, test_fgt_loader, test_retain_loader = get_dsets_remove_class(class_to_remove)
+                all_train_loader,all_test_loader, train_fgt_loader, train_retain_loader, test_fgt_loader, test_retain_loader = get_dsets_remove_class(class_to_remove)
 
-                opt.RT_model_weights_path = opt.root_folder+f'weights/chks_{opt.dataset if opt.dataset!="tinyImagenet" else "tiny"}/best_checkpoint_without_{class_to_remove}.pth'
+                opt.RT_model_weights_path = opt.root_folder+f'weights/chks_{opt.dataset if opt.dataset!="tinyImagenet" else "tiny"}/best_checkpoint_without_{class_to_remove[0]}.pth'
                 print(opt.RT_model_weights_path)
 
-                row_orig, row_unl, row_ret=main(train_fgt_loader, train_retain_loader, test_fgt_loader=test_fgt_loader, seed=i, test_retain_loader=test_retain_loader, class_to_remove=class_to_remove)
+                row_orig, row_unl, row_ret, densities_original, densities_unlearned, densities_retrained=main(train_fgt_loader, train_retain_loader, test_fgt_loader=test_fgt_loader, seed=i, test_retain_loader=test_retain_loader, class_to_remove=class_to_remove, all_test_loader=all_test_loader)
 
+                densities_per_class_original.append(densities_original)
+                densities_per_class_unlearned.append(densities_unlearned)
+                densities_per_class_retrained.append(densities_retrained)
                 #print results
                 
 
@@ -208,8 +236,30 @@ if __name__ == "__main__":
                     df_retrained_total.append(row_ret)
         
     print(opt.dataset)
-    #create results folder if doesn't exist
     
+
+    mean_densities_forget_original, std_densities_forget_original, mean_densities_retain_original, std_densities_retain_original = mean_densities_per_percentile(densities_per_class_original, densities_original.keys(), tag = "original")
+    mean_densities_forget_unlearned, std_densities_forget_unlearned, mean_densities_retain_unlearned, std_densities_retain_unlearned = mean_densities_per_percentile(densities_per_class_unlearned, densities_unlearned.keys(), tag = "unlearned")
+    mean_densities_forget_retrained, std_densities_forget_retrained, mean_densities_retain_retrained, std_densities_retain_retrained = mean_densities_per_percentile(densities_per_class_retrained, densities_retrained.keys(), tag = "retrained")
+
+    #plot means with std bands as function of p
+
+    plot_densities(mean_densities_forget_original, std_densities_forget_original, mean_densities_retain_original, std_densities_retain_original, densities_original.keys(), tag="original")
+    plot_densities(mean_densities_forget_unlearned, std_densities_forget_unlearned, mean_densities_retain_unlearned, std_densities_retain_unlearned, densities_unlearned.keys(), tag="unlearned")
+    plot_densities(mean_densities_forget_retrained, std_densities_forget_retrained, mean_densities_retain_retrained, std_densities_retain_retrained, densities_retrained.keys(), tag="retrained")
+    plot_densities_all(mean_densities_forget_original, std_densities_forget_original, mean_densities_retain_original, std_densities_retain_original, mean_densities_forget_unlearned, std_densities_forget_unlearned, mean_densities_retain_unlearned, std_densities_retain_unlearned, mean_densities_forget_retrained, std_densities_forget_retrained, mean_densities_retain_retrained, std_densities_retain_retrained, densities_original.keys())
+    
+
+    print("\n\nDensities for each percentile Original:")
+    for i,k in enumerate(densities_original.keys()):
+        print(f"Percentile {k}:\n\tForget: {mean_densities_forget_original[i]} \\pm {std_densities_forget_original[i]}\n\tRetain: {mean_densities_retain_original[i]} \\pm {std_densities_retain_original[i]}\n")
+    print("\n\nDensities for each percentile Unlearned:")
+    for i,k in enumerate(densities_unlearned.keys()):
+        print(f"Percentile {k}:\n\tForget: {mean_densities_forget_unlearned[i]} \\pm {std_densities_forget_unlearned[i]}\n\tRetain: {mean_densities_retain_unlearned[i]} \\pm {std_densities_retain_unlearned[i]}\n")
+    print("\n\nDensities for each percentile Retrained:")
+    for i,k in enumerate(densities_retrained.keys()):
+        print(f"Percentile {k}:\n\tForget: {mean_densities_forget_retrained[i]} \\pm {std_densities_forget_retrained[i]}\n\tRetain: {mean_densities_retain_retrained[i]} \\pm {std_densities_retain_retrained[i]}\n")
+        
     dfs = {"orig":[], "unlearned":[], "retrained":[]}
     for name, df in zip(dfs.keys(),[df_orig_total, df_unlearned_total, df_retrained_total]):
         if df:
