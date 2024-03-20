@@ -116,7 +116,7 @@ class OPT:
     target_accuracy = 0.01 
     
     #MIA specific
-    iter_MIA = 50 #numo f iterations
+    iter_MIA = 10 #numo f iterations
     verboseMIA = False
 
     weight_file_id = '1tTdpVS3was0RTZszQfLt2tGdixwd3Oy6'

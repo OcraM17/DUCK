@@ -156,7 +156,7 @@ def expand_data(data):
     data1 = torch.zeros_like(data)
     data2 = torch.zeros_like(data)
     data3 = torch.zeros_like(data)
-    tranf1 = transforms.RandomCrop(64, padding=8)
+    tranf1 = transforms.RandomCrop(32, padding=4)
     transf2 = transforms.Compose([transforms.RandomHorizontalFlip()])
     #transf3 = transforms.RandomRotation(degrees=(-50, 50))
     for i in range(data.shape[0]):
@@ -299,14 +299,14 @@ def get_membership_attack_data_CR(fgt_loader,fgt_loader_t,model,opt,test_data=No
     N_fgt = X_fgt.shape[0]
 
 
-    n_samp = int(0.8*N_fgt) 
-    n_sampt = int(0.8*N_fgt_t)
+    n_samp = int(0.7*N_fgt) 
+    n_sampt = int(0.7*N_fgt_t)
 
     xtrain = torch.cat([X_fgt_t[:n_sampt,:],X_fgt[:n_samp,:]],dim=0)
     ytrain = torch.cat([Y_fgt_t[:n_sampt],Y_fgt[:n_samp]],dim=0)
 
-    xtest = X_fgt_t[n_sampt:,:]#torch.cat([X_fgt_t[n_sampt:,:],X_fgt[n_samp:,:]],dim=0)
-    ytest = Y_fgt_t[n_sampt:]#torch.cat([Y_fgt_t[n_sampt:],Y_fgt[n_samp:]],dim=0)
+    xtest = torch.cat([X_fgt_t[n_sampt:,:],X_fgt[n_samp:,:]],dim=0)
+    ytest = torch.cat([Y_fgt_t[n_sampt:],Y_fgt[n_samp:]],dim=0)
 
 
     # Compute entropy

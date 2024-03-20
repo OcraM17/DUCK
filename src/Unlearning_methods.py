@@ -295,15 +295,15 @@ class DUCK(BaseMethod):
         # copy self.retain dataloader changing batch size to 512
     
         self.retain.dataset.transform = self.transform_dset
-        self.retain_copy = torch.utils.data.DataLoader(self.retain.dataset, batch_size=256, shuffle=True)
-        optimizer = optim.Adam(self.net.parameters(), lr=0.00001, weight_decay=opt.wd_unlearn)
+        self.retain_copy = torch.utils.data.DataLoader(self.retain.dataset, batch_size=512, shuffle=True)
+        optimizer = optim.Adam(self.net.parameters(), lr=0.0001, weight_decay=opt.wd_unlearn)
         epochs = 2
         scheduler=torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs*len(self.retain_copy))
         limit = len(self.retain_copy)//2
         for ep in range(2):
             #print('ep:',ep,len(self.retain_copy))
             for n_batch, (img_fgt, lab_fgt) in enumerate(self.forget):
-                img_fgt, lab_fgt  = img_fgt[:64].to(opt.device), lab_fgt[:64].to(opt.device)
+                img_fgt, lab_fgt  = img_fgt[:128].to(opt.device), lab_fgt[:128].to(opt.device)
                 if n_batch>=1:
                         break
             for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain_copy):
