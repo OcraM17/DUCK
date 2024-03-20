@@ -132,7 +132,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
             df_rt_model["test_accuracy"] = accuracy(rt_model, test_loader)
 
         elif opt.mode == "CR":
-            #df_rt_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
+            df_rt_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
             #df_rt_model = get_MIA_SVC(train_fgt_loader, test_loader, rt_model, opt, fgt_loader=train_fgt_loader, fgt_loader_t=test_fgt_loader)
             #print(df_rt_model.F1.mean(0))
             df_rt_model["forget_test_accuracy"] = accuracy(rt_model, test_fgt_loader)
