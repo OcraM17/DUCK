@@ -7,7 +7,9 @@ import pickle
 from tqdm import tqdm
 from utils import accuracy
 import time
-
+from copy import deepcopy
+import torch.nn.functional as F  
+import numpy as np
 def choose_method(name):
     if name=='FineTuning':
         return FineTuning
@@ -17,7 +19,8 @@ def choose_method(name):
         return RandomLabels
     elif name=='DUCK':
         return DUCK
-
+    elif name == 'SCRUB':
+            return SCRUB
 class BaseMethod:
     def __init__(self, net, retain, forget,test=None):
         self.net = net
@@ -287,3 +290,111 @@ class DUCK(BaseMethod):
         self.net.eval()
         return self.net
 
+class DistillKL(nn.Module):
+    """Distilling the Knowledge in a Neural Network"""
+    def __init__(self, T):
+        super(DistillKL, self).__init__()
+        self.T = T
+
+    def forward(self, y_s, y_t):
+        p_s = F.log_softmax(y_s/self.T, dim=1)
+        p_t = F.softmax(y_t/self.T, dim=1)
+        loss = F.kl_div(p_s, p_t, size_average=False) * (self.T**2) / y_s.shape[0]
+        return loss
+    
+class SCRUB(BaseMethod):
+    def __init__(self, net, retain, forget,test=None,class_to_remove=None):
+        super().__init__(net, retain, forget,test=test)
+        
+        #exp fissare soglia al nostro res di retain acc e vedere il tempo 
+
+        #definire ottimiz
+        
+        self.gamma = 0.99#CEweight
+        self.alpha = 0.001 #KLweight
+        
+        self.sgda_learning_rate = 0.0005 #0.01#cifar10.0005
+        self.lr_decay_epochs = [3]#[3,5,9]#[7]#
+        self.lr_decay_rate = 0.1
+        self.optimizer = optim.SGD(self.net.parameters(), lr=self.sgda_learning_rate, momentum=opt.momentum_unlearn, weight_decay=opt.wd_unlearn)
+        self.kl_loss = DistillKL(T=4)
+        self.maxim_steps =3#3 #10cifar100 #2 per cifar10
+        self.epochs= 5
+     #10 per cifar100 #3 per cifar10 
+        
+        #PARAMS CR
+                    #lr     lr decay    epochs    maxim_steps   
+        #cifar10    0.0005    [3]    3         2
+        #cifar100   0.005     [9]    10         10
+        #tiny       0.0005    [9]    10         10
+
+        #PARAMS HR  
+        #cifar10    0.0005    [9]    3         2
+        #cifar100   0.005     [9]       10        8 
+        #cifarv2    0.005     [5,10]       20        20 dec 0.5
+        #tiny       0.002   [1,3]       5        5
+    def adjust_learning_rate(self,epoch, optimizer):
+        """Sets the learning rate to the initial LR decayed by decay rate every steep step"""
+        steps = np.sum(epoch > np.asarray(self.lr_decay_epochs))
+        new_lr = self.sgda_learning_rate
+        if steps > 0:
+            new_lr = self.sgda_learning_rate * (self.lr_decay_rate ** steps)
+            for param_group in optimizer.param_groups:
+                param_group['lr'] = new_lr
+        return new_lr
+
+
+    def optim_net(self,loader,alpha=None,gamma=None):
+        for img, lab in loader:
+            #print(torch.unique(lab))
+            img, lab = img.to(opt.device), lab.to(opt.device)
+            self.optimizer.zero_grad()
+            # ===================forward=====================
+            logit_s = self.net(img)
+            with torch.no_grad():
+                logit_t = self.teacher(img)
+
+
+            # cls + kl div
+            if not (alpha is None):
+                loss_cls = self.criterion(logit_s, lab)
+            
+            loss_div = self.kl_loss(logit_s, logit_t)
+
+            if alpha is None:
+                loss = -loss_div
+                #print(loss)
+            else:
+                loss = gamma*loss_cls + alpha * loss_div
+            
+            #print(loss)
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+
+
+    def run(self,):
+        print('INIT',accuracy(self.net, self.retain))
+        self.teacher = deepcopy(self.net)
+        self.teacher.eval()
+        self.net.train()
+        for ep in range(self.epochs):
+            lr = self.adjust_learning_rate(ep, self.optimizer)
+            if ep <=self.maxim_steps:
+                #optim maximize, fgt dataloader solo kl
+                self.optim_net(self.forget)
+                self.net.eval()
+                curr_acc = accuracy(self.net, self.forget)
+                self.net.train()
+                print('ACC fgt I step',curr_acc)
+            #optim minimize, retain dataloader CE e kl
+            self.optim_net(self.retain,alpha=self.alpha, gamma=self.gamma)
+            self.net.eval()
+            curr_acc = accuracy(self.net, self.forget)
+            curr_acc_tr = accuracy(self.net, self.test)
+            self.net.train()
+            print(f'OUT epoch {ep},acc fgt {curr_acc}, acc ret {curr_acc_tr}')
+        self.net.eval()
+        print('FINAL',accuracy(self.net, self.test),accuracy(self.net, self.forget))
+        return self.net
+    

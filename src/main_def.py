@@ -238,9 +238,9 @@ if __name__ == "__main__":
     print(opt.dataset)
     
 
-    mean_densities_forget_original, std_densities_forget_original, mean_densities_retain_original, std_densities_retain_original = mean_densities_per_percentile(densities_per_class_original, densities_original.keys(), tag = "original")
-    mean_densities_forget_unlearned, std_densities_forget_unlearned, mean_densities_retain_unlearned, std_densities_retain_unlearned = mean_densities_per_percentile(densities_per_class_unlearned, densities_unlearned.keys(), tag = "unlearned")
-    mean_densities_forget_retrained, std_densities_forget_retrained, mean_densities_retain_retrained, std_densities_retain_retrained = mean_densities_per_percentile(densities_per_class_retrained, densities_retrained.keys(), tag = "retrained")
+    mean_densities_forget_original, std_densities_forget_original, mean_densities_retain_original, std_densities_retain_original = mean_densities_per_percentile(densities_per_class_original, densities_original.keys(), tag = "original_unnormed_l2")
+    mean_densities_forget_unlearned, std_densities_forget_unlearned, mean_densities_retain_unlearned, std_densities_retain_unlearned = mean_densities_per_percentile(densities_per_class_unlearned, densities_unlearned.keys(), tag = "unlearned_unnormed_l2")
+    mean_densities_forget_retrained, std_densities_forget_retrained, mean_densities_retain_retrained, std_densities_retain_retrained = mean_densities_per_percentile(densities_per_class_retrained, densities_retrained.keys(), tag = "retrained_unnormed_l2")
 
     #plot means with std bands as function of p
 
