@@ -57,7 +57,7 @@ class OPT:
         elif dataset == 'cifar100':
             class_to_remove = [[i*10] for i in range(10)]
         elif dataset == 'tinyImagenet':
-            class_to_remove = [[80]]#[[i*20] for i in range(10)] 
+            class_to_remove = [[i*20] for i in range(10)]#[[80]]# 
    
         #class_to_remove = [[i for i in range(100)][:j] for j in [1]+[z*10 for z in range(1,10)]+[98]]
         #print('Class to remove iter. : ', class_to_remove)
@@ -85,13 +85,13 @@ class OPT:
     data_path = os.path.expanduser('~/data')
     if dataset == 'cifar10':
         num_classes = 10
-        batch_fgt_ret_ratio = 50
+        batch_fgt_ret_ratio = 5
     elif dataset == 'cifar100':
         num_classes = 100
         batch_fgt_ret_ratio = 5
     elif dataset == 'tinyImagenet':
         num_classes = 200
-        batch_fgt_ret_ratio = 90
+        batch_fgt_ret_ratio = 5
     elif dataset == 'VGG':
         num_classes = 10
     

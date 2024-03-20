@@ -7,6 +7,8 @@ import pickle
 from tqdm import tqdm
 from utils import accuracy
 import time
+from torchvision import transforms
+from torch.utils.data import DataLoader
 
 def choose_method(name):
     if name=='FineTuning':
@@ -133,12 +135,33 @@ class NegativeGradient(BaseMethod):
         outputs = self.net(inputs)
         loss = self.criterion(outputs, targets) * (-1)
         return loss
+    
+mean = {
+            'cifar10': (0.4914, 0.4822, 0.4465),
+            'cifar100': (0.5071, 0.4867, 0.4408),
+            'tinyImagenet': (0.485, 0.456, 0.406),
+            'VGG':(0.547, 0.460, 0.404),
+            }
 
+std = {
+            'cifar10': (0.2023, 0.1994, 0.2010),
+            'cifar100': (0.2675, 0.2565, 0.2761),
+            'tinyImagenet': (0.229, 0.224, 0.225),
+            'VGG':[0.323, 0.298, 0.263]            
+            }
+        
 class DUCK(BaseMethod):
     def __init__(self, net, retain, forget,test,class_to_remove=None):
         super().__init__(net, retain, forget, test)
         self.loader = None
         self.class_to_remove = class_to_remove
+        self.transform_dset = transforms.Compose(
+        [   transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
+        ]
+        )
 
     def pairwise_cos_dist(self, x, y):
         """Compute pairwise cosine distance between two tensors"""
@@ -263,7 +286,70 @@ class DUCK(BaseMethod):
             init = False
             scheduler.step()
 
+        # self.net.eval()
+        # print(accuracy(self.net, self.test))
+        # self.net.train()
 
+        #low forget regime
+        self.net.train()
+        # copy self.retain dataloader changing batch size to 512
+    
+        self.retain.dataset.transform = self.transform_dset
+        self.retain_copy = torch.utils.data.DataLoader(self.retain.dataset, batch_size=256, shuffle=True)
+        optimizer = optim.Adam(self.net.parameters(), lr=0.00001, weight_decay=opt.wd_unlearn)
+        epochs = 2
+        scheduler=torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs*len(self.retain_copy))
+        limit = len(self.retain_copy)//2
+        for ep in range(2):
+            #print('ep:',ep,len(self.retain_copy))
+            for n_batch, (img_fgt, lab_fgt) in enumerate(self.forget):
+                img_fgt, lab_fgt  = img_fgt[:64].to(opt.device), lab_fgt[:64].to(opt.device)
+                if n_batch>=1:
+                        break
+            for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain_copy):
+                
+                img_ret, lab_ret = img_ret.to(opt.device), lab_ret.to(opt.device)
+                vec = torch.cat([img_fgt[:],img_ret])
+
+                N = img_fgt[:].shape[0]
+                optimizer.zero_grad()
+                out = bbone(vec)
+                logits_fgt = out[:N]#bbone(img_fgt)
+                lab_fgt = lab_fgt[:N]
+                # compute pairwise cosine distance between embeddings and centroids
+                dists = self.pairwise_cos_dist(logits_fgt, centroids)
+
+
+                if n_batch_ret==0:
+                    closest_centroids = torch.argsort(dists, dim=1)
+                    tmp = closest_centroids[:, 0]
+                    closest_centroids = torch.where(tmp == lab_fgt, closest_centroids[:, 1], tmp)
+                    all_closest_centroids.append(closest_centroids)
+                    closest_centroids = all_closest_centroids[-1]
+                else:
+                    closest_centroids = all_closest_centroids[n_batch]
+                
+                
+                logits_ret = out[N:]#bbone(img_ret)#
+                outputs_ret = fc(logits_ret)
+
+                dists = dists[torch.arange(dists.shape[0]), closest_centroids[:dists.shape[0]]]
+                loss_fgt = torch.mean(dists) * opt.lambda_1/10
+                
+
+                loss = criterion(outputs_ret, lab_ret)+loss_fgt
+                loss.backward()
+                optimizer.step()
+                scheduler.step()
+
+                # with torch.no_grad():
+                #     self.net.eval()
+                #     curr_acc = accuracy(self.net, self.forget)
+                #     test_acc = accuracy(self.net, self.test)
+                #     self.net.train()
+                #     print(f"{n_batch_ret} ACCURACY forget SET: {curr_acc:.3f}")
+                #     print(test_acc)
+        print('end')
         self.net.eval()
         return self.net
 
@@ -388,7 +474,6 @@ class DUCK(BaseMethod):
 
             init = False
             scheduler.step()
-
 
         self.net.eval()
         return self.net

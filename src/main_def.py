@@ -36,8 +36,8 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
             df_or_model["test_accuracy"] = accuracy(original_pretr_model, test_loader)
         elif opt.mode =="CR":
             df_or_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
-            df_or_model = get_MIA_SVC(train_fgt_loader, test_loader, original_pretr_model, opt, fgt_loader=train_fgt_loader, fgt_loader_t=test_fgt_loader)
-            print(df_or_model.F1.mean(0))
+            #df_or_model = get_MIA_SVC(train_fgt_loader, test_loader, original_pretr_model, opt, fgt_loader=train_fgt_loader, fgt_loader_t=test_fgt_loader)
+            #print(df_or_model.F1.mean(0))
             df_or_model["forget_test_accuracy"] = accuracy(original_pretr_model, test_fgt_loader)
             df_or_model["retain_test_accuracy"] = accuracy(original_pretr_model, test_retain_loader)
 
@@ -69,7 +69,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         elif opt.mode == "CR":
             opt.target_accuracy = 0.01
             if opt.method == "DUCK" or opt.method == "RandomLabels":
-                approach = choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_fgt_loader, class_to_remove=class_to_remove)
+                approach = choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_retain_loader, class_to_remove=class_to_remove)
             else:
                 approach = choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_fgt_loader)
 
@@ -104,12 +104,15 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
     
         df_un_model["unlearn_time"] = unlearn_time
 
-        print("UNLEARNING COMPLETED, COMPUTING ACCURACIES...")      
+        print(f"UNLEARNING COMPLETED in {unlearn_time}, COMPUTING ACCURACIES...")      
         if opt.mode == "HR":
             df_un_model["test_accuracy"] = accuracy(unlearned_model, test_loader)
         elif opt.mode == "CR":
+            
             df_un_model["forget_test_accuracy"] = accuracy(unlearned_model, test_fgt_loader)
             df_un_model["retain_test_accuracy"] = accuracy(unlearned_model, test_retain_loader)
+            print('Or mod acc: ',accuracy(original_pretr_model, test_retain_loader))
+            print(f'fgt_test:{df_un_model["forget_test_accuracy"].values} and test acc: {df_un_model["retain_test_accuracy"].values}')
 
         df_un_model["forget_accuracy"] = accuracy(unlearned_model, train_fgt_loader)
         df_un_model["retain_accuracy"] = accuracy(unlearned_model, train_retain_loader)
@@ -205,7 +208,7 @@ if __name__ == "__main__":
                     print(f"Original retain test acc: {row_orig['retain_test_accuracy']}")
                     df_orig_total.append(row_orig)
                 if row_unl is not None:
-                    print(f"Unlearned retain test acc: {row_unl['retain_test_accuracy']}")
+                    #print(f"Unlearned retain test acc: {row_unl['retain_test_accuracy']}")
                     df_unlearned_total.append(row_unl)
                 if row_ret is not None:
                     print(f"Retrained retain test acc: {row_ret['retain_test_accuracy']}")
