@@ -178,7 +178,7 @@ def get_mean_std(path):
     std_densities = torch.tensor([np.std(densities[p])/np.sqrt(len(densities[p])) for p in densities.keys()])
     return mean_densities, std_densities
 def plot_from_file():
-    tag = "unnormed_l2"
+    tag = "unnormed"
     densities_forget_original = torch.load(opt.root_folder+"out/"+opt.mode+"/"+opt.dataset+"/dfs/densities_forget_original_"+tag+".pth")
     densities_retain_original = torch.load(opt.root_folder+"out/"+opt.mode+"/"+opt.dataset+"/dfs/densities_retain_original_"+tag+".pth")
     densities_forget_unlearned = torch.load(opt.root_folder+"out/"+opt.mode+"/"+opt.dataset+"/dfs/densities_forget_unlearned_"+tag+".pth")
@@ -195,12 +195,15 @@ def plot_from_file():
     #print(densities_forget_unlearned)
     keys = torch.load(opt.root_folder+"out/"+opt.mode+"/"+opt.dataset+"/dfs/densities_retain_original.pth").keys()
 
-    '''for k in keys:
+    for k in [95]:
         print(k)
         print(f"wilcoxon retain unlearned/retrained: {scipy.stats.mannwhitneyu(densities_retain_unlearned[k], densities_retain_retrained[k])}") 
-        print(f"wilcoxon forget unlearned/retrained: {scipy.stats.mannwhitneyu(densities_forget_unlearned[k], densities_forget_retrained[k])}")'''
+        print(f"wilcoxon forget unlearned/retrained: {scipy.stats.mannwhitneyu(densities_forget_unlearned[k], densities_forget_retrained[k])}")
+        print(f"wilcoxon unlearned retain/forget: {scipy.stats.mannwhitneyu(densities_retain_unlearned[k], densities_forget_unlearned[k])}") 
+        print(f"wilcoxon retrained retain/forget: {scipy.stats.mannwhitneyu(densities_retain_retrained[k], densities_forget_retrained[k])}")
+        print(f"wilcoxon original retain/forget: {scipy.stats.mannwhitneyu(densities_retain_original[k], densities_forget_original[k])}")
     
-    print("\n\nDensities for each percentile Original:")
+    '''print("\n\nDensities for each percentile Original:")
     for i,k in enumerate(keys):
         print(f"Percentile {k}:\n\tForget: {mean_densities_forget_original[i]} \\pm {std_densities_forget_original[i]}\n\tRetain: {mean_densities_retain_original[i]} \\pm {std_densities_retain_original[i]}\n")
     print("\n\nDensities for each percentile Unlearned:")
@@ -209,7 +212,7 @@ def plot_from_file():
     print("\n\nDensities for each percentile Retrained:")
     for i,k in enumerate(keys):
         print(f"Percentile {k}:\n\tForget: {mean_densities_forget_retrained[i]} \\pm {std_densities_forget_retrained[i]}\n\tRetain: {mean_densities_retain_retrained[i]} \\pm {std_densities_retain_retrained[i]}\n")
-        
+    '''
     plt.figure()
     plt.title("Density vs. Percentile")
     plt.xlabel("Percentile")
