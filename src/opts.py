@@ -2,12 +2,15 @@ import torch
 import os
 import argparse
 from error_propagation import Complex
+import ast
 
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--run_name", type=str, default="test")
     parser.add_argument("--dataset", type=str, default="cifar10")
     parser.add_argument("--mode", type=str, default="CR")
+    parser.add_argument("--class_to_remove", type=str, default=None, help='None, or A string representation of a list of lists of integers, e.g., "[[1,2,3], [4,5,6], [7,8,9]]"')
+    parser.add_argument("--seed", type=int, default=42, nargs='+')
     parser.add_argument("--cuda", type=int, default=0, help="Select zero-indexed cuda device. -1 to use CPU.")
     
     parser.add_argument("--load_unlearned_model",action='store_true')
@@ -35,6 +38,7 @@ def get_args():
     parser.add_argument("--lambda_1", type=float, default=1)
     parser.add_argument("--lambda_2", type=float, default=1.4)
 
+
     options = parser.parse_args()
     return options
 
@@ -49,19 +53,21 @@ class OPT:
     mode = args.mode
     if args.mode == 'HR':
         seed = [0,1,2,3,4,5,6,7,8,42]
-        class_to_remove = None
-    else:
+        #class_to_remove = None
+    elif args.mode == 'CR' and args.class_to_remove is None:
         seed = [42]
         if dataset == 'cifar10' or dataset=="VGG":
             class_to_remove = [[i*1] for i in range(10)]
         elif dataset == 'cifar100':
             class_to_remove = [[i*10] for i in range(10)]
         elif dataset == 'tinyImagenet':
-            class_to_remove = [[i*20] for i in range(10)]#[[80]]# 
+            class_to_remove = [[i*20] for i in range(10)]
    
         #class_to_remove = [[i for i in range(100)][:j] for j in [1]+[z*10 for z in range(1,10)]+[98]]
         #print('Class to remove iter. : ', class_to_remove)
-
+    else:
+        seed = args.seed
+        class_to_remove = ast.literal_eval(args.class_to_remove) if args.class_to_remove is not None else args.class_to_remove
     device = f"cuda:{args.cuda}" if torch.cuda.is_available() else "cpu"
     
     
