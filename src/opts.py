@@ -66,7 +66,8 @@ class OPT:
         #class_to_remove = [[i for i in range(100)][:j] for j in [1]+[z*10 for z in range(1,10)]+[98]]
         #print('Class to remove iter. : ', class_to_remove)
     else:
-        seed = args.seed
+        print('seed ',args.seed)
+        seed = int(args.seed[0])
         class_to_remove = ast.literal_eval(args.class_to_remove) if args.class_to_remove is not None else args.class_to_remove
     device = f"cuda:{args.cuda}" if torch.cuda.is_available() else "cpu"
     

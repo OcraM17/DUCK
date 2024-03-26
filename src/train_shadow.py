@@ -12,6 +12,7 @@ from torch import nn
 from opts import OPT as opt
 import os 
 from dsets import  get_dsets_shadow
+from utils import  set_seed
 
 def trainer(nmodel):
     # Initialize the model
@@ -116,5 +117,8 @@ def trainer(nmodel):
 
 
 if __name__ == '__main__':
-    for nmodel in range(40):
+    print(opt.seed)
+    set_seed(opt.seed)
+    for nmodel in range(40,80):
+        print('Train model:', nmodel)
         trainer(nmodel)
