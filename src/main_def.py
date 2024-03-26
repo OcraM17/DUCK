@@ -3,7 +3,7 @@ from dsets import get_dsets_remove_class, get_dsets
 import pandas as pd
 from error_propagation import Complex
 from utils import accuracy, set_seed, get_retrained_model,get_trained_model
-from MIA_code.MIA import get_MIA_SVC
+from MIA_code.MIA import get_MIA_SVC,get_MIA
 from opts import OPT as opt
 import torch.nn as nn
 from tqdm import tqdm
@@ -44,12 +44,13 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         
         
         if opt.mode =="HR":
-            df_or_model = get_MIA_SVC(train_fgt_loader, test_loader, original_pretr_model, opt)
+            _ = get_MIA(train_fgt_loader,original_pretr_model,opt,original_pretr_model)
+            #df_or_model = get_MIA_SVC(train_fgt_loader, test_loader, original_pretr_model, opt)
             df_or_model["test_accuracy"] = accuracy(original_pretr_model, test_loader)
         elif opt.mode =="CR":
             df_or_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
-            df_or_model = get_MIA_SVC(train_retain_loader, test_loader, original_pretr_model, opt, fgt_loader=train_fgt_loader, fgt_loader_t=test_fgt_loader)
-            print(df_or_model.F1.mean(0))
+            _ = get_MIA(train_fgt_loader,original_pretr_model,opt,original_pretr_model)#get_MIA_SVC(train_retain_loader, test_loader, original_pretr_model, opt, fgt_loader=train_fgt_loader, fgt_loader_t=test_fgt_loader)
+            # print(df_or_model.F1.mean(0))
             df_or_model["forget_test_accuracy"] = accuracy(original_pretr_model, test_fgt_loader)
             df_or_model["retain_test_accuracy"] = accuracy(original_pretr_model, test_retain_loader)
 
@@ -110,11 +111,13 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         print("BEGIN SVC FIT")
         if opt.mode == "HR":
             df_un_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
-            df_un_model = get_MIA_SVC(train_fgt_loader, test_loader, unlearned_model, opt)
+            _ = get_MIA(train_fgt_loader,unlearned_model,opt,original_pretr_model)
+            #df_un_model = get_MIA_SVC(train_fgt_loader, test_loader, unlearned_model, opt)
         elif opt.mode == "CR":
             df_un_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
-            df_un_model = get_MIA_SVC(train_retain_loader, test_loader, unlearned_model, opt, fgt_loader=train_fgt_loader, fgt_loader_t=test_fgt_loader)
-            print(df_un_model.F1.mean(0))
+            _ = get_MIA(train_fgt_loader,unlearned_model,opt,original_pretr_model)
+            #df_un_model = get_MIA_SVC(train_retain_loader, test_loader, unlearned_model, opt, fgt_loader=train_fgt_loader, fgt_loader_t=test_fgt_loader)
+            #print(df_un_model.F1.mean(0))
         df_un_model["unlearn_time"] = unlearn_time
 
         print(f"UNLEARNING COMPLETED in {unlearn_time}, COMPUTING ACCURACIES...")   
@@ -148,8 +151,8 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
 
         elif opt.mode == "CR":
             df_rt_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
-            df_rt_model = get_MIA_SVC(train_retain_loader, test_loader, rt_model, opt, fgt_loader=train_fgt_loader, fgt_loader_t=test_fgt_loader)
-            print(df_rt_model.F1.mean(0))
+            _ = get_MIA(train_fgt_loader,rt_model,opt,original_pretr_model)#df_rt_model = get_MIA_SVC(train_retain_loader, test_loader, rt_model, opt, fgt_loader=train_fgt_loader, fgt_loader_t=test_fgt_loader)
+            #print(df_rt_model.F1.mean(0))
             df_rt_model["forget_test_accuracy"] = accuracy(rt_model, test_fgt_loader)
             df_rt_model["retain_test_accuracy"] = accuracy(rt_model, test_retain_loader)
 

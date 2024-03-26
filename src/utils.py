@@ -170,7 +170,7 @@ def get_resnet_trained():
     elif opt.model=='resnet50':
         model = torchvision.models.resnet50(weights=None)
 
-    if opt.dataset != 'cifar10eee':
+    if opt.dataset != 'cifar10':
         model.conv1 = nn.Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
         model.maxpool = nn.Identity()
         model.fc = nn.Sequential(nn.Dropout(0), nn.Linear(model.fc.in_features, opt.num_classes)) 

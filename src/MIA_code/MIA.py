@@ -12,6 +12,9 @@ from sklearn.svm import SVC
 from sklearn.model_selection import GridSearchCV
 import warnings
 import os
+import glob
+from copy import deepcopy
+import math
 
 warnings.filterwarnings('ignore')
 os.environ['PYTHONWARNINGS'] = 'ignore'
@@ -401,3 +404,48 @@ def get_MIA_SVC(train_loader, test_loader, model, opt,fgt_loader=None,fgt_loader
     results = np.asarray(results)
     df = pd.DataFrame(results,columns=['accuracy','chance','acc | test ex','acc | train ex','precision','recall','F1', 'Mutual', "Train Entropy", "Test Entropy"])
     return df
+
+##############################################################################################################################
+def collect_prob_logits(data_loader, model,opt):
+
+    prob = []
+
+    with torch.no_grad():
+        for idx, batch in enumerate(data_loader):
+            data, target = batch
+            output = model(data.to(opt.device))
+            confidence = torch.exp(-F.cross_entropy(output, target.to(opt.device),reduce=False)[:,None].cpu())
+            #import pdb; pdb.set_trace()
+            buff = confidence/(1-confidence)
+            prob.append(torch.log(buff))
+        prob=torch.cat(prob)       
+    return prob
+
+def get_MIA(fgt_loader,model,opt,original_pretr_model):
+    
+    
+
+    #compute for fgt samples distributions from shadow models
+    weights = glob.glob(f'/home/jb/Documents/MachineUnlearning/weights_shadow/chks_{opt.dataset}/{opt.mode}/*.pth')
+    print(f'got {len(weights)} shadow models...')
+    shadow_model = deepcopy(original_pretr_model)
+    distributions = []
+    for weights_name in weights:
+        shadow_model.load_state_dict(torch.load(weights_name))
+        shadow_model.eval()
+        prob = collect_prob_logits(fgt_loader, shadow_model,opt)
+        distributions.append(prob)
+    distributions = torch.cat(distributions,dim=1)
+    print(distributions.shape)
+    #compute mu and std for each fgt sample
+    mu = torch.mean(distributions,dim=1)#torch.stack([torch.mean(dist,dim=0) for dist in distributions],dim=0)
+    std = torch.std(distributions,dim=1)#torch.stack([torch.std(dist,dim=0) for dist in distributions],dim=0)
+    #compute real prob
+    #import pdb; pdb.set_trace()
+    print(distributions[0,:])
+    prob_test_model = collect_prob_logits(fgt_loader, model,opt)
+  
+    #pdb.set_trace()
+    final_prob_vector = 0.5*(1-torch.special.erf((prob_test_model[:,0]-mu)/(math.sqrt(2)*std)))
+    print(final_prob_vector.mean(),final_prob_vector.std())
+    return final_prob_vector.mean()
