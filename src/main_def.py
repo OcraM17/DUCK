@@ -11,6 +11,8 @@ import time
 from Unlearning_methods import choose_method
 from error_propagation import Complex
 import os
+import numpy as np
+from torch.utils.data.sampler import SubsetRandomSampler
 import torch
 from torch.utils.data import DataLoader, ConcatDataset
 if opt.push_results:
@@ -29,15 +31,23 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
     original_pretr_model.to(opt.device)
     original_pretr_model.eval()
 
-    dataset1 = train_fgt_loader.dataset
-    dataset2 = test_fgt_loader.dataset
-    print('eee',len(train_fgt_loader),len(test_fgt_loader))
-    # Concatenate the datasets
-    combined_dataset = ConcatDataset([dataset1, dataset2])
+    # indices = np.random.choice(len(train_retain_loader.dataset), size=len(train_fgt_loader.dataset), replace=False)
 
-    # Now create a new DataLoader with the combined dataset
-    # You can provide batch_size, shuffle, sampler, etc., as per your requirements
-    combined_loader = DataLoader(combined_dataset, batch_size=256, shuffle=True,drop_last=True)
+    # # Create a SubsetRandomSampler with the random indices
+    # sampler = SubsetRandomSampler(indices)
+
+    # negative_loader_MIA = torch.utils.data.DataLoader(train_retain_loader.dataset, batch_size=256, num_workers=opt.num_workers,sampler=sampler)
+
+
+    # dataset1 = train_fgt_loader.dataset
+    # dataset2 = test_fgt_loader.dataset
+    # print('eee',len(train_fgt_loader),len(test_fgt_loader))
+    # # Concatenate the datasets
+    # combined_dataset = ConcatDataset([dataset1, dataset2])
+
+    # # Now create a new DataLoader with the combined dataset
+    # # You can provide batch_size, shuffle, sampler, etc., as per your requirements
+    # combined_loader = DataLoader(combined_dataset, batch_size=256, shuffle=True,drop_last=True)
 
 
     if opt.run_original:
@@ -49,7 +59,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
             df_or_model["test_accuracy"] = accuracy(original_pretr_model, test_loader)
         elif opt.mode =="CR":
             df_or_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
-            _ = get_MIA(train_fgt_loader,original_pretr_model,opt,original_pretr_model)#get_MIA_SVC(train_retain_loader, test_loader, original_pretr_model, opt, fgt_loader=train_fgt_loader, fgt_loader_t=test_fgt_loader)
+            _ = get_MIA(train_fgt_loader,test_fgt_loader, original_pretr_model,opt,original_pretr_model)#get_MIA_SVC(train_retain_loader, test_loader, original_pretr_model, opt, fgt_loader=train_fgt_loader, fgt_loader_t=test_fgt_loader)
             # print(df_or_model.F1.mean(0))
             df_or_model["forget_test_accuracy"] = accuracy(original_pretr_model, test_fgt_loader)
             df_or_model["retain_test_accuracy"] = accuracy(original_pretr_model, test_retain_loader)
@@ -115,7 +125,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
             #df_un_model = get_MIA_SVC(train_fgt_loader, test_loader, unlearned_model, opt)
         elif opt.mode == "CR":
             df_un_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
-            _ = get_MIA(train_fgt_loader,unlearned_model,opt,original_pretr_model)
+            _ = get_MIA(train_fgt_loader,test_fgt_loader, unlearned_model,opt,original_pretr_model)
             #df_un_model = get_MIA_SVC(train_retain_loader, test_loader, unlearned_model, opt, fgt_loader=train_fgt_loader, fgt_loader_t=test_fgt_loader)
             #print(df_un_model.F1.mean(0))
         df_un_model["unlearn_time"] = unlearn_time
@@ -146,12 +156,14 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         rt_model.to(opt.device)
         rt_model.eval()
         if opt.mode == "HR":
-            df_rt_model = get_MIA_SVC(train_fgt_loader, test_loader, rt_model, opt)
+            #df_rt_model = get_MIA_SVC(train_fgt_loader, test_loader, rt_model, opt)
+            _ = get_MIA(train_fgt_loader, test_loader, rt_model,opt,original_pretr_model)#df_rt_model = get_MIA_SVC(train_retain_loader, test_loader, rt_model, opt, fgt_loader=train_fgt_loader, fgt_loader_t=test_fgt_loader)
+
             df_rt_model["test_accuracy"] = accuracy(rt_model, test_loader)
 
         elif opt.mode == "CR":
             df_rt_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
-            _ = get_MIA(train_fgt_loader,rt_model,opt,original_pretr_model)#df_rt_model = get_MIA_SVC(train_retain_loader, test_loader, rt_model, opt, fgt_loader=train_fgt_loader, fgt_loader_t=test_fgt_loader)
+            _ = get_MIA(train_fgt_loader, test_fgt_loader,rt_model,opt,original_pretr_model)#df_rt_model = get_MIA_SVC(train_retain_loader, test_loader, rt_model, opt, fgt_loader=train_fgt_loader, fgt_loader_t=test_fgt_loader)
             #print(df_rt_model.F1.mean(0))
             df_rt_model["forget_test_accuracy"] = accuracy(rt_model, test_fgt_loader)
             df_rt_model["retain_test_accuracy"] = accuracy(rt_model, test_retain_loader)
@@ -195,7 +207,7 @@ if __name__ == "__main__":
                 num=10000
             file_fgt = f'{opt.root_folder}forget_id_files/forget_idx_{num}_{opt.dataset}_seed_{i}.txt'
             train_loader, test_loader, train_fgt_loader, train_retain_loader = get_dsets(file_fgt=file_fgt)
-            opt.RT_model_weights_path=opt.root_folder+f'chks_{opt.dataset if opt.dataset!="tinyImagenet" else "tiny"}/chks_{opt.dataset if opt.dataset!="tinyImagenet" else "tiny"}_seed_{i}.pth'
+            opt.RT_model_weights_path=opt.root_folder+f'weights/chks_{opt.dataset if opt.dataset!="tinyImagenet" else "tiny"}/chks_{opt.dataset if opt.dataset!="tinyImagenet" else "tiny"}_seed_{i}.pth'
             print(opt.RT_model_weights_path)
 
             row_orig, row_unl, row_ret=main(train_fgt_loader, train_retain_loader, test_loader=test_loader, seed=i)

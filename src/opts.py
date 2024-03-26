@@ -10,7 +10,7 @@ def get_args():
     parser.add_argument("--dataset", type=str, default="cifar10")
     parser.add_argument("--mode", type=str, default="CR")
     parser.add_argument("--class_to_remove", type=str, default=None, help='None, or A string representation of a list of lists of integers, e.g., "[[1,2,3], [4,5,6], [7,8,9]]"')
-    parser.add_argument("--seed", type=int, default=42, nargs='+')
+    parser.add_argument("--seed", type=int, default=None, nargs='+')
     parser.add_argument("--cuda", type=int, default=0, help="Select zero-indexed cuda device. -1 to use CPU.")
     
     parser.add_argument("--load_unlearned_model",action='store_true')
@@ -51,8 +51,10 @@ class OPT:
 
     
     mode = args.mode
-    if args.mode == 'HR':
+    if args.mode == 'HR' and args.seed is None:
         seed = [0,1,2,3,4,5,6,7,8,42]
+    elif args.mode == "HR" and args.seed is not None:
+        seed = args.seed
         #class_to_remove = None
     elif args.mode == 'CR' and args.class_to_remove is None:
         seed = [42]
