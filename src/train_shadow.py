@@ -5,54 +5,15 @@ import torch.optim as optim
 import torchvision
 import torchvision.transforms as transforms
 import numpy as np
-from torch.utils.data import Subset
+from torch.utils.data import Subset,SubsetRandomSampler
 from models.allcnn import AllCNN
 from torch import nn
 
 from opts import OPT as opt
 import os 
+from dsets import  get_dsets_shadow
 
-mean = {
-        'cifar10': (0.4914, 0.4822, 0.4465),
-        'cifar100': (0.5071, 0.4867, 0.4408),
-        'tinyImagenet': (0.485, 0.456, 0.406),
-        'VGG':(0.547, 0.460, 0.404)
-        }
-
-std = {
-        'cifar10': (0.2023, 0.1994, 0.2010),
-        'cifar100': (0.2675, 0.2565, 0.2761),
-        'tinyImagenet': (0.229, 0.224, 0.225),
-        'VGG':(0.323, 0.298, 0.263)
-        }
-
-
-
-transform_train = transforms.Compose([
-    transforms.RandomHorizontalFlip(),
-    transforms.RandomCrop(32, padding=4),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=mean[opt.dataset], std=std[opt.dataset])
-])
-
-transform_test = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize(mean=mean[opt.dataset], std=std[opt.dataset])
-])
-
-transform_train_tiny = transforms.Compose([
-        transforms.RandomCrop(64, padding=4),
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomRotation(15),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=mean[opt.dataset], std=std[opt.dataset])
-    ])
-
-transform_test_tiny = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize(mean=mean[opt.dataset], std=std[opt.dataset])
-    ])
-def trainer(removed=None):
+def trainer(nmodel):
     # Initialize the model
     if opt.model == 'resnet18':
         model= torchvision.models.resnet18(pretrained=True).to(opt.device)
@@ -68,20 +29,13 @@ def trainer(removed=None):
         
     
     if opt.dataset == 'cifar10':
-        os.makedirs('./weights/chks_cifar10', exist_ok=True)
+        os.makedirs(f'./weights_shadow/chks_cifar10/{opt.mode}', exist_ok=True)
         # Load CIFAR-10 data
-        trainset = torchvision.datasets.CIFAR10(root=opt.data_path, train=True, download=True, transform=transform_train)
-        testset = torchvision.datasets.CIFAR10(root=opt.data_path, train=False, download=True, transform=transform_test)
-        #model.fc = nn.Linear(512, opt.num_classes).to(opt.device)
-        if 'resnet' in opt.model:    
-            model.conv1 = nn.Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False).to(opt.device)
-            model.maxpool = nn.Identity()
-            model.fc = nn.Sequential(nn.Dropout(0.4), nn.Linear(model.fc.in_features, opt.num_classes)).to(opt.device)
+        model.fc = nn.Linear(512, opt.num_classes).to(opt.device)
+
 
     elif opt.dataset == 'cifar100':
-        os.makedirs('./weights/chks_cifar100', exist_ok=True)
-        trainset = torchvision.datasets.CIFAR100(root=opt.data_path, train=True, download=True, transform=transform_train)
-        testset = torchvision.datasets.CIFAR100(root=opt.data_path, train=False, download=True, transform=transform_test)
+        os.makedirs(f'./weights_shadow/chks_cifar100/{opt.mode}', exist_ok=True)
         if 'resnet' in opt.model:    
             model.conv1 = nn.Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False).to(opt.device)
             model.maxpool = nn.Identity()
@@ -89,23 +43,33 @@ def trainer(removed=None):
 
     elif opt.dataset == 'tinyImagenet':
         #dataloader
-        os.makedirs('./weights/chks_tinyImagenet', exist_ok=True)
-        trainset = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/train',transform=transform_train_tiny)
-        testset = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/val/images',transform=transform_test_tiny)
+        os.makedirs(f'./weights_shadow/chks_tinyImagenet/{opt.mode}', exist_ok=True)
         if 'resnet' in opt.model:
             model.conv1 = nn.Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False).to(opt.device)
             model.maxpool = nn.Identity()
             model.fc = nn.Sequential(nn.Dropout(0.4), nn.Linear(model.fc.in_features, opt.num_classes)).to(opt.device)
+    
     #dataloader
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=256, shuffle=True, num_workers=opt.num_workers)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=256, shuffle=False, num_workers=opt.num_workers)
+    if opt.mode == "CR":
+        #the test set is composed by retain classes
+        forget_set, retain_set, test_forget_set, test_set = get_dsets_shadow(opt.class_to_remove)
+    
+    else:
+        file_fgt = f'{opt.root_folder}forget_id_files/forget_idx_{opt.seed}_{opt.dataset}_seed_{i}.txt'
+        forget_set, retain_set, test_set = get_dsets_shadow(file_fgt=file_fgt)
+
+    
+    indices = np.random.choice(len(retain_set), size=len(retain_set)//2, replace=False)
+
+    # Create a SubsetRandomSampler with the random indices
+    sampler = SubsetRandomSampler(indices)
+
+    trainloader = torch.utils.data.DataLoader(retain_set, batch_size=256, shuffle=True, num_workers=opt.num_workers,sampler=sampler)
+    testloader = torch.utils.data.DataLoader(test_set, batch_size=256, shuffle=False, num_workers=opt.num_workers)
 
     epochs=100
     criterion = nn.CrossEntropyLoss(label_smoothing=0.4)
     optimizer = optim.SGD(model.parameters(), lr=0.1, weight_decay=5e-5)
-    #if opt.dataset == 'tinyImagenet':
-    #    train_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=25, gamma=0.1) #learning rate decay
-    #else:
     train_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
 
@@ -130,7 +94,7 @@ def trainer(removed=None):
         train_acc = 100 * correct / total
         train_loss = running_loss / len(trainloader)
         train_scheduler.step()
-        torch.save(model.state_dict(), f'weights/chks_{opt.dataset}/best_checkpoint_{opt.model}_test.pth')
+        torch.save(model.state_dict(), f'weights_shadow/chks_{opt.dataset}/{opt.mode}/best_checkpoint_{opt.model}_test_numModel_{nmodel}.pth')
 
         if epoch % 5 == 0:        
             model.eval()
@@ -152,4 +116,5 @@ def trainer(removed=None):
 
 
 if __name__ == '__main__':
-    trainer()
+    for nmodel in range(40):
+        trainer(nmodel)

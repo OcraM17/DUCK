@@ -126,7 +126,7 @@ def predict(img) -> torch.Tensor:
         img = torch.tensor(img)
     img = torch.permute(img,(0,3,1,2))
     img = img.to(opt.device)
-    output = un_model(img)###original_pretr_model(img)#original_pretr_model(img)#
+    output = rt_model(img)###original_pretr_model(img)#original_pretr_model(img)#
     return output
 
 
@@ -167,7 +167,7 @@ explainer = shap.Explainer(predict, masker_blur, output_names=class_names)
 # here we explain two images using 100 evaluations of the underlying model to estimate the SHAP values
 
 shap_values = explainer(
-    X[:1],#20 plane #15 horse
+    X[2:3],#20 plane #15 horse
     max_evals=n_evals,
     batch_size=batch_size,
     outputs=shap.Explanation.argsort.flip[:topk],
@@ -189,25 +189,26 @@ shap.image_plot(
 #plt.savefig(f'duck_xai_class_fgt{class_to_remove}.svg')
 #plt.savefig(f'duck_xai_class_fgt{class_to_remove}_or.svg')
 plt.savefig(f'duck_xai_bias_rt_model.svg')
+#plt.savefig(f'duck_xai_bias_or.svg')
 
-fgt_loader=torch.utils.data.DataLoader(forget_set, batch_size=1, shuffle=False)
-mean_shap=[]
-for i,batch in enumerate(fgt_loader):
-    x = batch[0].to(opt.device)
-    x = torch.permute(x,(0,2,3,1))
-    shap_values = explainer(
-    x,#20 plane #15 horse
-    max_evals=n_evals,
-    batch_size=batch_size,
-    outputs=shap.Explanation.argsort.flip[:topk])
-    val = shap_values.values[:,0:4,28:32,:,0]
-    mean_shap.append(val.mean())
-    if i==100:
-        print(np.asarray(mean_shap).mean(),np.asarray(mean_shap).std())
+# fgt_loader=torch.utils.data.DataLoader(forget_set, batch_size=1, shuffle=False)
+# mean_shap=[]
+# for i,batch in enumerate(fgt_loader):
+#     x = batch[0].to(opt.device)
+#     x = torch.permute(x,(0,2,3,1))
+#     shap_values = explainer(
+#     x,#20 plane #15 horse
+#     max_evals=n_evals,
+#     batch_size=batch_size,
+#     outputs=shap.Explanation.argsort.flip[:topk])
+#     val = shap_values.values[:,0:4,28:32,:,0]
+#     mean_shap.append(val.mean())
+    
+#     print(i,np.asarray(mean_shap).mean(),np.asarray(mean_shap).std())
         
 
 
-print(np.asarray(mean_shap).mean(),np.asarray(mean_shap).std())
+# print(np.asarray(mean_shap).mean(),np.asarray(mean_shap).std())
 
-#numpy save array
-np.save('mean_shap_un.npy',np.asarray(mean_shap))
+# #numpy save array
+# np.save('mean_shap_un.npy',np.asarray(mean_shap))

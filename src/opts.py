@@ -128,7 +128,7 @@ class OPT:
                 RT_model_weights_path = root_folder+f'weights/chks_cifar100/best_checkpoint_without_{class_to_remove}.pth'
         
         elif dataset== 'cifar10':
-            or_model_weights_path = root_folder+'weights/chks_cifar10/best_checkpoint_resnet18.pth'
+            or_model_weights_path = '/home/jb/Documents/MachineUnlearning/weights/chks_cifar10/best_checkpoint_resnet18_test.pth'#root_folder+'weights/chks_cifar10/best_checkpoint_resnet18.pth'
             if mode == "CR":
                 RT_model_weights_path = root_folder+f'weights/chks_cifar10/best_checkpoint_without_{class_to_remove}.pth'
 
@@ -156,8 +156,12 @@ class OPT:
             or_model_weights_path = root_folder+'weights/chks_tinyImagenet/best_checkpoint_resnet34.pth'
     
     elif model == 'ViT':
-        #raise error not implemented
-        raise NotImplementedError
+        if dataset== 'cifar100':
+            or_model_weights_path = root_folder+'weights/chks_cifar100/best_checkpoint_ViT_def.pth'
+        elif dataset== 'cifar10':
+            or_model_weights_path = root_folder+'weights/chks_cifar10/best_checkpoint_ViT.pth'
+        elif dataset== 'tinyImagenet':
+            or_model_weights_path = root_folder+'weights/chks_tinyImagenet/best_checkpoint_ViT.pth'
         
     elif model == 'AllCNN':
         if dataset== 'cifar100':

@@ -33,13 +33,14 @@ class BaseMethod:
         if test is None:
             pass 
         else:
+            print('test loader passed')
             self.test = test
     def loss_f(self, net, inputs, targets):
         return None
 
     def run(self):
         self.net.train()
-        for _ in tqdm(range(self.epochs)):
+        for ep in tqdm(range(self.epochs)):
             for inputs, targets in self.loader:
                 inputs, targets = inputs.to(opt.device), targets.to(opt.device)
                 self.optimizer.zero_grad()
@@ -48,12 +49,14 @@ class BaseMethod:
                 self.optimizer.step()
 
             with torch.no_grad():
-                self.net.eval()
-                curr_acc = accuracy(self.net, self.forget)
-                self.net.train()
-                print(f"ACCURACY FORGET SET: {curr_acc:.3f}, target is {self.target_accuracy:.3f}")
-                if curr_acc < self.target_accuracy:
-                    break
+                if ep%5==0:
+                    self.net.eval()
+                    curr_acc = accuracy(self.net, self.forget)
+                    acc = accuracy(self.net,self.test)
+                    self.net.train()
+                    print(f"ACCURACY FORGET SET: {curr_acc:.3f}, target is {self.target_accuracy:.3f}, test is: {acc:.3f}")
+                # if curr_acc < self.target_accuracy:
+                #     break
 
             self.scheduler.step()
             #print('Accuracy: ',self.evalNet())
@@ -155,14 +158,16 @@ class DUCK(BaseMethod):
         super().__init__(net, retain, forget, test)
         self.loader = None
         self.class_to_remove = class_to_remove
-        self.transform_dset = transforms.Compose(
-        [   transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4),
+        transform_dset_list = [   transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
-            transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
-        ]
-        )
+            transforms.Normalize(mean[opt.dataset],std[opt.dataset])]
+        
+        
+        if opt.model ==  'ViT':
+            transform_dset_list.insert(2,transforms.Resize(224,antialias=True))
 
+        self.transform_dset = transforms.Compose(transform_dset_list)
     def pairwise_cos_dist(self, x, y):
         """Compute pairwise cosine distance between two tensors"""
         x_norm = torch.norm(x, dim=1).unsqueeze(1)
@@ -177,12 +182,15 @@ class DUCK(BaseMethod):
         #lambda1 fgt
         #lambda2 retain
 
-
-        bbone = torch.nn.Sequential(*(list(self.net.children())[:-1] + [nn.Flatten()]))
-        if opt.model == 'AllCNN':
-            fc = self.net.classifier
+        if opt.model!='ViT':
+            bbone = torch.nn.Sequential(*(list(self.net.children())[:-1] + [nn.Flatten()]))
+            if opt.model == 'AllCNN':
+                fc = self.net.classifier
+            else:
+                fc = self.net.fc
         else:
-            fc = self.net.fc
+            bbone = self.net
+            fc = self.net.heads
         
         bbone.eval()
 
@@ -194,11 +202,14 @@ class DUCK(BaseMethod):
             cnt=0
             for img_ret, lab_ret in self.retain:
                 img_ret, lab_ret = img_ret.to(opt.device), lab_ret.to(opt.device)
-                logits_ret = bbone(img_ret)
+                if opt.model =='ViT':
+                    logits_ret = bbone.forward_encoder(img_ret)
+                else:
+                    logits_ret = bbone(img_ret)
                 ret_embs.append(logits_ret)
                 labs.append(lab_ret)
                 cnt+=1
-                if cnt>=10:
+                if cnt>=50:
                     break
             ret_embs=torch.cat(ret_embs)
             labs=torch.cat(labs)
@@ -228,17 +239,27 @@ class DUCK(BaseMethod):
         else:
             ls = 0
         criterion = nn.CrossEntropyLoss(label_smoothing=ls)
-        
+
+        # import deeepcopy necessary when performing ablations on fgt loss
+        # from copy import deepcopy
+        # bbone1 = deepcopy(bbone)
 
         print('Num batch forget: ',len(self.forget), 'Num batch retain: ',len(self.retain))
         for _ in tqdm(range(opt.epochs_unlearn)):
             for n_batch, (img_fgt, lab_fgt) in enumerate(self.forget):
+                #use it when performing ablations on fgt loss
+                if n_batch>1 and opt.lambda_1==0:
+                    break
+                
                 for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain):
                     img_ret, lab_ret,img_fgt, lab_fgt  = img_ret.to(opt.device), lab_ret.to(opt.device),img_fgt.to(opt.device), lab_fgt.to(opt.device)
                     
                     optimizer.zero_grad()
-
-                    logits_fgt = bbone(img_fgt)
+                    if opt.model =='ViT':
+                        logits_fgt = bbone.forward_encoder(img_fgt)
+                    else:
+                        logits_fgt = bbone(img_fgt)
+                        #logits_fgt = bbone1(img_fgt)
 
                     # compute pairwise cosine distance between embeddings and centroids
                     dists = self.pairwise_cos_dist(logits_fgt, centroids)
@@ -257,7 +278,11 @@ class DUCK(BaseMethod):
                     dists = dists[torch.arange(dists.shape[0]), closest_centroids[:dists.shape[0]]]
                     loss_fgt = torch.mean(dists) * opt.lambda_1
 
-                    logits_ret = bbone(img_ret)
+                    if opt.model =='ViT':
+                        logits_ret = bbone.forward_encoder(img_ret)
+                    else:
+                        logits_ret = bbone(img_ret)
+                    #import pdb; pdb.set_trace()
                     outputs_ret = fc(logits_ret)
 
                     loss_ret = criterion(outputs_ret/opt.temperature, lab_ret)*opt.lambda_2
@@ -269,6 +294,11 @@ class DUCK(BaseMethod):
                     
                     loss.backward()
                     optimizer.step()
+                    # with torch.no_grad():
+                    #     self.net.eval()
+                    #     curr_acc = accuracy(self.net, self.forget)
+                    #     self.net.train()
+                    #     print(f"ACCURACY FORGET SET: {curr_acc:.3f}, target is {opt.target_accuracy:.3f}")
 
 
                 # evaluate accuracy on forget set every batch
@@ -286,70 +316,78 @@ class DUCK(BaseMethod):
             init = False
             scheduler.step()
 
-        # self.net.eval()
-        # print(accuracy(self.net, self.test))
-        # self.net.train()
-
-        #low forget regime
+        self.net.eval()
+        print(accuracy(self.net, self.test))
         self.net.train()
-        # copy self.retain dataloader changing batch size to 512
-    
-        self.retain.dataset.transform = self.transform_dset
-        self.retain_copy = torch.utils.data.DataLoader(self.retain.dataset, batch_size=512, shuffle=True)
-        optimizer = optim.Adam(self.net.parameters(), lr=0.0001, weight_decay=opt.wd_unlearn)
-        epochs = 2
-        scheduler=torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs*len(self.retain_copy))
-        limit = len(self.retain_copy)//2
-        for ep in range(2):
-            #print('ep:',ep,len(self.retain_copy))
-            for n_batch, (img_fgt, lab_fgt) in enumerate(self.forget):
-                img_fgt, lab_fgt  = img_fgt[:128].to(opt.device), lab_fgt[:128].to(opt.device)
-                if n_batch>=1:
+        import numpy as np
+        if opt.lambda_2 > 0 and opt.lambda_1 > 0:
+            print('low regime')
+            #low forget regime
+            self.net.train()
+            # copy self.retain dataloader changing batch size to 512
+        
+            self.retain.dataset.transform = self.transform_dset
+            self.retain_copy = torch.utils.data.DataLoader(self.retain.dataset, batch_size=512, shuffle=True,drop_last=True)
+            optimizer = optim.Adam(self.net.parameters(), lr=0.0001, weight_decay=opt.wd_unlearn)
+            epochs = 2
+            scheduler=torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs*20*len(self.forget))#len(self.retain_copy)
+
+            for ep in range(epochs):
+                print('ep:',ep,len(self.retain_copy))
+                for n_batch, (img_fgt, lab_fgt) in enumerate(self.forget):
+                    img_fgt, lab_fgt  = img_fgt[:128].to(opt.device), lab_fgt[:128].to(opt.device)
+                    if n_batch>=1 and opt.mode=='CR':
                         break
-            for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain_copy):
-                
-                img_ret, lab_ret = img_ret.to(opt.device), lab_ret.to(opt.device)
-                vec = torch.cat([img_fgt[:],img_ret])
+                    for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain_copy):
+                        if n_batch_ret>=20 and opt.mode=='HR':
+                            print(n_batch_ret,n_batch)
+                            break
 
-                N = img_fgt[:].shape[0]
-                optimizer.zero_grad()
-                out = bbone(vec)
-                logits_fgt = out[:N]#bbone(img_fgt)
-                lab_fgt = lab_fgt[:N]
-                # compute pairwise cosine distance between embeddings and centroids
-                dists = self.pairwise_cos_dist(logits_fgt, centroids)
+                        img_ret, lab_ret = img_ret.to(opt.device), lab_ret.to(opt.device)
+                        vec = torch.cat([img_fgt[:],img_ret])
+
+                        N = img_fgt[:].shape[0]
+                        optimizer.zero_grad()
+                        if opt.model =='ViT':
+                            out = bbone.forward_encoder(vec)
+                        else:
+                            out = bbone(vec)
+                        
+                        logits_fgt = out[:N]#bbone(img_fgt)
+                        lab_fgt = lab_fgt[:N]
+                        # compute pairwise cosine distance between embeddings and centroids
+                        dists = self.pairwise_cos_dist(logits_fgt, centroids)
 
 
-                if n_batch_ret==0:
-                    closest_centroids = torch.argsort(dists, dim=1)
-                    tmp = closest_centroids[:, 0]
-                    closest_centroids = torch.where(tmp == lab_fgt, closest_centroids[:, 1], tmp)
-                    all_closest_centroids.append(closest_centroids)
-                    closest_centroids = all_closest_centroids[-1]
-                else:
-                    closest_centroids = all_closest_centroids[n_batch]
-                
-                
-                logits_ret = out[N:]#bbone(img_ret)#
-                outputs_ret = fc(logits_ret)
+                        if n_batch_ret==0:
+                            closest_centroids = torch.argsort(dists, dim=1)
+                            tmp = closest_centroids[:, 0]
+                            closest_centroids = torch.where(tmp == lab_fgt, closest_centroids[:, 1], tmp)
+                            all_closest_centroids.append(closest_centroids)
+                            closest_centroids = all_closest_centroids[-1]
+                        else:
+                            closest_centroids = all_closest_centroids[n_batch]
+                        
+                        
+                        logits_ret = out[N:]#bbone(img_ret)#
+                        outputs_ret = fc(logits_ret)
 
-                dists = dists[torch.arange(dists.shape[0]), closest_centroids[:dists.shape[0]]]
-                loss_fgt = torch.mean(dists) * opt.lambda_1/10
-                
+                        dists = dists[torch.arange(dists.shape[0]), closest_centroids[:dists.shape[0]]]
+                        loss_fgt = torch.mean(dists) * opt.lambda_1/10
+                        
+                        loss = criterion(outputs_ret/opt.temperature, lab_ret)+loss_fgt
+                        loss.backward()
+                        optimizer.step()
+                        scheduler.step()
 
-                loss = criterion(outputs_ret, lab_ret)+loss_fgt
-                loss.backward()
-                optimizer.step()
-                scheduler.step()
-
-                # with torch.no_grad():
-                #     self.net.eval()
-                #     curr_acc = accuracy(self.net, self.forget)
-                #     test_acc = accuracy(self.net, self.test)
-                #     self.net.train()
-                #     print(f"{n_batch_ret} ACCURACY forget SET: {curr_acc:.3f}")
-                #     print(test_acc)
-        print('end')
+                    # with torch.no_grad():
+                    #     self.net.eval()
+                    #     curr_acc = accuracy(self.net, self.forget)
+                    #     test_acc = accuracy(self.net, self.test)
+                    #     self.net.train()
+                    #     print(f"{n_batch_ret} ACCURACY forget SET: {curr_acc:.3f}")
+                    #     print((1-(0.6808-test_acc))/(1+(np.abs(test_acc-curr_acc))))
+            print('end')
         self.net.eval()
         return self.net
 

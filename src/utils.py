@@ -3,7 +3,7 @@ import numpy as np
 import requests
 import torch
 from torchvision.models.resnet import resnet18,ResNet18_Weights,resnet34,ResNet34_Weights,resnet50,ResNet50_Weights
-from models import ViT
+from models.ViT import ViT_16_mod
 #from resnet import resnet18 
 from sklearn import linear_model, model_selection
 import torch.nn as nn
@@ -170,7 +170,7 @@ def get_resnet_trained():
     elif opt.model=='resnet50':
         model = torchvision.models.resnet50(weights=None)
 
-    if opt.dataset != 'cifar10':
+    if opt.dataset != 'cifar10eee':
         model.conv1 = nn.Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
         model.maxpool = nn.Identity()
         model.fc = nn.Sequential(nn.Dropout(0), nn.Linear(model.fc.in_features, opt.num_classes)) 
@@ -184,17 +184,14 @@ def get_resnet_trained():
 
 def get_ViT_trained():
     local_path = opt.or_model_weights_path
+    
+    print(not os.path.exists(local_path),local_path)
+
     if not os.path.exists(local_path):
         download_weights_drive(local_path,opt.weight_file_id,opt.root_folder)
     
     weights_pretrained = torch.load(local_path)
-    if opt.dataset == 'cifar10' or opt.dataset == 'cifar100':
-        image_size=32
-    elif opt.dataset == 'tinyImagenet':
-        image_size = 64
-
-    model = ViT.ViT(image_size=image_size, patch_size=4, num_classes=opt.num_classes, dim=512, depth=8, heads=12, mlp_dim=512, pool = 'cls', channels = 3, dim_head = 128, dropout = 0, emb_dropout = 0)
-
+    model = ViT_16_mod(n_classes=opt.num_classes)
     model.load_state_dict(weights_pretrained)
 
     return model
@@ -205,7 +202,11 @@ def get_AllCNN_trained():
         download_weights_drive(local_path,opt.weight_file_id,opt.root_folder)
     
     weights_pretrained = torch.load(local_path)
-    model = AllCNN(num_classes=opt.num_classes,dropout_prob=0)
+    if opt.dataset == 'tinyImagenet':
+        N=64
+    else:
+        N=32
+    model = AllCNN(num_classes=opt.num_classes,dropout_prob=0,img_size=N)
     model.load_state_dict(weights_pretrained)
     return model
 

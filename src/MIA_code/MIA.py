@@ -131,7 +131,7 @@ def compute_accuracy_SVC(predicted, labels, targ_val = None):
 
 def training_SVC(model,X_train, X_test, z_train, z_test,opt):
     param_grid = {'C': [1,5,10,100],
-              'gamma': [1, 0.1, 0.01], 
+              'gamma': [10,1, 0.1], 
               'kernel': ['rbf']}
     grid = GridSearchCV(model, param_grid, refit = True, verbose=3 if opt.verboseMIA else 0, cv=3, n_jobs=4) 
     grid.fit(X_train, z_train)
@@ -167,10 +167,9 @@ def expand_data(data):
     return data
 
 def collect_prob(data_loader, model,opt,exp=False):
-    
-    data_loader = torch.utils.data.DataLoader(data_loader.dataset, batch_size=256, shuffle=True)
+    #bbone = torch.nn.Sequential(*(list(self.net.children())[:-1] + [nn.Flatten()]))
+    #data_loader = torch.utils.data.DataLoader(data_loader.dataset, batch_size=256, shuffle=True)
     prob = []
-
 
     with torch.no_grad():
         for idx, batch in enumerate(data_loader):
@@ -178,10 +177,11 @@ def collect_prob(data_loader, model,opt,exp=False):
             if exp:
                 data = expand_data(data)
             output = model(data.to(opt.device))
-            prob.append(F.softmax(output, dim=1).data)
+            loss = F.cross_entropy(output, target.to(opt.device),reduce=False)
+            prob.append(F.cross_entropy(output, target.to(opt.device),reduce=False)[:,None].cpu())#F.softmax(output, dim=1).detach().cpu())#
         prob=torch.cat(prob)       
-        for i in range(prob.shape[0]):
-            prob[i] = torch.roll(prob[i],np.random.randint(0,prob.shape[1]),dims=0)         
+        # for i in range(prob.shape[0]):
+        #     prob[i] = torch.roll(prob[i],np.random.randint(0,prob.shape[1]),dims=0)         
     return prob
 
 def get_membership_attack_data(train_loader, test_loader, model,opt):    
@@ -268,34 +268,84 @@ transform_test= transforms.Compose(list_test)
 #             transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
 #         ]
 #     )
-def get_membership_attack_data_CR(fgt_loader,fgt_loader_t,model,opt,test_data=None):    
+def get_membership_attack_data_CR(train_loader, test_loader,model,opt,fgt_loader=None,fgt_loader_t=None):    
     #get membership attack data, this function will return X_r, Y_r, X_f, Y_f
-
+    train_loader.dataset.transform = transform_test
     fgt_loader.dataset.transform = transform_test
     #print(fgt_loader.dataset.transform)
     #### fgt test to expand
 
+    # train_prob = collect_prob(train_loader, model,opt,exp=False)
+    # Y = torch.zeros(len(train_prob),dtype=torch.int64)
 
+    # test_prob = collect_prob(test_loader, model,opt,exp=False)
+    # Y_test = torch.ones(len(test_prob),dtype=torch.int64)
 
     fgt_prob = collect_prob(fgt_loader, model,opt,exp=False)
-    #set exp to True in Tiny
-    fgt_prob_t = collect_prob(fgt_loader_t, model,opt,exp=False)
-
-    X_fgt = fgt_prob.cpu()
     Y_fgt = torch.zeros(len(fgt_prob),dtype=torch.int64)
-
-    X_fgt_t = fgt_prob_t.cpu()
+    
+    fgt_prob_t = collect_prob(fgt_loader_t, model,opt,exp=False)
     Y_fgt_t = torch.ones(len(fgt_prob_t),dtype=torch.int64)
 
+    # N_test = 2000#test_prob.shape[0]
 
+    # X = train_prob.cpu()
+    # X_test= test_prob.cpu()
+
+    # X = X[:N_test,:]
+    # Y = Y[:N_test]
+
+    # X_test = X_test[:N_test,:]
+    # Y_test = Y_test[:N_test]
+
+
+
+    # xtrain = torch.cat([X,X_test],dim=0)
+    # ytrain = torch.cat([Y,Y_test],dim=0)
+
+    # xtest = fgt_prob.cpu()#torch.cat([X_fgt_t[n_sampt:,:],X_fgt[n_samp:,:]],dim=0)
+    # ytest = Y_fgt#torch.cat([Y_fgt_t[n_sampt:],Y_fgt[n_samp:]],dim=0)
+
+    # #set exp to True in Tiny
+    # fgt_prob_t = collect_prob(fgt_loader_t, model,opt,exp=False)
+    # print(torch.unique(torch.argmax(fgt_prob_t,dim=1),return_counts=True))
+
+    X_fgt = fgt_prob.cpu()
+    # Y_fgt = torch.zeros(len(fgt_prob),dtype=torch.int64)
+
+    X_fgt_t = fgt_prob_t.cpu()
+
+    import matplotlib.pyplot as plt
     
+    # Y_fgt_t = torch.ones(len(fgt_prob_t),dtype=torch.int64)
+    print(X_fgt.mean(),X_fgt.std(),X_fgt_t.mean(),X_fgt_t.std())
+    #entropy=torch.sum(-fgt_prob*torch.log(torch.clamp(fgt_prob,min=1e-5)),dim=1)
+      
+    #plt.hist(X_fgt[:,0].numpy().flatten(),density=True,bins=100,alpha=.3,color='blue')
+    #X_fgt = entropy[:,None].cpu()
+    # fgt_entropy = torch.mean(entropy).item()
+    # fgt_entropy_std = torch.std(entropy).item()
+    # print(f"fgt entropy: {fgt_entropy} +- {fgt_entropy_std}")
+
+
+    #entropy=torch.sum(-fgt_prob_t*torch.log(torch.clamp(fgt_prob_t,min=1e-5)),dim=1)
+    #plt.hist(X_fgt_t[:,0].numpy().flatten(),density=True,bins=100,alpha=.3,color='red')
+    #plt.savefig('test_ent.png')
+    #input('ccc')
+    # #X_fgt_t = entropy[:,None].cpu()
+    # fgt_entropy_t = torch.mean(entropy).item()
+    # fgt_entropy_std = torch.std(entropy).item()
+    # print(f"fgt_t entropy: {fgt_entropy_t} +- {fgt_entropy_std}")
+
     N_fgt_t = X_fgt_t.shape[0]
+    N_fgt = X_fgt.shape[0]
+    X_fgt_t = X_fgt_t[torch.randperm(N_fgt_t),:]
+    X_fgt = X_fgt[torch.randperm(N_fgt),:]
 
+  
 
-    np.random.shuffle(X_fgt_t)
-    np.random.shuffle(X_fgt)
-    X_fgt = X_fgt[:N_fgt_t*3,:]
-    Y_fgt = Y_fgt[:N_fgt_t*3]
+    X_fgt = X_fgt[:N_fgt_t,:]
+    Y_fgt = Y_fgt[:N_fgt_t]
     N_fgt = X_fgt.shape[0]
 
 
@@ -308,16 +358,30 @@ def get_membership_attack_data_CR(fgt_loader,fgt_loader_t,model,opt,test_data=No
     xtest = torch.cat([X_fgt_t[n_sampt:,:],X_fgt[n_samp:,:]],dim=0)
     ytest = torch.cat([Y_fgt_t[n_sampt:],Y_fgt[n_samp:]],dim=0)
 
+    # N_fgt_t = X_fgt_t.shape[0]
+    from sklearn.preprocessing import StandardScaler
+    scaler = StandardScaler()
+    xtrain = scaler.fit_transform(xtrain)
+    xtest = scaler.transform(xtest)
+    # np.random.shuffle(X_fgt_t)
+    # np.random.shuffle(X_fgt)
+    # X_fgt = X_fgt[:N_fgt_t*3,:]
+    # Y_fgt = Y_fgt[:N_fgt_t*3]
+    # N_fgt = X_fgt.shape[0]
+
+
+    # n_samp = int(0.7*N_fgt) 
+    # n_sampt = int(0.7*N_fgt_t)
+
+    # xtrain = torch.cat([X_fgt_t[:n_sampt,:],X_fgt[:n_samp,:]],dim=0)
+    # ytrain = torch.cat([Y_fgt_t[:n_sampt],Y_fgt[:n_samp]],dim=0)
+
+    # xtest = torch.cat([X_fgt_t[n_sampt:,:],X_fgt[n_samp:,:]],dim=0)
+    # ytest = torch.cat([Y_fgt_t[n_sampt:],Y_fgt[n_samp:]],dim=0)
+
 
     # Compute entropy
-    entropy=torch.sum(-fgt_prob*torch.log(torch.clamp(fgt_prob,min=1e-5)),dim=1)
-    fgt_entropy = torch.mean(entropy).item()
-    fgt_entropy_std = torch.std(entropy).item()
-    print(f"fgt entropy: {fgt_entropy} +- {fgt_entropy_std}")
-    entropy=torch.sum(-fgt_prob_t*torch.log(torch.clamp(fgt_prob_t,min=1e-5)),dim=1)
-    fgt_entropy_t = torch.mean(entropy).item()
-    fgt_entropy_std = torch.std(entropy).item()
-    print(f"fgt_t entropy: {fgt_entropy_t} +- {fgt_entropy_std}")
+
 
 
     print('check input vectors: ',xtrain.shape,xtest.shape,np.unique(ytrain,return_counts=True))
@@ -329,8 +393,8 @@ def get_MIA_SVC(train_loader, test_loader, model, opt,fgt_loader=None,fgt_loader
         if opt.mode == "HR":
             train_data, train_labels, test_data, test_labels, train_entropy, test_entropy = get_membership_attack_data(train_loader, test_loader, model, opt)
         elif opt.mode == "CR":
-            train_data, train_labels, test_data, test_labels = get_membership_attack_data_CR(fgt_loader,fgt_loader_t, model, opt, test_data=test_loader)
-        model_SVC = SVC( tol = 1e-4, max_iter=4000, random_state=i) #class_weight='balanced'
+            train_data, train_labels, test_data, test_labels = get_membership_attack_data_CR(train_loader, test_loader, model, opt,fgt_loader=fgt_loader, fgt_loader_t=fgt_loader_t)
+        model_SVC = SVC( tol = 1e-4, max_iter=4000, random_state=i,class_weight='balanced')
         accuracy, chance,accuracy_test_ex,accuracy_train_ex, P,R,F1, mutual = training_SVC(model_SVC, train_data, test_data, train_labels, test_labels, opt)
         results.append(np.asarray([accuracy, chance,accuracy_test_ex,accuracy_train_ex,P,R,F1, mutual,0, 0]))
     

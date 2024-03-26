@@ -84,7 +84,7 @@ class Conv(nn.Sequential):
 
 
 class AllCNN(nn.Module):
-    def __init__(self, dropout_prob=0.1, n_channels=3, num_classes=10, dropout=False, filters_percentage=1., batch_norm=True):
+    def __init__(self, dropout_prob=0.1, n_channels=3, num_classes=10, dropout=False, filters_percentage=1., batch_norm=True,img_size=32):
         super(AllCNN, self).__init__()
         n_filter1 = int(96 * filters_percentage)
         n_filter2 = int(192 * filters_percentage)
@@ -102,9 +102,13 @@ class AllCNN(nn.Module):
             nn.AvgPool2d(8),
             Flatten()
         )
+        if img_size == 32:
+            shape = 192
+        else:
+            shape = 768
         self.classifier = nn.Sequential(
             nn.Dropout(dropout_prob),
-            nn.Linear(768, 384),
+            nn.Linear(shape, 384),
             nn.ReLU(),
             nn.Dropout(dropout_prob),
             nn.Linear(384,num_classes)
@@ -120,37 +124,3 @@ class AllCNN(nn.Module):
 # layer2 = Conv(96, 96, kernel_size=3, batch_norm=True).to('cuda')
 # layer3 = Conv(96, 192, kernel_size=3, stride=2, padding=1, batch_norm=True).to('cuda')
 
-
-
-# Target/Shadow Model for MNIST
-class MNISTNet(nn.Module):
-    def __init__(self, input_dim, n_hidden, out_classes=10, size=28):
-        super(MNISTNet, self).__init__()
-        self.conv1 = nn.Sequential(
-            nn.Conv2d(in_channels=input_dim, out_channels=n_hidden, kernel_size=5),
-            nn.BatchNorm2d(n_hidden),
-            # nn.Dropout(p=0.5),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2)
-        )
-        self.conv2 = nn.Sequential(
-            nn.Conv2d(in_channels=n_hidden, out_channels=n_hidden * 2, kernel_size=5),
-            nn.BatchNorm2d(n_hidden * 2),
-            # nn.Dropout(p=0.5),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2)
-        )
-
-        features = calc_feat_linear_mnist(size)
-        self.classifier = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(features ** 2 * (n_hidden * 2), n_hidden * 2),
-            nn.ReLU(inplace=True),
-            nn.Linear(n_hidden * 2, out_classes)
-        )
-
-    def forward(self, x):
-        out = self.conv1(x)
-        out = self.conv2(out)
-        out = self.classifier(out)
-        return out

@@ -52,14 +52,23 @@ def get_dsets_remove_class(class_to_remove):
             'VGG':(0.323, 0.298, 0.263)
             }
 
-    # download and pre-process CIFAR10
-    transform_dset = transforms.Compose(
-        [
+    
+    transform_dset_list = [
+            transforms.ToTensor(),
+            transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
+        ]
+
+    transform_dset2 = transforms.Compose(
+        [   transforms.RandomHorizontalFlip(),
+            transforms.RandomCrop(64, padding=8),
+            transforms.RandomRotation(15),
             transforms.ToTensor(),
             transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
         ]
     )
-
+    if opt.model ==  'ViT':
+        transform_dset_list.insert(2,transforms.Resize(224,antialias=True))
+    transform_dset = transforms.Compose(transform_dset_list)
     # we split held out - train
     if opt.dataset == 'cifar10':
         train_set = torchvision.datasets.CIFAR10(root=opt.data_path, train=True, download=True, transform=transform_dset)
@@ -170,12 +179,21 @@ def get_dsets(file_fgt=None):
             'VGG':[0.323, 0.298, 0.263]            
             }
 
-    transform_dset = transforms.Compose(
-        [
+    transform_dset_list = [
+            transforms.ToTensor(),
+            transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
+        ]
+
+    transform_dset2 = transforms.Compose(
+        [   transforms.RandomHorizontalFlip(),
+            transforms.RandomCrop(32, padding=4),
             transforms.ToTensor(),
             transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
         ]
     )
+    if opt.model ==  'ViT':
+        transform_dset_list.insert(2,transforms.Resize(224,antialias=True))
+    transform_dset = transforms.Compose(transform_dset_list)
     
     if opt.dataset == 'cifar10':
         train_set = torchvision.datasets.CIFAR10(root=opt.data_path, train=True, download=True, transform=transform_dset)
@@ -282,3 +300,164 @@ class CustomDataset_10subj(Dataset):
             image = self.transform(image)
 
         return image, label
+
+
+def get_dsets_shadow(class_to_remove=None,file_fgt=None):
+
+
+    mean = {
+            'cifar10': (0.4914, 0.4822, 0.4465),
+            'cifar100': (0.5071, 0.4867, 0.4408),
+            'tinyImagenet': (0.485, 0.456, 0.406),
+            'VGG':(0.547, 0.460, 0.404)
+            }
+
+    std = {
+            'cifar10': (0.2023, 0.1994, 0.2010),
+            'cifar100': (0.2675, 0.2565, 0.2761),
+            'tinyImagenet': (0.229, 0.224, 0.225),
+            'VGG':(0.323, 0.298, 0.263)
+            }
+
+
+    transform_train = transforms.Compose([
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomCrop(32, padding=4),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=mean[opt.dataset], std=std[opt.dataset])
+    ])
+
+    transform_test = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize(mean=mean[opt.dataset], std=std[opt.dataset])
+    ])
+
+    transform_train_tiny = transforms.Compose([
+            transforms.RandomCrop(64, padding=4),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomRotation(15),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=mean[opt.dataset], std=std[opt.dataset])
+        ])
+
+    transform_test_tiny = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(mean=mean[opt.dataset], std=std[opt.dataset])
+        ])
+
+    # we split held out - train
+    if opt.dataset == 'cifar10':
+        train_set = torchvision.datasets.CIFAR10(root=opt.data_path, train=True, download=True, transform=transform_train)
+        test_set = torchvision.datasets.CIFAR10(root=opt.data_path, train=False, download=True, transform=transform_test)
+
+    elif opt.dataset == 'cifar100':
+        train_set = torchvision.datasets.CIFAR100(root=opt.data_path, train=True, download=True, transform=transform_train)
+        test_set = torchvision.datasets.CIFAR100(root=opt.data_path, train=False, download=True, transform=transform_test)
+        
+    elif opt.dataset == 'tinyImagenet':
+        train_set = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/train',transform=transform_train_tiny)
+        test_set = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/val/images',transform=transform_test_tiny)
+
+    if file_fgt is not None and class_to_remove is None:
+        forget_idx = np.loadtxt(file_fgt).astype(np.int64)
+
+        forget_mask = np.zeros(len(train_set.targets), dtype=bool)
+        forget_mask[forget_idx] = True
+        retain_idx = np.arange(forget_mask.size)[~forget_mask]
+
+        forget_set = Subset(train_set, forget_idx)
+        retain_set = Subset(train_set, retain_idx)
+        return forget_set, retain_set, test_set
+
+    elif file_fgt is None and class_to_remove is not None:    
+        test_forget_set, test_retain_set = split_retain_forget(test_set, class_to_remove)
+        forget_set, retain_set = split_retain_forget(train_set, class_to_remove)
+
+        return forget_set, retain_set, test_forget_set, test_retain_set
+
+
+def get_dsets_shadow(file_fgt=None):
+    mean = {
+            'cifar10': (0.4914, 0.4822, 0.4465),
+            'cifar100': (0.5071, 0.4867, 0.4408),
+            'tinyImagenet': (0.485, 0.456, 0.406),
+            'VGG':(0.547, 0.460, 0.404),
+            }
+
+    std = {
+            'cifar10': (0.2023, 0.1994, 0.2010),
+            'cifar100': (0.2675, 0.2565, 0.2761),
+            'tinyImagenet': (0.229, 0.224, 0.225),
+            'VGG':[0.323, 0.298, 0.263]            
+            }
+
+    transform_dset_list = [
+            transforms.ToTensor(),
+            transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
+        ]
+
+    transform_dset2 = transforms.Compose(
+        [   transforms.RandomHorizontalFlip(),
+            transforms.RandomCrop(32, padding=4),
+            transforms.ToTensor(),
+            transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
+        ]
+    )
+    if opt.model ==  'ViT':
+        transform_dset_list.insert(2,transforms.Resize(224,antialias=True))
+    transform_dset = transforms.Compose(transform_dset_list)
+    
+    if opt.dataset == 'cifar10':
+        train_set = torchvision.datasets.CIFAR10(root=opt.data_path, train=True, download=True, transform=transform_dset)
+        held_out = torchvision.datasets.CIFAR10(root=opt.data_path, train=False, download=True, transform=transform_dset)
+        if file_fgt is None:
+            forget_idx = np.loadtxt('./forget_idx_5000_cifar10.txt').astype(np.int64)
+        else:
+            forget_idx = np.loadtxt(file_fgt).astype(np.int64)
+
+
+
+    elif opt.dataset=='cifar100':
+        train_set = torchvision.datasets.CIFAR100(root=opt.data_path, train=True, download=True, transform=transform_dset)
+        held_out = torchvision.datasets.CIFAR100(root=opt.data_path, train=False, download=True, transform=transform_dset)
+        #use numpy modules to read txt file for cifar100
+        if file_fgt is None:
+            forget_idx = np.loadtxt('./forget_idx_5000_cifar100.txt').astype(np.int64)
+        else:
+            forget_idx = np.loadtxt(file_fgt).astype(np.int64)
+
+    elif opt.dataset == 'tinyImagenet':
+        train_set = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/train/',transform=transform_dset)
+        held_out = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/val/images/',transform=transform_dset)
+        if file_fgt is None:
+            forget_idx = np.loadtxt('./forget_idx_5000_tinyImagenet.txt').astype(np.int64)
+        else:
+            forget_idx = np.loadtxt(file_fgt).astype(np.int64)
+    
+        
+        
+    
+    train_loader = DataLoader(train_set, batch_size=opt.batch_size, shuffle=True, num_workers=opt.num_workers)
+
+    
+    ### get held out dataset for generating test and validation 
+    
+    test_set, val_set = random_split(held_out, [0.5, 0.5])
+    test_loader = DataLoader(test_set, batch_size=opt.batch_size, drop_last=True, shuffle=False, num_workers=opt.num_workers)
+    val_loader = DataLoader(val_set, batch_size=opt.batch_size, drop_last=True, shuffle=False, num_workers=opt.num_workers)
+
+    
+
+    # construct indices of retain from those of the forget set
+    forget_mask = np.zeros(len(train_set.targets), dtype=bool)
+    forget_mask[forget_idx] = True
+    retain_idx = np.arange(forget_mask.size)[~forget_mask]
+
+    forget_set = Subset(train_set, forget_idx)
+    retain_set = Subset(train_set, retain_idx)
+
+
+    train_forget_loader = DataLoader(forget_set, batch_size=opt.batch_size, drop_last=True, shuffle=False, num_workers=opt.num_workers)
+    train_retain_loader = DataLoader(retain_set, batch_size=opt.batch_size, drop_last=True, shuffle=True, num_workers=opt.num_workers)
+
+    return train_loader, test_loader, train_forget_loader, train_retain_loader
