@@ -52,7 +52,7 @@ def trainer(nmodel):
     #dataloader
     if opt.mode == "CR":
         #the test set is composed by retain classes
-        forget_set, retain_set, test_forget_set, test_set = get_dsets_shadow(opt.class_to_remove)
+        forget_set, retain_set, test_forget_set, test_set = get_dsets_shadow([opt.class_to_remove])
     
     else:
         file_fgt = f'{opt.root_folder}forget_id_files/forget_idx_{opt.seed}_{opt.dataset}_seed_{i}.txt'
@@ -64,7 +64,7 @@ def trainer(nmodel):
     # Create a SubsetRandomSampler with the random indices
     sampler = SubsetRandomSampler(indices)
 
-    trainloader = torch.utils.data.DataLoader(retain_set, batch_size=256, shuffle=True, num_workers=opt.num_workers,sampler=sampler)
+    trainloader = torch.utils.data.DataLoader(retain_set, batch_size=256, num_workers=opt.num_workers,sampler=sampler)
     testloader = torch.utils.data.DataLoader(test_set, batch_size=256, shuffle=False, num_workers=opt.num_workers)
 
     epochs=100
