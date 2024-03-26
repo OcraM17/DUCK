@@ -9,6 +9,11 @@ from pygit2 import Repository
 import time
 from opts import OPT as opt
 import pandas as pd
+import random
+from error_propagation import Complex
+
+
+
 # If modifying these scopes, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
@@ -16,9 +21,8 @@ SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
 # The ID and range of a sample spreadsheet.
-SAMPLE_SPREADSHEET_ID = "1AdZdZJERaUironNl4vesg0e6k5Fk7BDEt-VNxXvgVSk"
-
-
+SAMPLE_SPREADSHEET_ID = "1AdZdZJERaUironNl4vesg0e6k5Fk7BDEt-VNxXvgVSk"#"123ZY_oBIs9fCQw2yUuIFJrNWUbj2QT2pacCZ3oO0GRU"
+                        
 import os
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
@@ -38,8 +42,9 @@ def publish(data, range_name):
     json_key_file_path = opt.root_folder + 'publisher_key.json'
 
     # Check if client_secrets.json file exists
-    if os.path.exists('client_secrets.json'):
+    if os.path.exists(json_key_file_path):
         credentials = Credentials.from_service_account_file(json_key_file_path, scopes=['https://www.googleapis.com/auth/spreadsheets'])
+    #credentials = ServiceAccountCredentials.from_json_keyfile_name(json_key_file_path, scope)
 
     try:
         # Build the Google Sheets API service
@@ -88,8 +93,12 @@ def push_results(args, df_or_model=None, df_un_model=None, df_rt_model=None):
     branch_name = repo.head.name.split("/")[-1]
     last_commit_id = repo[repo.head.target].hex
     date_time = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+    random_number = random.randint(0, 9999)
+    unique_key = f"{timestamp}-{random_number}"
     
     params = [str(vars(args)[k]) for k in vars(args) if k not in blacklist] + [date_time, branch_name, last_commit_id]
+    params.append(unique_key)
     range_name = 'Params!A:P'
     
     publish_with_retries([params], range_name)
@@ -113,8 +122,10 @@ def push_results(args, df_or_model=None, df_un_model=None, df_rt_model=None):
 
     if isinstance(df_un_model, pd.DataFrame):
         keys = df_un_model.keys()
-        means = df_un_model.mean(axis=0)
-        results.extend([means[k] for k in keys if k not in["PLACEHOLDER", "Mutual"]])
+        means = (df_un_model.mean(axis=0)).round(4)
+        stds = (df_un_model.std(axis=0)).round(4)
+
+        results.extend([Complex(means[k], stds[k]) for k in keys if k not in["PLACEHOLDER", "Mutual"]])
     else:
         results.extend([None]*(n_df_params+1))
 
@@ -125,6 +136,7 @@ def push_results(args, df_or_model=None, df_un_model=None, df_rt_model=None):
     else:
         results.extend([None]*n_df_params)
     results = [str(r) for r in results]
+    results.append(unique_key)
     
     publish_with_retries([results], range_name)
     
