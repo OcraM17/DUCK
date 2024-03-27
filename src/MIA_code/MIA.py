@@ -10,7 +10,7 @@ from sklearn.metrics import precision_recall_fscore_support
 from sklearn.metrics import adjusted_mutual_info_score
 from sklearn.svm import SVC
 from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import roc_curve
+from sklearn.metrics import roc_curve,auc
 import warnings
 import os
 import glob
@@ -416,18 +416,20 @@ def collect_prob_logits(data_loader, model,opt):
             data, target = batch
             output = model(data.to(opt.device))
             confidence = torch.exp(-F.cross_entropy(output, target.to(opt.device),reduce=False)[:,None].cpu())
-            #import pdb; pdb.set_trace()
+            import pdb; pdb.set_trace()
             buff = confidence/(1-confidence)
             prob.append(torch.log(buff))
+            print((torch.argmax(output,dim=1)==target.to(opt.device)).sum()/len(target.to(opt.device)))
         prob=torch.cat(prob)       
     return prob
 
-def get_MIA(train_fgt_loader, test_fgt_loader, model,opt,original_pretr_model):
-    
-    
-
+def get_MIA(train_fgt_loader, test_loader, model,opt,original_pretr_model):
+    #prob_test_model = collect_prob_logits(train_fgt_loader, model,opt)
+    prob_test_model_test = collect_prob_logits(test_loader, model,opt)
     #compute for fgt samples distributions from shadow models
-    weights = glob.glob(f'{opt.root_folder}/weights_shadow/chks_{opt.dataset}/{opt.mode}/*.pth')
+    weights = glob.glob(f'{opt.root_folder}weights_shadow/chks_{opt.dataset}/{opt.mode}/*.pth')
+    weights = glob.glob(f'/home/jb/Documents/MachineUnlearning/weights_shadow/chks_{opt.dataset}/{opt.mode}/*.pth')
+    
     print(f'{opt.root_folder}/weights_shadow/chks_{opt.dataset}/{opt.mode}/*.pth')
     print(f'got {len(weights)} shadow models...')
     shadow_model = deepcopy(original_pretr_model)
@@ -435,27 +437,30 @@ def get_MIA(train_fgt_loader, test_fgt_loader, model,opt,original_pretr_model):
     distributions_test = []
 
     for weights_name in weights:
-        shadow_model.load_state_dict(torch.load(weights_name))
-        shadow_model.eval()
-        prob = collect_prob_logits(train_fgt_loader, shadow_model,opt)
-        prob_test = collect_prob_logits(test_fgt_loader, shadow_model,opt)
+        try:
+            shadow_model.load_state_dict(torch.load(weights_name))
+            shadow_model.eval()
+            prob = collect_prob_logits(train_fgt_loader, shadow_model,opt)
+            prob_test = collect_prob_logits(test_loader, shadow_model,opt)
 
-        distributions.append(prob)
-        distributions_test.append(prob_test)
+            distributions.append(prob)
+            distributions_test.append(prob_test)
+        except:
+            pass
 
     distributions = torch.cat(distributions,dim=1)
     distributions_test = torch.cat(distributions_test,dim=1)
     print(distributions.shape)
     #compute mu and std for each fgt sample
-    mu = torch.mean(distributions,dim=1)#torch.stack([torch.mean(dist,dim=0) for dist in distributions],dim=0)
-    std = torch.std(distributions,dim=1)#torch.stack([torch.std(dist,dim=0) for dist in distributions],dim=0)
+    mu = torch.mean(distributions,dim=1)
+    std = torch.std(distributions,dim=1)
     mu_test = torch.mean(distributions_test,dim=1)
     std_test = torch.std(distributions_test,dim=1)
     #compute real prob
     #import pdb; pdb.set_trace()
     print(distributions[0,:])
     prob_test_model = collect_prob_logits(train_fgt_loader, model,opt)
-    prob_test_model_test = collect_prob_logits(test_fgt_loader, model,opt)
+    prob_test_model_test = collect_prob_logits(test_loader, model,opt)
     print(prob_test_model)
     #pdb.set_trace()
     final_prob_vector = 0.5*(1-torch.special.erf((prob_test_model[:,0]-mu)/(math.sqrt(2)*std)))
@@ -464,7 +469,10 @@ def get_MIA(train_fgt_loader, test_fgt_loader, model,opt,original_pretr_model):
     print(final_prob_vector.mean(),final_prob_vector.std())
     print("final_prob_vector_test",final_prob_vector_test)
     print(final_prob_vector_test.mean(),final_prob_vector_test.std())
-    fpr, tpr, thresholds = roc_curve(np.concatenate(np.ones_like(final_prob_vector.numpy()), np.zeros_like(final_prob_vector_test.numpy())), np.concatenate(1-final_prob_vector.numpy(), 1-final_prob_vector_test.numpy()))
+
+    y_lab = np.concatenate((np.ones_like(final_prob_vector.numpy()), np.zeros_like(final_prob_vector_test.numpy())),axis=0)
+    y_pred = np.concatenate((1-final_prob_vector.numpy(), 1-final_prob_vector_test.numpy()),axis=0)
+    fpr, tpr, thresholds = roc_curve(y_lab,y_pred)
 
     #plot histogram of final_prob_vector
     # import matplotlib.pyplot as plt
@@ -481,6 +489,8 @@ def get_MIA(train_fgt_loader, test_fgt_loader, model,opt,original_pretr_model):
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
     plt.title('ROC')
+    #use tight_layout
+    plt.tight_layout()
     plt.savefig("ROC.png")
-
+    print(f'AUC: {auc(fpr, tpr)}')
     return final_prob_vector.mean()

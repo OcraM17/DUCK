@@ -54,7 +54,7 @@ class OPT:
     if args.mode == 'HR' and args.seed is None:
         seed = [0,1,2,3,4,5,6,7,8,42]
     elif args.mode == "HR" and args.seed is not None:
-        seed = args.seed
+        seed = int(args.seed[0])
         #class_to_remove = None
     elif args.mode == 'CR' and args.class_to_remove is None:
         seed = [42]

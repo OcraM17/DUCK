@@ -30,7 +30,10 @@ def trainer(nmodel):
         
     
     if opt.dataset == 'cifar10':
-        os.makedirs(f'./weights_shadow/chks_cifar10/{opt.mode}', exist_ok=True)
+        if opt.mode == 'CR':
+            os.makedirs(f'./weights_shadow/chks_cifar10/{opt.mode}/class_{opt.class_to_remove}/', exist_ok=True)
+        else:
+            os.makedirs(f'./weights_shadow/chks_cifar10/{opt.mode}/seed_{opt.seed}/', exist_ok=True)
         # Load CIFAR-10 data
         model.fc = nn.Linear(512, opt.num_classes).to(opt.device)
 
@@ -56,7 +59,7 @@ def trainer(nmodel):
         forget_set, retain_set, test_forget_set, test_set = get_dsets_shadow([opt.class_to_remove])
     
     else:
-        file_fgt = f'{opt.root_folder}forget_id_files/forget_idx_{opt.seed}_{opt.dataset}_seed_{i}.txt'
+        file_fgt = f'{opt.root_folder}forget_id_files/forget_idx_5000_{opt.dataset}_seed_0.txt'
         forget_set, retain_set, test_set = get_dsets_shadow(file_fgt=file_fgt)
 
     
@@ -69,56 +72,60 @@ def trainer(nmodel):
     testloader = torch.utils.data.DataLoader(test_set, batch_size=256, shuffle=False, num_workers=opt.num_workers)
 
     epochs=100
-    criterion = nn.CrossEntropyLoss(label_smoothing=0.4)
+    criterion = nn.CrossEntropyLoss(label_smoothing=0.2)
     optimizer = optim.SGD(model.parameters(), lr=0.1, weight_decay=5e-5)
     train_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
+    if nmodel>28:
+        # Train the network
+        best_acc = 0.0
+        for epoch in range(epochs):  # loop over the dataset multiple times
+            running_loss = 0.0
+            model.train()
+            correct, total = 0, 0
+            for i, data in enumerate(trainloader, 0):
+                inputs, labels = data
+                inputs, labels = inputs.to(opt.device), labels.to(opt.device)
+                optimizer.zero_grad()
+                outputs = model(inputs)
+                _, predicted = torch.max(outputs.data, 1)
+                total += labels.size(0)
+                correct += (predicted == labels).sum().item()
+                loss = criterion(outputs, labels)
+                loss.backward()
+                optimizer.step()
+                running_loss += loss.item()
+            train_acc = 100 * correct / total
+            train_loss = running_loss / len(trainloader)
+            train_scheduler.step()
+            if opt.mode == 'CR':
+                weights_path = f'weights_shadow/chks_{opt.dataset}/{opt.mode}/class_{opt.class_to_remove}/best_checkpoint_{opt.model}_test_numModel_{nmodel}.pth'
+            else:
+                weights_path = f'weights_shadow/chks_{opt.dataset}/{opt.mode}/seed_{opt.seed}/best_checkpoint_{opt.model}_test_numModel_{nmodel}.pth'
+            torch.save(model.state_dict(), weights_path)
 
-    # Train the network
-    best_acc = 0.0
-    for epoch in range(epochs):  # loop over the dataset multiple times
-        running_loss = 0.0
-        model.train()
-        correct, total = 0, 0
-        for i, data in enumerate(trainloader, 0):
-            inputs, labels = data
-            inputs, labels = inputs.to(opt.device), labels.to(opt.device)
-            optimizer.zero_grad()
-            outputs = model(inputs)
-            _, predicted = torch.max(outputs.data, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
-            running_loss += loss.item()
-        train_acc = 100 * correct / total
-        train_loss = running_loss / len(trainloader)
-        train_scheduler.step()
-        torch.save(model.state_dict(), f'weights_shadow/chks_{opt.dataset}/{opt.mode}/best_checkpoint_{opt.model}_test_numModel_{nmodel}.pth')
-
-        if epoch % 5 == 0:        
-            model.eval()
-            correct = 0
-            total = 0
-            with torch.no_grad():
-                for data in testloader:
-                    inputs, labels = data
-                    inputs, labels = inputs.to(opt.device), labels.to(opt.device)
-                    outputs = model(inputs)
-                    _, predicted = torch.max(outputs.data, 1)
-                    total += labels.size(0)
-                    correct += (predicted == labels).sum().item()
-            val_acc = 100 * correct / total
-            if val_acc > best_acc:
-                best_acc = val_acc
-            print('Epoch: %d, Train Loss: %.3f, Train Acc: %.3f, Val Acc: %.3f, Best Acc: %.3f' % (epoch, train_loss, train_acc, val_acc, best_acc))
-    return best_acc
+            if epoch % 5 == 0:        
+                model.eval()
+                correct = 0
+                total = 0
+                with torch.no_grad():
+                    for data in testloader:
+                        inputs, labels = data
+                        inputs, labels = inputs.to(opt.device), labels.to(opt.device)
+                        outputs = model(inputs)
+                        _, predicted = torch.max(outputs.data, 1)
+                        total += labels.size(0)
+                        correct += (predicted == labels).sum().item()
+                val_acc = 100 * correct / total
+                if val_acc > best_acc:
+                    best_acc = val_acc
+                print('Epoch: %d, Train Loss: %.3f, Train Acc: %.3f, Val Acc: %.3f, Best Acc: %.3f' % (epoch, train_loss, train_acc, val_acc, best_acc))
+        return best_acc
 
 
 if __name__ == '__main__':
     print(opt.seed)
     set_seed(opt.seed)
-    for nmodel in range(40,80):
+    for nmodel in range(0,80):
         print('Train model:', nmodel)
         trainer(nmodel)

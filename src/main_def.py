@@ -54,7 +54,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         
         
         if opt.mode =="HR":
-            _ = get_MIA(train_fgt_loader,original_pretr_model,opt,original_pretr_model)
+            _ = get_MIA(train_fgt_loader,test_loader,original_pretr_model,opt,original_pretr_model)
             #df_or_model = get_MIA_SVC(train_fgt_loader, test_loader, original_pretr_model, opt)
             df_or_model["test_accuracy"] = accuracy(original_pretr_model, test_loader)
         elif opt.mode =="CR":
@@ -121,7 +121,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         print("BEGIN SVC FIT")
         if opt.mode == "HR":
             df_un_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
-            _ = get_MIA(train_fgt_loader,unlearned_model,opt,original_pretr_model)
+            _ = get_MIA(train_fgt_loader,test_loader,unlearned_model,opt,original_pretr_model)
             #df_un_model = get_MIA_SVC(train_fgt_loader, test_loader, unlearned_model, opt)
         elif opt.mode == "CR":
             df_un_model = pd.DataFrame([0],columns=["PLACEHOLDER"])

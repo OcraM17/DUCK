@@ -72,11 +72,8 @@ def trainer(removed=None):
         # Load CIFAR-10 data
         trainset = torchvision.datasets.CIFAR10(root=opt.data_path, train=True, download=True, transform=transform_train)
         testset = torchvision.datasets.CIFAR10(root=opt.data_path, train=False, download=True, transform=transform_test)
-        #model.fc = nn.Linear(512, opt.num_classes).to(opt.device)
-        if 'resnet' in opt.model:    
-            model.conv1 = nn.Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False).to(opt.device)
-            model.maxpool = nn.Identity()
-            model.fc = nn.Sequential(nn.Dropout(0.4), nn.Linear(model.fc.in_features, opt.num_classes)).to(opt.device)
+        model.fc = nn.Linear(512, opt.num_classes).to(opt.device)
+
 
     elif opt.dataset == 'cifar100':
         os.makedirs('./weights/chks_cifar100', exist_ok=True)
@@ -101,7 +98,7 @@ def trainer(removed=None):
     testloader = torch.utils.data.DataLoader(testset, batch_size=256, shuffle=False, num_workers=opt.num_workers)
 
     epochs=100
-    criterion = nn.CrossEntropyLoss(label_smoothing=0.4)
+    criterion = nn.CrossEntropyLoss(label_smoothing=0.2)
     optimizer = optim.SGD(model.parameters(), lr=0.1, weight_decay=5e-5)
     #if opt.dataset == 'tinyImagenet':
     #    train_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=25, gamma=0.1) #learning rate decay
