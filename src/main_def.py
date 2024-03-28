@@ -54,7 +54,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         
         
         if opt.mode =="HR":
-            _ = get_MIA(train_fgt_loader,test_loader,original_pretr_model,opt,original_pretr_model)
+            #_ = get_MIA(train_fgt_loader,test_loader,original_pretr_model,opt,original_pretr_model)
             #df_or_model = get_MIA_SVC(train_fgt_loader, test_loader, original_pretr_model, opt)
             df_or_model["test_accuracy"] = accuracy(original_pretr_model, test_loader)
         elif opt.mode =="CR":
@@ -193,7 +193,10 @@ if __name__ == "__main__":
         os.makedirs(opt.root_folder+"out/"+opt.mode+"/"+opt.dataset+"/models")
     if not os.path.exists(opt.root_folder+"out/"+opt.mode+"/"+opt.dataset+"/dfs"):
         os.makedirs(opt.root_folder+"out/"+opt.mode+"/"+opt.dataset+"/dfs")
-
+    #check if opt.seed is a list
+    if type(opt.seed) == int:
+        opt.seed = [opt.seed]
+    
     for i in opt.seed:
         set_seed(i)
 
@@ -221,6 +224,8 @@ if __name__ == "__main__":
                 df_retrained_total.append(row_ret)
 
         elif opt.mode == "CR":
+            if type(opt.class_to_remove) == int:
+                opt.class_to_remove = [[opt.class_to_remove]]
             for class_to_remove in opt.class_to_remove:
                 print(f'------------class {class_to_remove}-----------')
                 _, test_loader, train_fgt_loader, train_retain_loader, test_fgt_loader, test_retain_loader = get_dsets_remove_class(class_to_remove)
@@ -241,9 +246,8 @@ if __name__ == "__main__":
                 if row_ret is not None:
                     print(f"Retrained retain test acc: {row_ret['retain_test_accuracy']}")
                     df_retrained_total.append(row_ret)
-        
-    print(opt.dataset)
-    #create results folder if doesn't exist
+            
+
     
     dfs = {"orig":[], "unlearned":[], "retrained":[]}
     for name, df in zip(dfs.keys(),[df_orig_total, df_unlearned_total, df_retrained_total]):

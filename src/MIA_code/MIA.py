@@ -16,6 +16,7 @@ import os
 import glob
 from copy import deepcopy
 import math
+from tqdm import tqdm
 
 warnings.filterwarnings('ignore')
 os.environ['PYTHONWARNINGS'] = 'ignore'
@@ -407,6 +408,22 @@ def get_MIA_SVC(train_loader, test_loader, model, opt,fgt_loader=None,fgt_loader
     return df
 
 ##############################################################################################################################
+
+def comp_confidence_stable(output,target):
+    confidence = torch.exp(-F.cross_entropy(output, target.to(opt.device),reduce=False)[:,None].cpu())
+
+    confidence_out = []
+    for i in range(opt.num_classes):
+        
+        t2 = torch.ones_like(target,dtype=target.dtype)
+        t2=t2*i
+        confidence_i = torch.exp(-F.cross_entropy(output, t2.to(opt.device),reduce=False)[:,None].cpu())
+        confidence_i[target==i]=0
+        confidence_out.append(confidence_i)
+    confidence_out = torch.cat(confidence_out,dim=1)
+
+    return torch.log(confidence+0.000001) - torch.log(torch.sum(confidence_out,dim=1))
+
 def collect_prob_logits(data_loader, model,opt):
 
     prob = []
@@ -415,28 +432,32 @@ def collect_prob_logits(data_loader, model,opt):
         for idx, batch in enumerate(data_loader):
             data, target = batch
             output = model(data.to(opt.device))
+            #unstable version
             confidence = torch.exp(-F.cross_entropy(output, target.to(opt.device),reduce=False)[:,None].cpu())
             import pdb; pdb.set_trace()
             buff = confidence/(1-confidence)
             prob.append(torch.log(buff))
-            print((torch.argmax(output,dim=1)==target.to(opt.device)).sum()/len(target.to(opt.device)))
+            #stable version
+            #prob.append(comp_confidence_stable(output,target))
+            #print((torch.argmax(output,dim=1)==target.to(opt.device)).sum()/len(target.to(opt.device)))
         prob=torch.cat(prob)       
     return prob
 
 def get_MIA(train_fgt_loader, test_loader, model,opt,original_pretr_model):
-    #prob_test_model = collect_prob_logits(train_fgt_loader, model,opt)
-    prob_test_model_test = collect_prob_logits(test_loader, model,opt)
+    
     #compute for fgt samples distributions from shadow models
-    weights = glob.glob(f'{opt.root_folder}weights_shadow/chks_{opt.dataset}/{opt.mode}/*.pth')
-    weights = glob.glob(f'/home/jb/Documents/MachineUnlearning/weights_shadow/chks_{opt.dataset}/{opt.mode}/*.pth')
+    if opt.mode == "HR":
+        weights = glob.glob(f'{opt.root_folder}/weights_shadow/chks_{opt.dataset}/{opt.mode}/seed_{opt.seed}/*.pth')
+    else:
+        weights = glob.glob(f'{opt.root_folder}/weights_shadow/chks_{opt.dataset}/{opt.mode}/class_{opt.class_to_remove[0][0]}/*.pth')
     
     print(f'{opt.root_folder}/weights_shadow/chks_{opt.dataset}/{opt.mode}/*.pth')
     print(f'got {len(weights)} shadow models...')
     shadow_model = deepcopy(original_pretr_model)
     distributions = []
     distributions_test = []
-
-    for weights_name in weights:
+    
+    for weights_name in tqdm(weights):
         try:
             shadow_model.load_state_dict(torch.load(weights_name))
             shadow_model.eval()
@@ -457,6 +478,8 @@ def get_MIA(train_fgt_loader, test_loader, model,opt,original_pretr_model):
     mu_test = torch.mean(distributions_test,dim=1)
     std_test = torch.std(distributions_test,dim=1)
     #compute real prob
+    prob_test_model_test = collect_prob_logits(test_loader, model,opt)
+    prob_test_model = collect_prob_logits(train_fgt_loader, model,opt)
     #import pdb; pdb.set_trace()
     print(distributions[0,:])
     prob_test_model = collect_prob_logits(train_fgt_loader, model,opt)
@@ -484,8 +507,12 @@ def get_MIA(train_fgt_loader, test_loader, model,opt,original_pretr_model):
     import matplotlib.pyplot as plt
     print(fpr,tpr, thresholds)
     plt.plot(fpr, tpr)
+    plt.plot([10**-3,1],[10**-3,1], ls="--", c=".3")
     plt.xscale('log')
     plt.yscale('log')
+    plt.xlim([10**-3, 1.0])
+    plt.ylim([10**-3, 1.0])
+    
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
     plt.title('ROC')

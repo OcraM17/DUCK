@@ -56,27 +56,45 @@ def trainer(nmodel):
     #dataloader
     if opt.mode == "CR":
         #the test set is composed by retain classes
-        forget_set, retain_set, test_forget_set, test_set = get_dsets_shadow([opt.class_to_remove])
+        forget_set, retain_set, test_forget_set, test_retain_set, test_set = get_dsets_shadow([opt.class_to_remove])
+
+        #extraction of half of the forgt set
+        if nmodel==0:
+            indices_fgt = np.random.choice(len(forget_set), size=len(forget_set)//2, replace=False) 
+            #create a folder if not exists
+            if os.path.exists(f'{opt.root_folder}/forget_id_files_shadow') == False:
+                os.makedirs(f'{opt.root_folder}/forget_id_files_shadow')
+
+            #save indices_fgt into a file txt
+            np.savetxt(f'{opt.root_folder}/forget_id_files_shadow/forget_idx_{opt.dataset}_seed_{opt.seed}_class_{opt.class_to_remove}.txt', indices_fgt.astype(np.int64))
+        else:
+            indices_fgt = np.loadtxt(f'{opt.root_folder}forget_id_files_shadow/forget_idx_{opt.dataset}_seed_{opt.seed}_class_{opt.class_to_remove}.txt').astype(np.int64)
+
+        half_fgt_set = Subset(forget_set, indices_fgt)
+         
     
     else:
-        file_fgt = f'{opt.root_folder}forget_id_files/forget_idx_5000_{opt.dataset}_seed_0.txt'
+        file_fgt = f'{opt.root_folder}forget_id_files/forget_idx_5000_{opt.dataset}_seed_{opt.seed}.txt'
         forget_set, retain_set, test_set = get_dsets_shadow(file_fgt=file_fgt)
 
     
     indices = np.random.choice(len(retain_set), size=len(retain_set)//2, replace=False)
-
+    retain_set_sampled = Subset(retain_set, indices)
     # Create a SubsetRandomSampler with the random indices
-    sampler = SubsetRandomSampler(indices)
+    #sampler = SubsetRandomSampler(indices)
 
-    trainloader = torch.utils.data.DataLoader(retain_set, batch_size=256, num_workers=opt.num_workers,sampler=sampler)
+    if opt.mode == "CR":
+        retain_set_sampled = torch.utils.data.ConcatDataset([retain_set_sampled, half_fgt_set])
+
+    trainloader = torch.utils.data.DataLoader(retain_set_sampled, batch_size=256,shuffle=True, num_workers=opt.num_workers)
     testloader = torch.utils.data.DataLoader(test_set, batch_size=256, shuffle=False, num_workers=opt.num_workers)
 
-    epochs=100
+    epochs=85
     criterion = nn.CrossEntropyLoss(label_smoothing=0.2)
     optimizer = optim.SGD(model.parameters(), lr=0.1, weight_decay=5e-5)
     train_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
-    if nmodel>28:
+    if nmodel>-1:
         # Train the network
         best_acc = 0.0
         for epoch in range(epochs):  # loop over the dataset multiple times
@@ -85,7 +103,9 @@ def trainer(nmodel):
             correct, total = 0, 0
             for i, data in enumerate(trainloader, 0):
                 inputs, labels = data
+                #import pdb; pdb.set_trace()
                 inputs, labels = inputs.to(opt.device), labels.to(opt.device)
+
                 optimizer.zero_grad()
                 outputs = model(inputs)
                 _, predicted = torch.max(outputs.data, 1)
@@ -99,12 +119,13 @@ def trainer(nmodel):
             train_loss = running_loss / len(trainloader)
             train_scheduler.step()
             if opt.mode == 'CR':
-                weights_path = f'weights_shadow/chks_{opt.dataset}/{opt.mode}/class_{opt.class_to_remove}/best_checkpoint_{opt.model}_test_numModel_{nmodel}.pth'
+                weights_path = f'{opt.root_folder}/weights_shadow/chks_{opt.dataset}/{opt.mode}/class_{opt.class_to_remove}/best_checkpoint_{opt.model}_test_numModel_{nmodel}.pth'
             else:
-                weights_path = f'weights_shadow/chks_{opt.dataset}/{opt.mode}/seed_{opt.seed}/best_checkpoint_{opt.model}_test_numModel_{nmodel}.pth'
-            torch.save(model.state_dict(), weights_path)
+                weights_path = f'{opt.root_folder}/weights_shadow/chks_{opt.dataset}/{opt.mode}/seed_{opt.seed}/best_checkpoint_{opt.model}_test_numModel_{nmodel}.pth'
+            
 
             if epoch % 5 == 0:        
+                torch.save(model.state_dict(), weights_path)
                 model.eval()
                 correct = 0
                 total = 0
@@ -126,6 +147,6 @@ def trainer(nmodel):
 if __name__ == '__main__':
     print(opt.seed)
     set_seed(opt.seed)
-    for nmodel in range(0,80):
+    for nmodel in range(1,80):
         print('Train model:', nmodel)
         trainer(nmodel)

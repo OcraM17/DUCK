@@ -55,6 +55,7 @@ class OPT:
         seed = [0,1,2,3,4,5,6,7,8,42]
     elif args.mode == "HR" and args.seed is not None:
         seed = int(args.seed[0])
+        print('Seed set to: ', seed)
         #class_to_remove = None
     elif args.mode == 'CR' and args.class_to_remove is None:
         seed = [42]
@@ -137,14 +138,14 @@ class OPT:
                 RT_model_weights_path = root_folder+f'weights/chks_cifar100/best_checkpoint_without_{class_to_remove}.pth'
         
         elif dataset== 'cifar10':
-            or_model_weights_path = root_folder+'weights/chks_cifar10/best_checkpoint_resnet18.pth'
+            or_model_weights_path = '/home/jb/Documents/MachineUnlearning/weights/chks_cifar10/best_checkpoint_resnet18_test.pth'#root_folder+'weights/chks_cifar10/best_checkpoint_resnet18.pth'
             if mode == "CR":
                 RT_model_weights_path = root_folder+f'weights/chks_cifar10/best_checkpoint_without_{class_to_remove}.pth'
 
         elif dataset== 'tinyImagenet':
             or_model_weights_path = root_folder+'weights/chks_tinyImagenet/best_checkpoint_resnet18.pth'
             if mode == "CR":
-                RT_model_weights_path = root_folder+f'weights/chks_tinyImagenet/best_checkpoint_without_{class_to_remove[0]}.pth'
+                RT_model_weights_path = root_folder+f'weights/chks_tinyImagenet/best_checkpoint_without_{class_to_remove}.pth'
             
         elif dataset== 'VGG':
             #to fix

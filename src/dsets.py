@@ -373,6 +373,6 @@ def get_dsets_shadow(class_to_remove=None,file_fgt=None):
         test_forget_set, test_retain_set = split_retain_forget(test_set, class_to_remove)
         forget_set, retain_set = split_retain_forget(train_set, class_to_remove)
 
-        return forget_set, retain_set, test_forget_set, test_retain_set
+        return forget_set, retain_set, test_forget_set, test_retain_set,test_set
 
 
