@@ -147,6 +147,6 @@ def trainer(nmodel):
 if __name__ == '__main__':
     print(opt.seed)
     set_seed(opt.seed)
-    for nmodel in range(1,80):
+    for nmodel in range(0,80):
         print('Train model:', nmodel)
         trainer(nmodel)
