@@ -40,24 +40,24 @@ def density(model, loader, p, class_to_remove, mode="original"):#):
     l1, l2, l3, out_fc, y = model.extract_feat(loader)
     out_fc = torch.argmax(out_fc, dim=1).detach().cpu()
     y = y.detach().cpu()
-    if p ==90:
-        print(mode, torch.histogram(torch.tensor(out_fc[y==class_to_remove], dtype=torch.float32), bins=torch.tensor([i for i in range(11)], dtype=torch.float32)))
+    # if p ==90:
+    #     print(mode, torch.histogram(torch.tensor(out_fc[y==class_to_remove], dtype=torch.float32), bins=torch.tensor([i for i in range(11)], dtype=torch.float32)))
 
     l3 = l3.view(-1, 512)
 
     l2 = l2.view(10000, -1)
     #outputs = outputs.detach().cpu().numpy()
     outputs = l3.detach().cpu().numpy()
-    outputs = l2.detach().cpu().numpy()
+    #outputs = l2.detach().cpu().numpy()
     n_components = 100
     pca = PCA(n_components=n_components)
     outputs = torch.tensor(pca.fit_transform(outputs))
     total_variance = pca.explained_variance_.sum()
-    # threshold = 0.9
-    # for i in range(n_components):
-    #     if pca.explained_variance_[:i].sum() / total_variance >= threshold:
-    #         print("n_components: ", i)
-    #         break
+    threshold = 0.983
+    for i in range(n_components):
+        if pca.explained_variance_[:i].sum() / total_variance > threshold:
+            print("n_components: ", i)
+            break
     #print(pca.explained_variance_, outputs.shape)
 
     y = y.detach().cpu()

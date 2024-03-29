@@ -29,6 +29,7 @@ def AUS(a_t, a_or, a_f):
 def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_fgt_loader=None, test_retain_loader=None, class_to_remove=0, all_test_loader=None):
     ps = range(70, 96, 5)
     v_orig, v_unlearn, v_rt = None, None, None
+    densities_original, densities_unlearned, densities_retrained = None, None, None
     original_pretr_model = get_trained_model()
     original_pretr_model = ModifiedResNet(original_pretr_model)
     original_pretr_model.to(opt.device)
@@ -117,6 +118,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         #densities computation
         densities_unlearned = {}
         for p in ps:
+            print(f"computing density for p={p}")
             d, _ = density(unlearned_model, all_test_loader, p, class_to_remove[0], mode="unlearned")
             densities_unlearned[p]= d
         
@@ -157,6 +159,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         v_rt = pd.DataFrame(v_rt).T
         densities_retrained = {}
         for p in ps:
+            print(f"computing densities for p={p}")
             d, _ = density(rt_model, all_test_loader, p, class_to_remove[0], mode="retrained")
             densities_retrained[p]= d
     #save dfs
@@ -237,10 +240,12 @@ if __name__ == "__main__":
         
     print(opt.dataset)
     
-
-    mean_densities_forget_original, std_densities_forget_original, mean_densities_retain_original, std_densities_retain_original = mean_densities_per_percentile(densities_per_class_original, densities_original.keys(), tag = "original_unnormed_l2")
-    mean_densities_forget_unlearned, std_densities_forget_unlearned, mean_densities_retain_unlearned, std_densities_retain_unlearned = mean_densities_per_percentile(densities_per_class_unlearned, densities_unlearned.keys(), tag = "unlearned_unnormed_l2")
-    mean_densities_forget_retrained, std_densities_forget_retrained, mean_densities_retain_retrained, std_densities_retain_retrained = mean_densities_per_percentile(densities_per_class_retrained, densities_retrained.keys(), tag = "retrained_unnormed_l2")
+    if opt.run_original:
+        mean_densities_forget_original, std_densities_forget_original, mean_densities_retain_original, std_densities_retain_original = mean_densities_per_percentile(densities_per_class_original, densities_original.keys(), tag = "original_unnormed_l2")
+    if opt.run_unlearn:
+        mean_densities_forget_unlearned, std_densities_forget_unlearned, mean_densities_retain_unlearned, std_densities_retain_unlearned = mean_densities_per_percentile(densities_per_class_unlearned, densities_unlearned.keys(), tag = "unlearned_unnormed_l2")
+    if opt.run_retrain:
+        mean_densities_forget_retrained, std_densities_forget_retrained, mean_densities_retain_retrained, std_densities_retain_retrained = mean_densities_per_percentile(densities_per_class_retrained, densities_retrained.keys(), tag = "retrained_unnormed_l2")
 
     #plot means with std bands as function of p
 
