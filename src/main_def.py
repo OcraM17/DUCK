@@ -54,7 +54,8 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         
         
         if opt.mode =="HR":
-            #_ = get_MIA(train_fgt_loader,test_loader,original_pretr_model,opt,original_pretr_model)
+            _ = get_MIA(train_fgt_loader,test_loader,original_pretr_model,opt,original_pretr_model)
+            df_or_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
             #df_or_model = get_MIA_SVC(train_fgt_loader, test_loader, original_pretr_model, opt)
             df_or_model["test_accuracy"] = accuracy(original_pretr_model, test_loader)
         elif opt.mode =="CR":

@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+import torch.utils
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from opts import OPT as opt
@@ -17,6 +18,7 @@ import glob
 from copy import deepcopy
 import math
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 warnings.filterwarnings('ignore')
 os.environ['PYTHONWARNINGS'] = 'ignore'
@@ -421,27 +423,46 @@ def comp_confidence_stable(output,target):
         confidence_i[target==i]=0
         confidence_out.append(confidence_i)
     confidence_out = torch.cat(confidence_out,dim=1)
+    #print(confidence.shape,torch.log(torch.sum(confidence_out,dim=1)).shape)
+    return torch.log(confidence[0]+0.000001) - torch.log(torch.sum(confidence_out,dim=1))
 
-    return torch.log(confidence+0.000001) - torch.log(torch.sum(confidence_out,dim=1))
-
+from utils import accuracy
 def collect_prob_logits(data_loader, model,opt):
 
-    prob = []
-
+    prob_all = []
+    #print('acc',accuracy(model,data_loader))
+    transformation = [None]#,
+                    #   transforms.RandomHorizontalFlip(),
+                    # transforms.RandomCrop(32, padding=4),
+                    # transforms.RandomRotation(15)]
+    model.eval()
     with torch.no_grad():
-        for idx, batch in enumerate(data_loader):
-            data, target = batch
-            output = model(data.to(opt.device))
-            #unstable version
-            confidence = torch.exp(-F.cross_entropy(output, target.to(opt.device),reduce=False)[:,None].cpu())
-            import pdb; pdb.set_trace()
-            buff = confidence/(1-confidence)
-            prob.append(torch.log(buff))
-            #stable version
-            #prob.append(comp_confidence_stable(output,target))
-            #print((torch.argmax(output,dim=1)==target.to(opt.device)).sum()/len(target.to(opt.device)))
-        prob=torch.cat(prob)       
-    return prob
+        for transf in transformation:
+            prob=[]
+            for idx, batch in enumerate(data_loader):
+
+                data, target = batch
+                if transf is None:
+                    data = data
+                else:
+                    data = transf(data)
+                output = model(data.to(opt.device))
+                #unstable version
+                confidence = torch.exp(-F.cross_entropy(output, target.to(opt.device),reduce=False)[:,None].cpu())
+                buff = 0.0000001+(confidence/(1-confidence + 0.0000001))
+                prob.append(torch.log(buff))
+                # if idx==0:
+                #     print(confidence.mean())
+                #stable version
+                #prob.append(comp_confidence_stable(output,target))
+                
+                #print((torch.argmax(output,dim=1)==target.to(opt.device)).sum()/len(target.to(opt.device)))
+            prob=torch.cat(prob)    
+            prob_all.append(prob)  
+        # print(prob.max(),prob.min())
+    prob_all = torch.cat(prob_all,dim=1)
+
+    return prob_all[:,None,:]
 
 def get_MIA(train_fgt_loader, test_loader, model,opt,original_pretr_model):
     
@@ -450,53 +471,112 @@ def get_MIA(train_fgt_loader, test_loader, model,opt,original_pretr_model):
         weights = glob.glob(f'{opt.root_folder}/weights_shadow/chks_{opt.dataset}/{opt.mode}/seed_{opt.seed}/*.pth')
     else:
         weights = glob.glob(f'{opt.root_folder}/weights_shadow/chks_{opt.dataset}/{opt.mode}/class_{opt.class_to_remove[0][0]}/*.pth')
-    
-    print(f'{opt.root_folder}/weights_shadow/chks_{opt.dataset}/{opt.mode}/*.pth')
+        #load idx for forget set and remove them from fgt set 
+        indices_fgt = np.loadtxt(f'{opt.root_folder}forget_id_files_shadow/forget_idx_{opt.dataset}_seed_{opt.seed[0]}_class_{opt.class_to_remove[0][0]}.txt').astype(np.int64)
+        
+        mask = np.zeros(train_fgt_loader.dataset.indices.shape, dtype=bool)
+        mask[indices_fgt] = True
+        idx_samples = np.arange(mask.size)[~mask]
+        half_fgt_set = torch.utils.data.Subset(train_fgt_loader.dataset, idx_samples)#idx_samples)
+        train_fgt_loader = torch.utils.data.DataLoader(half_fgt_set, batch_size=opt.batch_size,shuffle=True, num_workers=opt.num_workers)
+
+    prob_test_model_test = collect_prob_logits(test_loader, model,opt)
+    prob_test_model = collect_prob_logits(train_fgt_loader, model,opt)
+    print(prob_test_model.shape)
     print(f'got {len(weights)} shadow models...')
     shadow_model = deepcopy(original_pretr_model)
+    shadow_model.eval()
+    model.eval()
+
     distributions = []
     distributions_test = []
-    
-    for weights_name in tqdm(weights):
-        try:
-            shadow_model.load_state_dict(torch.load(weights_name))
-            shadow_model.eval()
-            prob = collect_prob_logits(train_fgt_loader, shadow_model,opt)
-            prob_test = collect_prob_logits(test_loader, shadow_model,opt)
-
-            distributions.append(prob)
-            distributions_test.append(prob_test)
-        except:
-            pass
+    weights.sort()
+    for weights_name in tqdm(weights[:]):
+        #try:
+        shadow_model.load_state_dict(torch.load(weights_name))
+        shadow_model.eval()
+        prob = collect_prob_logits(train_fgt_loader, shadow_model,opt)
+        prob_test = collect_prob_logits(test_loader, shadow_model,opt)
+        
+        distributions.append(prob)
+        distributions_test.append(prob_test)
+        # except:
+        #    print('error in loading model')
+        #    pass
 
     distributions = torch.cat(distributions,dim=1)
     distributions_test = torch.cat(distributions_test,dim=1)
-    print(distributions.shape)
+
+    #make 10 subplots 2x5
+    # fig, axs = plt.subplots(4,5,figsize=(15,8))
+    # for i in range(20):
+        
+    #     axs[i//5,i%5].hist(distributions[i,:].cpu().numpy(),bins=20,color='orange',alpha=0.5)
+    #     #axs[i//5,i%5].hist(distributions_test[i,:].cpu().numpy(),bins=20,color='blue',alpha=0.5)
+    #     #plot a vertical line at 0.5
+    #     axs[i//5,i%5].axvline(x=prob_test_model[i,0].cpu().numpy(),color='red',linewidth=2)
+    #     #axs[i//5,i%5].axvline(x=prob_test_model_test[i,0].cpu().numpy(),color='k',linewidth=2)
+
+    # plt.tight_layout()
+    # plt.savefig('hist25.png')
+    # plt.close()
     #compute mu and std for each fgt sample
     mu = torch.mean(distributions,dim=1)
     std = torch.std(distributions,dim=1)
     mu_test = torch.mean(distributions_test,dim=1)
     std_test = torch.std(distributions_test,dim=1)
-    #compute real prob
-    prob_test_model_test = collect_prob_logits(test_loader, model,opt)
-    prob_test_model = collect_prob_logits(train_fgt_loader, model,opt)
-    #import pdb; pdb.set_trace()
-    print(distributions[0,:])
-    prob_test_model = collect_prob_logits(train_fgt_loader, model,opt)
-    prob_test_model_test = collect_prob_logits(test_loader, model,opt)
-    print(prob_test_model)
-    #pdb.set_trace()
-    final_prob_vector = 0.5*(1-torch.special.erf((prob_test_model[:,0]-mu)/(math.sqrt(2)*std)))
-    final_prob_vector_test = 0.5*(1-torch.special.erf((prob_test_model_test[:,0]-mu_test)/(math.sqrt(2)*std_test)))
-    print("final_prob_vector",final_prob_vector)
-    print(final_prob_vector.mean(),final_prob_vector.std())
-    print("final_prob_vector_test",final_prob_vector_test)
-    print(final_prob_vector_test.mean(),final_prob_vector_test.std())
-
+    print(mu.shape)
+    for i in range(1):
+        if i==0:
+            final_prob_vector = 0.5*(1-torch.special.erf((prob_test_model[:,0,i]-mu[:,i])/(math.sqrt(2)*std[:,i])))
+            final_prob_vector_test = 0.5*(1-torch.special.erf((prob_test_model_test[:,0,i]-mu_test[:,i])/(math.sqrt(2)*std_test[:,i])))
+            buff = prob_test_model_test[:,0,i].cpu().numpy()
+            buff2 = mu_test[:,i].cpu().numpy()+std_test[:,i].cpu().numpy()
+            print('NUM: ',buff2[buff>buff2].shape)
+            plt.scatter(buff2[buff>buff2],buff[buff>buff2])
+            plt.ylim([-4,4])
+            plt.xlim([-4,4])
+            plt.savefig('check.png')
+            plt.close()
+        else:
+            final_prob_vector = final_prob_vector*0.5*(1-torch.special.erf((prob_test_model[:,0,i]-mu[:,i])/(math.sqrt(2)*std[:,i])))
+            final_prob_vector_test = final_prob_vector_test*0.5*(1-torch.special.erf((prob_test_model_test[:,0,i]-mu_test[:,i])/(math.sqrt(2)*std_test[:,i])))
+    
+    print('Mean std model fgt: ',(1-final_prob_vector).mean(),(1-final_prob_vector).std())
+    print('Mean std model fgt test:',(1-final_prob_vector_test).mean(),(1-final_prob_vector_test).std())
     y_lab = np.concatenate((np.ones_like(final_prob_vector.numpy()), np.zeros_like(final_prob_vector_test.numpy())),axis=0)
     y_pred = np.concatenate((1-final_prob_vector.numpy(), 1-final_prob_vector_test.numpy()),axis=0)
     fpr, tpr, thresholds = roc_curve(y_lab,y_pred)
 
+    #SAVE FPR, TPR AND THRESHOLDS as a .npy file
+    print(f'{opt.root_folder}/results')
+    os.makedirs(f'{opt.root_folder}/results', exist_ok=True)
+    if opt.mode=='HR':
+        if opt.run_unlearn:
+            path = f'{opt.root_folder}/results/fpr_tpr_{opt.dataset}_{opt.mode}_{opt.seed[0]}_unlearned.npy' 
+        elif opt.run_original:
+            path = f'{opt.root_folder}/results/fpr_tpr_{opt.dataset}_{opt.mode}_{opt.seed[0]}_original.npy' 
+        elif opt.run_rt_model:
+            path = f'{opt.root_folder}/results/fpr_tpr_{opt.dataset}_{opt.mode}_{opt.seed[0]}_retrained.npy' 
+    else:
+        if opt.run_unlearn:
+            path = f'{opt.root_folder}/results/fpr_tpr_{opt.dataset}_{opt.mode}_{opt.seed[0]}_class_{opt.class_to_remove[0][0]}_unlearned.npy' 
+        elif opt.run_original:
+            path = f'{opt.root_folder}/results/fpr_tpr_{opt.dataset}_{opt.mode}_{opt.seed[0]}_class_{opt.class_to_remove[0][0]}_original.npy' 
+        elif opt.run_rt_model:
+            path = f'{opt.root_folder}/results/fpr_tpr_{opt.dataset}_{opt.mode}_{opt.seed[0]}_class_{opt.class_to_remove[0][0]}_retrained.npy' 
+
+    np.save(path,np.asarray([fpr,tpr,thresholds]))
+
+
+    #plot fpr e tpr distributions
+
+    plt.hist(1-final_prob_vector.numpy(),bins=100,color='blue',alpha=0.5,label='fgt',density=True)
+    plt.hist(1-final_prob_vector_test.numpy(),bins=100,color='red',alpha=0.5,label='test_fgt',density=True)
+    #plt.xscale('log')
+    plt.xlim([0.8,1])
+    plt.legend()
+    plt.savefig('histogram_mia_distrib.png')
     #plot histogram of final_prob_vector
     # import matplotlib.pyplot as plt
     # plt.hist(final_prob_vector.numpy(),bins=100)
@@ -504,20 +584,26 @@ def get_MIA(train_fgt_loader, test_loader, model,opt,original_pretr_model):
     # plt.ylabel('Count')
     # plt.savefig("histogram.png")
     #plot roc curve
-    import matplotlib.pyplot as plt
-    print(fpr,tpr, thresholds)
-    plt.plot(fpr, tpr)
-    plt.plot([10**-3,1],[10**-3,1], ls="--", c=".3")
-    plt.xscale('log')
-    plt.yscale('log')
-    plt.xlim([10**-3, 1.0])
-    plt.ylim([10**-3, 1.0])
+    # import matplotlib.pyplot as plt
+    # print(fpr,tpr, thresholds)
+    # plt.plot(fpr, tpr)
+    # plt.plot([10**-3,1],[10**-3,1], ls="--", c=".3")
+    # plt.xscale('log')
+    # plt.yscale('log')
+    # plt.xlim([10**-3, 1.0])
+    # plt.ylim([10**-3, 1.0])
     
-    plt.xlabel('False Positive Rate')
-    plt.ylabel('True Positive Rate')
-    plt.title('ROC')
-    #use tight_layout
-    plt.tight_layout()
-    plt.savefig("ROC.png")
+    # plt.xlabel('False Positive Rate')
+    # plt.ylabel('True Positive Rate')
+    # plt.title('ROC')
+    # #use tight_layout
+    # plt.tight_layout()
+    # plt.savefig("ROC.png")
     print(f'AUC: {auc(fpr, tpr)}')
     return final_prob_vector.mean()
+
+    # fgt train: (0.9976, tensor(0.8140)), fgt test: (0.8556, tensor(0.6795)),fgt test nel test: (0.87, tensor(0.6987))
+    # Epoch: 84, Train Loss: 0.892, Train Acc: 99.156, Val Acc: 83.630, Best Acc: 83.770
+
+    # fgt train: (0.9956, tensor(0.8132)), fgt test: (0.848, tensor(0.6755)),fgt test nel test: (0.865, tensor(0.6952))
+    # Epoch: 84, Train Loss: 0.892, Train Acc: 99.136, Val Acc: 83.710, Best Acc: 83.720
