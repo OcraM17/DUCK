@@ -59,16 +59,16 @@ def trainer(nmodel):
         forget_set, retain_set, test_forget_set, test_retain_set, test_set = get_dsets_shadow([opt.class_to_remove])
 
         #extraction of half of the forgt set
-        if nmodel==0:
-            indices_fgt = np.random.choice(len(forget_set), size=len(forget_set)//2, replace=False) 
-            #create a folder if not exists
-            if os.path.exists(f'{opt.root_folder}/forget_id_files_shadow') == False:
-                os.makedirs(f'{opt.root_folder}/forget_id_files_shadow')
+        #if nmodel==0:
+        indices_fgt = np.random.choice(len(forget_set), size=len(forget_set)//2, replace=False) 
+        #create a folder if not exists
+        if os.path.exists(f'{opt.root_folder}/forget_id_files_shadow') == False:
+            os.makedirs(f'{opt.root_folder}/forget_id_files_shadow')
 
             #save indices_fgt into a file txt
-            np.savetxt(f'{opt.root_folder}/forget_id_files_shadow/forget_idx_{opt.dataset}_seed_{opt.seed}_class_{opt.class_to_remove}.txt', indices_fgt.astype(np.int64))
-        else:
-            indices_fgt = np.loadtxt(f'{opt.root_folder}forget_id_files_shadow/forget_idx_{opt.dataset}_seed_{opt.seed}_class_{opt.class_to_remove}.txt').astype(np.int64)
+        np.savetxt(f'{opt.root_folder}/forget_id_files_shadow/forget_idx_{opt.dataset}_seed_{opt.seed}_class_{opt.class_to_remove}_nmodel_{nmodel}.txt', indices_fgt.astype(np.int64))
+        # else:
+        #     indices_fgt = np.loadtxt(f'{opt.root_folder}forget_id_files_shadow/forget_idx_{opt.dataset}_seed_{opt.seed}_class_{opt.class_to_remove}.txt').astype(np.int64)
 
         half_fgt_set = Subset(forget_set, indices_fgt)
          
