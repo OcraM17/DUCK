@@ -248,12 +248,11 @@ class DUCK(BaseMethod):
         for _ in tqdm(range(opt.epochs_unlearn)):
             for n_batch, (img_fgt, lab_fgt) in enumerate(self.forget):
                 #use it when performing ablations on fgt loss
-                if n_batch>1 and opt.lambda_1==0:
-                    break
+                # if n_batch>1 and opt.lambda_1==0:
+                #     break
                 
                 for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain):
                     img_ret, lab_ret,img_fgt, lab_fgt  = img_ret.to(opt.device), lab_ret.to(opt.device),img_fgt.to(opt.device), lab_fgt.to(opt.device)
-                    
                     optimizer.zero_grad()
                     if opt.model =='ViT':
                         logits_fgt = bbone.forward_encoder(img_fgt)
@@ -327,8 +326,8 @@ class DUCK(BaseMethod):
             # copy self.retain dataloader changing batch size to 512
         
             self.retain.dataset.transform = self.transform_dset
-            self.retain_copy = torch.utils.data.DataLoader(self.retain.dataset, batch_size=1024, shuffle=True,drop_last=True)
-            optimizer = optim.Adam(self.net.parameters(), lr=0.00005, weight_decay=opt.wd_unlearn)
+            self.retain_copy = torch.utils.data.DataLoader(self.retain.dataset, batch_size=512, shuffle=True,drop_last=True)
+            optimizer = optim.Adam(self.net.parameters(), lr=0.0001, weight_decay=opt.wd_unlearn)
             epochs = 2
             scheduler=torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs*20*len(self.forget))#len(self.retain_copy)
 
@@ -373,7 +372,7 @@ class DUCK(BaseMethod):
                         outputs_ret = fc(logits_ret)
 
                         dists = dists[torch.arange(dists.shape[0]), closest_centroids[:dists.shape[0]]]
-                        loss_fgt = torch.mean(dists) * opt.lambda_1/3
+                        loss_fgt = torch.mean(dists) * opt.lambda_1/10
                         
                         loss = criterion(outputs_ret/opt.temperature, lab_ret)+loss_fgt
                         loss.backward()
